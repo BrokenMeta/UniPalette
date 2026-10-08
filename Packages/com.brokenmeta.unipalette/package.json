@@ -1,0 +1,10 @@
+{
+  "name": "com.brokenmeta.unipalette",
+  "version": "0.1.0",
+  "displayName": "UniPalette",
+  "description": "Search-first creation palette for the Unity Editor.",
+  "unity": "6000.6",
+  "author": {
+    "name": "BrokenMeta"
+  }
+}

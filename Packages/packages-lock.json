@@ -1,5 +1,11 @@
 {
   "dependencies": {
+    "com.brokenmeta.unipalette": {
+      "version": "file:com.brokenmeta.unipalette",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.unity.ext.nunit": {
       "version": "2.1.0",
       "depth": 1,
