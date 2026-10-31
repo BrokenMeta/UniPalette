@@ -79,9 +79,8 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(state.Results.Count, Is.EqualTo(1));
             Assert.That(state.SelectedIndex, Is.EqualTo(-1));
             state.MoveSelection(1);
-            Assert.That(state.Enter(false), Is.False, "Leaf Enter must not open commands");
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Context));
-            Assert.That(state.Enter(true), Is.True);
+            Assert.That(state.Enter(false), Is.True, "Smart Enter opens leaf commands");
+            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
             Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Player/Weapon/Muzzle"));
             AssertForward(state);
             state.Back();
@@ -200,6 +199,24 @@ namespace BrokenMeta.UniPalette.Tests
             AssertForward(state);
             state.Back();
             Assert.That(state.SelectedIndex, Is.EqualTo(-1), "No entry row was selected");
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SmartEnterWithEmptyCommandsKeepsSelectionEmptyAndRestoresLeaf(bool altRight)
+        {
+            var leaf = new PaletteState.Item("Leaf", "Leaf");
+            using var state = new PaletteState(new[] { leaf }, new PaletteState.Item("Commands", ""));
+            state.Select(0);
+            Assert.That(state.Enter(false, browseOnly: altRight), Is.True);
+            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Results, Is.Empty);
+            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
+            state.Back();
+            Assert.That(state.SelectedIndex, Is.Zero);
+            Assert.That(state.Results[0], Is.SameAs(leaf));
+            state.SetQuery("Leaf");
+            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
         }
 
         [Test]

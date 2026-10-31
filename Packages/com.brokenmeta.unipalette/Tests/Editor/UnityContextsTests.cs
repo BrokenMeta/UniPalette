@@ -118,16 +118,14 @@ namespace BrokenMeta.UniPalette.Tests
                 Assert.That(selection.IsValid, Is.True, selection.Path);
                 Assert.That(state.SelectedIndex, Is.EqualTo(-1));
                 var search = window.rootVisualElement.Q<VisualElement>("search");
-                foreach (var key in new[] { KeyCode.DownArrow, KeyCode.RightArrow, KeyCode.Return })
+                foreach (var key in new[] { KeyCode.DownArrow, KeyCode.RightArrow })
                 {
                     using var evt = KeyDownEvent.GetPooled('\0', key,
                         key == KeyCode.RightArrow ? EventModifiers.Alt : EventModifiers.None);
                     evt.target = search;
                     search.SendEvent(evt);
-                    if (key == KeyCode.RightArrow)
-                        Assert.That(state.Context, Is.Null, "Alt Right on Current Selection never opens commands");
                 }
-                Assert.That(state.Context.Target, Is.EqualTo(target), "Enter uses the latest selection context");
+                Assert.That(state.Context.Target, Is.EqualTo(target), "Alt Right uses the latest selection context");
                 Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
                 Assert.That(state.Query, Is.Empty);
                 Assert.That(state.SelectedIndex, Is.Zero);
@@ -284,10 +282,9 @@ namespace BrokenMeta.UniPalette.Tests
             state.SetQuery("Needle");
             Assert.That(state.Results.Select(item => item.Target), Is.EqualTo(new[] { child }));
             state.MoveSelection(1);
-            Assert.That(state.Enter(false), Is.False, "Leaf Enter does not open commands");
-            Assert.That(state.Enter(true), Is.True);
+            Assert.That(state.Enter(false), Is.True, "Smart Enter opens leaf commands");
             Assert.That(state.Context.Target, Is.EqualTo(child));
-            Assert.That(Selection.objects, Is.Empty, "Palette navigation does not set Unity Selection");
+            Assert.That(Selection.objects, Is.EqualTo(new Object[] { child }), "Confirming the leaf adopts Unity Selection");
         }
 
         [Test]
@@ -369,8 +366,8 @@ namespace BrokenMeta.UniPalette.Tests
             state.SetQuery("Needle");
             Assert.That(state.Results.Select(item => item.Path), Is.EqualTo(new[] { folder + "/A/Nested/Needle.txt" }));
             state.MoveSelection(1);
-            Assert.That(state.Enter(false), Is.False);
-            Assert.That(state.Enter(true), Is.True);
+            Assert.That(state.Enter(false), Is.True);
+            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
             Assert.That(state.Context.Target, Is.InstanceOf<TextAsset>());
             state.Back();
             Assert.That(state.Query, Is.Empty);
@@ -402,8 +399,151 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(state.Results.Any(item => item.SelectionEntry), Is.False);
         }
 
+        [TestCase("GameObject", false)]
+        [TestCase("GameObject", true)]
+        [TestCase("Asset", false)]
+        [TestCase("Asset", true)]
+        [TestCase("EmptyFolder", false)]
+        [TestCase("EmptyFolder", true)]
+        [TestCase("Parent", false)]
+        [TestCase("Parent", true)]
+        [TestCase("Folder", false)]
+        [TestCase("Folder", true)]
+        public void SmartEnterUsesActualChildrenAndRestoresEntry(string kind, bool altRight)
+        {
+            CreateAssets();
+            AssetDatabase.CreateFolder(folder, "Empty");
+            var parent = Go("Parent");
+            var leaf = Go("Leaf", parent);
+            var target = kind == "Parent" ? (Object)parent : kind == "GameObject" ? leaf
+                : AssetDatabase.LoadMainAssetAtPath(kind == "Asset" ? folder + "/A/Nested/Needle.txt"
+                    : kind == "EmptyFolder" ? folder + "/Empty" : folder + "/A");
+            var item = target is GameObject go ? new PaletteState.Item(UnityContexts.Kind.GameObject, go)
+                : new PaletteState.Item(UnityContexts.Kind.Asset, guid: AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(target)));
+            using var state = new PaletteState(new[] { item }, PaletteTestData.Commands());
+            state.SetQuery(item.Title);
+            state.Select(0);
+            Assert.That(state.Enter(false, browseOnly: altRight), Is.True);
+            var container = kind == "Parent" || kind == "Folder";
+            Assert.That(state.Mode, Is.EqualTo(container ? PaletteState.Browser.Context : PaletteState.Browser.Commands));
+            Assert.That(state.Context.Target, Is.EqualTo(target));
+            Assert.That(state.Query, Is.Empty);
+            Assert.That(state.SelectedIndex, Is.Zero);
+            state.Back();
+            Assert.That(state.Query, Is.Empty);
+            Assert.That(state.Results[state.SelectedIndex].Target, Is.EqualTo(target));
+            Assert.That(state.Enter(true), Is.True, "Ctrl Enter always opens commands, including containers");
+            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Context.Target, Is.EqualTo(target));
+            Assert.That(Selection.objects, Is.EqualTo(new[] { target }));
+        }
+
+        [TestCase("GameObject")]
+        [TestCase("Asset")]
+        [TestCase("Folder")]
+        public void ConfirmationAdoptsTargetAndBackAndCategoriesDoNotRestoreSelection(string kind)
+        {
+            CreateAssets();
+            var original = Go("Original");
+            var target = kind == "GameObject" ? (Object)Go("Target")
+                : AssetDatabase.LoadMainAssetAtPath(kind == "Asset" ? folder + "/A/Nested/Needle.txt" : folder + "/A");
+            var item = target is GameObject go ? new PaletteState.Item(UnityContexts.Kind.GameObject, go)
+                : new PaletteState.Item(UnityContexts.Kind.Asset, guid: AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(target)));
+            Selection.activeObject = original;
+            using var state = new PaletteState(new[] { item }, PaletteTestData.Commands());
+            state.MoveSelection(1);
+            state.SetQuery(item.Title);
+            Assert.That(Selection.activeObject, Is.EqualTo(original), "Browsing/query/selection are passive");
+            state.Select(0); state.Enter(true);
+            Assert.That(Selection.objects, Is.EqualTo(new[] { target }));
+            state.Select(1); state.Enter(false); // Command category.
+            Assert.That(Selection.activeObject, Is.EqualTo(target));
+            state.Back(); state.Back();
+            Assert.That(Selection.activeObject, Is.EqualTo(target), "Back restores palette row, not global Selection");
+            Assert.That(state.Results[state.SelectedIndex].Target, Is.EqualTo(target));
+        }
+
         [Test]
-        public void EmptyFolderCanBeBrowsedAndMultiSelectionIsNotReinterpreted()
+        public void VirtualRootsNeverAdoptAmbientSelectionAsTheirTarget()
+        {
+            var original = Go("Original");
+            Selection.activeObject = original;
+            using var state = new PaletteState(commandRoot: PaletteTestData.Commands());
+            foreach (var title in new[] { "Hierarchy", "Project" })
+            {
+                Selection.activeObject = original;
+                Choose(state, title); state.Enter(false);
+                Assert.That(Selection.activeObject, Is.EqualTo(original), "Browsing a root is passive");
+                state.Back();
+                Choose(state, title); state.Enter(true);
+                Assert.That(state.Context.Target, Is.Null, "A virtual root does not adopt the previous object");
+                Assert.That(MenuCommands.MatchesSelection(state.Context), Is.True);
+                if (title == "Hierarchy") Assert.That(Selection.count, Is.Zero);
+                else Assert.That(AssetDatabase.GetAssetPath(Selection.activeObject), Is.EqualTo("Assets"));
+                var prepared = Selection.objects;
+                state.Back();
+                Assert.That(Selection.objects, Is.EqualTo(prepared), "Back does not restore ambient Selection");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator WindowConfirmationIgnoresOwnDelayedSelectionNotification()
+        {
+            // Give fixture notifications time to settle before testing Selection notifications.
+            // Unity 6.6 may delay or omit hierarchyChanged under Pipeline; its delivery is not this test's contract.
+            var hierarchyReady = false;
+            void OnHierarchyReady() => hierarchyReady = true;
+            EditorApplication.hierarchyChanged += OnHierarchyReady;
+            var original = Go("Original");
+            var target = Go("Target");
+            try
+            {
+                var deadline = EditorApplication.timeSinceStartup + 2;
+                while (!hierarchyReady && EditorApplication.timeSinceStartup < deadline) yield return null;
+            }
+            finally { EditorApplication.hierarchyChanged -= OnHierarchyReady; }
+            Selection.activeObject = original;
+            var window = EditorWindow.GetWindow<UniPaletteWindow>();
+            testWindow = window;
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(UniPaletteWindow).GetMethod("CreateGUI", flags).Invoke(window, null);
+            var item = new PaletteState.Item(UnityContexts.Kind.GameObject, target);
+            using var state = new PaletteState(new[] { item }, PaletteTestData.Commands());
+            PaletteTestData.Install(window, state);
+            window.Show(); window.Focus();
+            yield return null;
+            state.Select(0);
+            typeof(UniPaletteWindow).GetMethod("ActivateResult", flags).Invoke(window, new object[] { true, false });
+            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(Selection.activeObject, Is.EqualTo(target));
+            typeof(UniPaletteWindow).GetMethod("OnSelectionChanged", flags).Invoke(window, null);
+            for (var i = 0; i < 15; ++i) yield return null;
+            Assert.That(state.SelectedIndex, Is.Zero, "Own notification/poll must not clear forward selection");
+            Assert.That(window.rootVisualElement.Q<ListView>("results").selectedIndex, Is.Zero);
+            Assert.That(state.Back(), Is.True);
+            Assert.That(state.CanGoBack, Is.False, "Exactly one transition was pushed");
+            Assert.That(Selection.activeObject, Is.EqualTo(target));
+        }
+
+        [Test]
+        public void ConfirmedContextReadsFreshMenuStateWithoutCachedSearchLabels()
+        {
+            var target = Go("Target");
+            using var context = UnityEditor.Search.SearchService.CreateContext("menu", "", UnityEditor.Search.SearchFlags.Synchronous);
+            using var results = UnityEditor.Search.SearchService.Request(context, UnityEditor.Search.SearchFlags.Synchronous);
+            var stale = results.Single(item => item.id == "GameObject/Create Empty Parent");
+            Assert.That(stale.GetLabel(context), Does.Contain("disabled"));
+            using var state = new PaletteState(new[] { new PaletteState.Item(UnityContexts.Kind.GameObject, target) }, PaletteTestData.Commands());
+            state.Select(0); state.Enter(true);
+            Assert.That(MenuCommands.MatchesSelection(state.Context), Is.True);
+            Assert.That(Menu.GetEnabled(stale.id), Is.True);
+            var tree = MenuCommands.Build(new[] { stale.id }, state.Context, MenuCommands.MatchesSelection(state.Context), path => Menu.GetEnabled(path));
+            Assert.That(tree.Children[0].Children.Single().Path, Is.EqualTo(stale.id));
+            Assert.That(stale.GetLabel(context), Does.Contain("disabled"), "Stale label is deliberately not the availability source");
+        }
+
+        [Test]
+        public void EmptyFolderOpensCommandsAndMultiSelectionIsNotReinterpreted()
         {
             CreateAssets();
             AssetDatabase.CreateFolder(folder, "Empty");
@@ -413,10 +553,11 @@ namespace BrokenMeta.UniPalette.Tests
             Choose(state, "Project"); state.Enter(false);
             state.SetQuery(folder + "/Empty"); state.MoveSelection(1);
             Assert.That(state.Enter(false), Is.True);
-            Assert.That(state.Results, Is.Empty);
-            Assert.That(state.SelectedIndex, Is.EqualTo(-1), "Forward into an empty folder has no first result");
-            Assert.That(state.Enter(true), Is.True);
+            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.SelectedIndex, Is.Zero);
             Assert.That(state.Context.Path, Is.EqualTo(folder + "/Empty"));
+            state.Back();
+            Assert.That(state.Results[state.SelectedIndex].Path, Is.EqualTo(temporaryRoot), "Deep entry restores its visible ancestor");
         }
     }
 }

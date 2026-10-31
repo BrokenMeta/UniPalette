@@ -13,6 +13,10 @@ namespace BrokenMeta.UniPalette.Tests
 {
     public class MenuCommandsTests
     {
+        private UnityEngine.Object[] originalSelection;
+        [SetUp] public void SetUp() => originalSelection = Selection.objects;
+        [TearDown] public void TearDown() => Selection.objects = originalSelection;
+
         private static readonly string[] Paths = {
             "Assets/Create/Material", "Assets/Create/Folder", "Assets/CreateMore/Other", "Assets/Open",
             "GameObject/Create Empty", "GameObject/3D Object/Cube", "Component/Physics/Box Collider",
@@ -113,17 +117,17 @@ namespace BrokenMeta.UniPalette.Tests
         }
 
         [Test]
-        public void LeafEnterNeverExecutesOrChangesSelection()
+        public void LeafWithoutExecutorKeepsConfirmedSelectionAndDoesNotDispatch()
         {
-            var before = Selection.objects;
             using var state = new PaletteState(new[] { Assets() }, Build());
             state.Select(0); state.Enter(true);
+            var before = Selection.objects;
             state.SetQuery("Assets/Open"); state.Select(0);
             Assert.That(state.Enter(false, browseOnly: true), Is.False);
             Assert.That(state.Message, Is.Empty);
             Assert.That(state.Enter(true), Is.False);
             Assert.That(state.Enter(false), Is.False);
-            Assert.That(state.Message, Does.Contain("Assets/Open").And.Contain("nothing executed"));
+            Assert.That(state.Message, Does.Contain("Native execution is unavailable").And.Contain("nothing executed"));
             Assert.That(Selection.objects, Is.EqualTo(before));
         }
 
@@ -186,9 +190,9 @@ namespace BrokenMeta.UniPalette.Tests
                 Assert.That(state.Results.Any(item => item.Path == "GameObject/3D Object/Cube"), Is.True);
                 var cube = state.Results.FindIndex(item => item.Path == "GameObject/3D Object/Cube");
                 state.Select(cube); results.SetSelectionWithoutNotify(new[] { cube });
-                Key(KeyCode.Return);
-                Assert.That(state.Message, Does.Contain("nothing executed"));
-                Assert.That(Selection.objects, Is.EqualTo(before));
+                Key(KeyCode.RightArrow, EventModifiers.Alt); // A root leaf is now executable; navigation must not run it.
+                Assert.That(state.Message, Is.Empty);
+                Assert.That(Selection.count, Is.Zero);
                 Key(KeyCode.LeftArrow, EventModifiers.Alt);
                 Assert.That(state.Query, Is.Empty);
                 Assert.That(state.Results[state.SelectedIndex].Path, Is.EqualTo("GameObject"));
@@ -196,7 +200,7 @@ namespace BrokenMeta.UniPalette.Tests
                 var focused = window.rootVisualElement.panel.focusController.focusedElement;
                 Assert.That(focused == search || search.Contains(focused as VisualElement), Is.True);
             }
-            finally { typeof(UniPaletteWindow).GetMethod("CreateGUI", flags).Invoke(window, null); }
+            finally { window.Close(); }
         }
     }
 }

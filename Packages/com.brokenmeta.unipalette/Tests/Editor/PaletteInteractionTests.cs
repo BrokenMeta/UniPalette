@@ -174,7 +174,7 @@ namespace BrokenMeta.UniPalette.Tests
         }
 
         [UnityTest]
-        public IEnumerator AltRightBrowsesContextsAndCategoriesButNeverActivatesLeaves()
+        public IEnumerator AltRightUsesSmartEnterAndNeverActivatesCommandLeaves()
         {
             SetUpWindow();
             yield return null;
@@ -195,8 +195,10 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(state.SelectedIndex, Is.Zero);
             Key(KeyCode.DownArrow);
             Key(KeyCode.RightArrow, EventModifiers.Alt);
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent"));
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Context));
+            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
+            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Key(KeyCode.LeftArrow, EventModifiers.Alt);
+            Assert.That(state.Results[state.SelectedIndex].Title, Is.EqualTo("Leaf"));
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
             Assert.That(state.Context, Is.Null, "One back per transition");
@@ -236,11 +238,14 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent"));
             yield return null;
             Click(0);
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Context));
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent"));
+            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
             Assert.That(state.SelectedIndex, Is.Zero);
             yield return null;
             yield return WaitForSearchFocus();
+            Key(KeyCode.Escape);
+            Assert.That(results.selectedIndex, Is.Zero, "Return restores the leaf row");
+            yield return null;
             Click(0, control: true);
             Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
             Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));

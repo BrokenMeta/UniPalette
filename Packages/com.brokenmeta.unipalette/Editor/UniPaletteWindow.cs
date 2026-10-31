@@ -27,10 +27,12 @@ namespace BrokenMeta.UniPalette.Editor
         private UnityEngine.Object observedSelection;
         private int observedSelectionCount;
         private double nextContextCheck;
+        private bool executing;
 
         private void OnEnable()
         {
-            Selection.selectionChanged += RefreshContexts;
+            executing = false;
+            Selection.selectionChanged += OnSelectionChanged;
             EditorApplication.hierarchyChanged += RefreshContexts;
             EditorApplication.projectChanged += RefreshContexts;
             EditorApplication.update += CheckContextChanges;
@@ -38,7 +40,8 @@ namespace BrokenMeta.UniPalette.Editor
 
         private void OnDisable()
         {
-            Selection.selectionChanged -= RefreshContexts;
+            executing = true;
+            Selection.selectionChanged -= OnSelectionChanged;
             EditorApplication.hierarchyChanged -= RefreshContexts;
             EditorApplication.projectChanged -= RefreshContexts;
             EditorApplication.update -= CheckContextChanges;
@@ -46,6 +49,13 @@ namespace BrokenMeta.UniPalette.Editor
         }
 
         private void OnFocus() => RefreshContexts();
+
+        private void OnSelectionChanged()
+        {
+            // A delayed notification for the context we just confirmed is already reflected in the UI.
+            if (ReferenceEquals(observedSelection, Selection.activeObject) && observedSelectionCount == Selection.count) return;
+            RefreshContexts();
+        }
 
         private void CheckContextChanges()
         {
@@ -62,6 +72,7 @@ namespace BrokenMeta.UniPalette.Editor
             if (!this || state == null || searchBar?.panel == null) return;
             observedSelection = Selection.activeObject;
             observedSelectionCount = Selection.count;
+            if (state.ConfirmingContext) return;
             state.Refresh();
             Render(false);
         }
@@ -102,6 +113,7 @@ namespace BrokenMeta.UniPalette.Editor
             panel.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(UIPath + "UniPalette.uss"));
             state = new PaletteState();
             state.CommandResultsChanged += OnCommandResultsChanged;
+            state.ExecuteCommand += ExecuteCommand;
             observedSelection = Selection.activeObject;
             observedSelectionCount = Selection.count;
             back = rootVisualElement.Q<ActionButton>("back");
@@ -185,13 +197,28 @@ namespace BrokenMeta.UniPalette.Editor
 
         private void ActivateResult(bool control, bool browseOnly = false)
         {
+            if (executing || !this) return;
             if (state.Enter(control, browseOnly)) Render();
             else
             {
+                if (executing || !this) return;
                 UpdateMessage();
                 ScheduleSearchFocus();
             }
             searchBar.Focus();
+        }
+
+        private void ExecuteCommand(PaletteState.Item command, PaletteState.Item context)
+        {
+            if (executing) return;
+            if (!NativeExecution.TryPrepare(command, context, out var execution, out var error))
+            {
+                state.ShowExecutionError(error);
+                return;
+            }
+            executing = true;
+            Close();
+            execution.ExecuteAfterClose();
         }
 
         private void ActivateRow(ListViewItem row, EventBase evt)
@@ -215,6 +242,9 @@ namespace BrokenMeta.UniPalette.Editor
 
         private void Render(bool focusSearch = true)
         {
+            // Also acknowledge API changes when Unity does not deliver selectionChanged.
+            observedSelection = Selection.activeObject;
+            observedSelectionCount = Selection.count;
             searchBar.SetValueWithoutNotify(state.Query);
             var commands = state.Mode == PaletteState.Browser.Commands;
             searchBar.placeholder = commands ? "Search commands..." : "Search contexts...";
@@ -228,11 +258,11 @@ namespace BrokenMeta.UniPalette.Editor
             contextLabel.tooltip = contextLabel.text;
             contextIcon.image = ItemIcon(state.Context);
             dataLabel.text = commands ? "Unity menu" : "Unity Editor";
-            dataLabel.tooltip = commands ? "Discovered menu paths. Menu-family relevance is preliminary; per-object applicability is unverified. No execution."
+            dataLabel.tooltip = commands ? "Native execution for discovered, enabled commands in a confirmed context. Scene Root uses no Selection and the active main-stage scene; Assets Root selects Assets. Unity determines applicability and results; special window/UI state may still be required."
                 : "Live scene objects and project assets. Single-object Selection only.";
             resultsTitle.text = commands ? "Commands" : "Contexts";
-            hints.text = commands ? "↑↓ Select · Enter Open / Preview · Esc Back"
-                : "↑↓ Select · Enter Browse · Ctrl+Enter Commands · Esc Back";
+            hints.text = commands ? "↑↓ Select · Enter Open / Run · Esc Back"
+                : "↑↓ Select · Enter Browse / Commands · Ctrl+Enter Commands · Esc Back";
             back.SetEnabled(state.CanGoBack);
             back.tooltip = state.CanGoBack ? "Back · Escape / Alt+Left" : "Already at the root";
             RefreshResults();
@@ -285,14 +315,15 @@ namespace BrokenMeta.UniPalette.Editor
             var commands = state.Mode == PaletteState.Browser.Commands;
             row.title = item.SelectionEntry ? "Current Selection" : item.Title;
             var container = item.CanBrowse;
+            var supported = commands && !container && NativeExecution.Supports(item.Path, state.Context);
             row.subtitle = item.SelectionEntry ? item.Title + " · " + item.Path : item.Path
-                + (commands && !container ? " · Unverified" : "");
+                + (commands && !container ? supported ? " · Native execution" : " · Execution unavailable" : "");
             row.tooltip = row.subtitle + (item.AvailabilityNote == null ? "" : "\n" + item.AvailabilityNote);
             row.thumbnail = commands ? EditorGUIUtility.IconContent(container ? "Folder Icon" : "TextAsset Icon").image : ItemIcon(item);
             var indicator = row.Q<Text>("indicator");
-            indicator.text = commands ? (container ? "›" : "↵") : item.SelectionEntry ? "↵" : container ? "›" : "↗";
-            indicator.tooltip = commands ? (container ? "Open menu category" : "Show discovered path · No execution")
-                : item.SelectionEntry ? "Open selection commands" : container ? "Browse · Ctrl+Enter for commands" : "Ctrl+Enter for commands";
+            indicator.text = commands ? (container ? "›" : supported ? "↵" : "—") : item.SelectionEntry ? "↵" : container ? "›" : "↗";
+            indicator.tooltip = commands ? (container ? "Open menu category" : supported ? "Run native Unity command" : "Relevant confirmed context required · No execution")
+                : item.SelectionEntry ? "Open selection commands" : container ? "Enter Browse / Commands · Ctrl+Enter for commands" : "Enter for commands";
         }
 
         private static string LastSegment(string path) => path.Substring(path.LastIndexOf('/') + 1);

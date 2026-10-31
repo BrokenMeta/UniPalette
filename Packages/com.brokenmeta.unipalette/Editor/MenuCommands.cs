@@ -72,16 +72,23 @@ namespace BrokenMeta.UniPalette.Editor
         internal static bool MatchesSelection(PaletteState.Item context)
         {
             if (context == null) return false;
+            // Virtual roots have explicit prepared states; never treat ambient Selection as their target.
             if (context.Kind == UnityContexts.Kind.SceneRoot) return Selection.count == 0;
-            if (Selection.count != 1) return false;
             if (context.Kind == UnityContexts.Kind.AssetsRoot)
-                return AssetDatabase.GetAssetPath(Selection.activeObject) == "Assets";
-            return context.Target && Selection.activeObject == context.Target;
+                return Selection.count == 1 && Selection.activeObject && AssetDatabase.IsValidFolder("Assets")
+                    && Selection.activeObject == AssetDatabase.LoadMainAssetAtPath("Assets");
+            if (Selection.objects.Length != 1 || !context.Target || Selection.activeObject != context.Target) return false;
+            if (context.Kind != UnityContexts.Kind.Asset) return true;
+            // Folders are DefaultAssets too; compare their GUID, never activeGameObject or activeTransform.
+            var guids = Selection.assetGUIDs;
+            return guids.Length == 1 && guids[0] == context.AssetGuid;
         }
 
         internal static bool InScope(string path, PaletteState.Item context)
         {
             if (context == null) return false;
+            if (path == "Edit/Duplicate" && (context.Kind == UnityContexts.Kind.GameObject
+                || context.Kind == UnityContexts.Kind.Asset)) return true;
             var sceneRoot = context.Kind == UnityContexts.Kind.SceneRoot || context.Path == "Scene Root";
             var gameObject = context.Kind == UnityContexts.Kind.GameObject
                 || (context.Kind == UnityContexts.Kind.Fixture && context.Path.StartsWith("Scene Root/", StringComparison.Ordinal));

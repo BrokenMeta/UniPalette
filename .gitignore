@@ -116,6 +116,9 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 
 /[Aa]ssets/Samples*
+/[Aa]ssets/Tests*
+
+/[Rr]esearch
 
 # UI Toolkit auto generated files
 /UIElementsSchema/

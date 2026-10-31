@@ -108,10 +108,13 @@ namespace BrokenMeta.UniPalette.Editor
         private readonly MenuCommands menuCommands;
         private bool selectFirstWhenLoaded;
         private bool openingCommands;
+        internal bool ConfirmingContext => openingCommands;
         internal event Action CommandResultsChanged;
+        internal event Action<Item, Item> ExecuteCommand;
+        internal void ShowExecutionError(string error) => Message = error;
         internal bool CommandsLoading => menuCommands?.IsLoading == true;
         internal string CommandNotice => menuCommands?.Error.Length > 0 ? menuCommands.Error
-            : CommandsLoading ? "Loading Unity menu commands…" : "Discovery only · Commands do not execute · Applicability unverified";
+            : CommandsLoading ? "Loading Unity menu commands…" : "Native execution · Confirmed context required · Unity determines applicability and result";
         private Level level;
         internal Browser Mode => level.Mode;
         internal Item Context => level.Context;
@@ -139,7 +142,24 @@ namespace BrokenMeta.UniPalette.Editor
         private bool OpenCommands(Item context)
         {
             openingCommands = true;
-            try { if (menuCommands != null) commands = menuCommands.ForContext(context); }
+            try
+            {
+                // Browsing is passive; confirming a real context adopts Unity's Selection lifecycle.
+                if (context.Kind == UnityContexts.Kind.GameObject || context.Kind == UnityContexts.Kind.Asset)
+                {
+                    var target = context.Target;
+                    if (!target) return false;
+                    if (UnityEditor.Selection.count != 1 || UnityEditor.Selection.activeObject != target)
+                        UnityEditor.Selection.activeObject = target;
+                }
+                else if (context.Kind == UnityContexts.Kind.SceneRoot || context.Kind == UnityContexts.Kind.AssetsRoot)
+                {
+                    if (!NativeExecution.TryConfirmRoot(context, out var error))
+                    { Message = error; return false; }
+                }
+                // Paths are cached, availability is read afresh after Selection changes, never from labels.
+                if (menuCommands != null) commands = menuCommands.ForContext(context);
+            }
             finally { openingCommands = false; }
             selectFirstWhenLoaded = CommandsLoading;
             return Push(new Level(Browser.Commands, context, commands));
@@ -174,6 +194,7 @@ namespace BrokenMeta.UniPalette.Editor
         public void Dispose()
         {
             CommandResultsChanged = null;
+            ExecuteCommand = null;
             menuCommands?.Dispose();
         }
 
@@ -231,8 +252,8 @@ namespace BrokenMeta.UniPalette.Editor
         internal bool Enter(bool control, bool browseOnly = false)
         {
             var selected = SelectedIndex >= 0 ? Results[SelectedIndex] : null;
-            // Alt+Right shares Enter transitions, but never opens selection commands or previews a leaf.
-            if (browseOnly && (selected == null || selected.SelectionEntry || !selected.CanBrowse)) return false;
+            // Alt+Right shares Context Enter, but never previews or executes a command leaf.
+            if (browseOnly && Mode == Browser.Commands && (selected == null || !selected.CanBrowse)) return false;
             if ((Context != null && !Context.IsValid) || (selected != null && !selected.IsValid))
             {
                 Message = "Context no longer exists.";
@@ -244,7 +265,12 @@ namespace BrokenMeta.UniPalette.Editor
                 if (control || selected == null) return false;
                 if (selected.Children.Length > 0)
                     return Push(new Level(Browser.Commands, Context, selected));
-                Message = selected.Path + " · Discovery only; nothing executed. " + selected.AvailabilityNote;
+                if (selected.Kind == UnityContexts.Kind.Menu && NativeExecution.Supports(selected.Path, Context))
+                {
+                    if (ExecuteCommand != null) ExecuteCommand(selected, Context);
+                    else Message = "Native execution is unavailable; nothing executed.";
+                }
+                else Message = selected.Path + " · Execution requires a confirmed context and relevant menu leaf; nothing executed. " + selected.AvailabilityNote;
                 return false;
             }
             if (control)
@@ -255,7 +281,15 @@ namespace BrokenMeta.UniPalette.Editor
             if (selected == null) return false;
             if (selected.SelectionEntry)
                 return OpenCommands(selected);
-            return selected.CanBrowse && Push(new Level(Browser.Context, selected));
+            // Source entries always open their area, even when it is empty. A folder's
+            // browse capability alone does not imply that it currently has children.
+            var hasChildren = selected.CanBrowse;
+            if (hasChildren && selected.Kind == UnityContexts.Kind.Asset)
+            {
+                using var children = UnityContexts.Children(selected, false).GetEnumerator();
+                hasChildren = children.MoveNext();
+            }
+            return hasChildren ? Push(new Level(Browser.Context, selected)) : OpenCommands(selected);
         }
 
         internal bool Back()
