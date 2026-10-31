@@ -4,7 +4,9 @@
       "version": "file:com.brokenmeta.unipalette",
       "depth": 0,
       "source": "embedded",
-      "dependencies": {}
+      "dependencies": {
+        "com.unity.dt.app-ui": "2.3.0"
+      }
     },
     "com.unity.dt.app-ui": {
       "version": "2.3.0",

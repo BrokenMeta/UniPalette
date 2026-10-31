@@ -1,7 +1,7 @@
 {
     "name": "BrokenMeta.UniPalette.Editor",
     "rootNamespace": "BrokenMeta.UniPalette.Editor",
-    "references": [],
+    "references": ["Unity.AppUI", "UnityEditor.QuickSearchModule"],
     "includePlatforms": [
         "Editor"
     ],

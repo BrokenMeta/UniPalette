@@ -2,6 +2,7 @@
     "name": "BrokenMeta.UniPalette.Tests",
     "rootNamespace": "BrokenMeta.UniPalette.Tests",
     "references": [
+        "BrokenMeta.UniPalette.Editor",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
