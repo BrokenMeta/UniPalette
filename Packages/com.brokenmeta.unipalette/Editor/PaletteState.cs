@@ -9,15 +9,7 @@ namespace BrokenMeta.UniPalette.Editor
     // Owns navigation history and transient state; each browser owns its level's behavior.
     internal sealed class PaletteState : IDisposable
     {
-        private readonly struct HistoryEntry
-        {
-            internal readonly PaletteBrowser Browser;
-            internal readonly PaletteItem Entry;
-            internal HistoryEntry(PaletteBrowser browser, PaletteItem entry) { Browser = browser; Entry = entry; }
-        }
-
-        private readonly Stack<HistoryEntry> history = new Stack<HistoryEntry>();
-        private readonly ContextBrowser rootBrowser;
+        private readonly PaletteHistory history;
         private readonly PaletteItem fixtureCommands;
         private readonly MenuCommands menuCommands;
         private bool selectFirstWhenLoaded;
@@ -32,7 +24,7 @@ namespace BrokenMeta.UniPalette.Editor
             : CommandsLoading ? "Loading Unity menu commands…" : "Native execution · Confirmed context required · Unity determines applicability and result";
         internal PaletteBrowser Browser { get; private set; }
         internal PaletteItem Context => Browser.Context;
-        internal bool CanGoBack => history.Count > 0;
+        internal bool CanGoBack => history.CanGoBack;
         internal string Location => Browser.Location;
         internal string Query { get; private set; } = "";
         internal int SelectedIndex { get; private set; } = -1;
@@ -41,8 +33,8 @@ namespace BrokenMeta.UniPalette.Editor
 
         internal PaletteState(PaletteItem[] fixtureRoots = null, PaletteItem commandRoot = null)
         {
-            rootBrowser = new ContextBrowser(roots: fixtureRoots);
-            Browser = rootBrowser;
+            Browser = new ContextBrowser(roots: fixtureRoots);
+            history = new PaletteHistory(Browser);
             fixtureCommands = commandRoot;
             if (commandRoot == null)
             {
@@ -106,20 +98,10 @@ namespace BrokenMeta.UniPalette.Editor
 
         private void ReturnToPreviousBrowser()
         {
-            HistoryEntry previous;
-            do
-            {
-                previous = history.Count > 0 ? history.Pop() : default;
-                Browser = previous.Browser ?? rootBrowser;
-            }
-            while (Context != null && !Context.IsValid);
-            Browser = Browser.RefreshCommands(LoadCommands);
+            var previous = history.GoBack();
+            Browser = previous.Browser.RefreshCommands(LoadCommands);
             ResetTransient();
-            if (previous.Entry == null || !previous.Entry.IsValid) return;
-            var index = Results.FindIndex(item => item.SameIdentity(previous.Entry));
-            // Empty-query results contain immediate children; restore the visible containing branch.
-            if (index < 0) index = Results.FindIndex(item => item.ContainsDescendant(previous.Entry));
-            Select(index);
+            Select(previous.FindSelection(Results));
         }
 
         internal void SetQuery(string query)
@@ -180,7 +162,7 @@ namespace BrokenMeta.UniPalette.Editor
 
         internal bool Push(PaletteBrowser next)
         {
-            history.Push(new HistoryEntry(Browser, SelectedItem));
+            history.Push(Browser, SelectedItem);
             Browser = next;
             ResetTransient();
             Select(0);

@@ -61,13 +61,20 @@ namespace BrokenMeta.UniPalette.Editor
 
         internal static string[] Normalize(IEnumerable<string> source)
         {
-            return (source ?? Array.Empty<string>()).Where(path => !string.IsNullOrWhiteSpace(path)
-                && path == path.Trim() && !path.Any(char.IsControl) && !path.Contains('\\')
-                && path.Split('/').Length > 1
-                && path.Split('/').All(segment => !string.IsNullOrWhiteSpace(segment) && segment != "." && segment != ".."
-                    && segment.Any(c => c != '-')))
+            return (source ?? Array.Empty<string>()).Where(IsValidMenuPath)
                 .Distinct(StringComparer.Ordinal).OrderBy(path => path, StringComparer.Ordinal).ToArray();
         }
+
+        private static bool IsValidMenuPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || path != path.Trim()
+                || path.Any(char.IsControl) || path.Contains('\\')) return false;
+            var segments = path.Split('/');
+            return segments.Length > 1 && segments.All(IsValidSegment);
+        }
+
+        private static bool IsValidSegment(string segment) => !string.IsNullOrWhiteSpace(segment)
+            && segment != "." && segment != ".." && segment.Any(c => c != '-');
 
         internal static bool MatchesSelection(PaletteItem context) => context is ContextItem item && item.MatchesSelection();
         internal static bool InScope(string path, PaletteItem context) => context != null && context.IsMenuRelevant(path);
@@ -91,25 +98,37 @@ namespace BrokenMeta.UniPalette.Editor
             foreach (var path in Normalize(source))
             {
                 if (!InScope(path, context)) continue;
-                bool? enabled;
-                try { enabled = getEnabled(path); }
-                catch { enabled = null; }
+                var enabled = ReadAvailability(path, getEnabled);
                 // A false flag is evidence only for the actual global menu/Selection snapshot.
                 if (selectionMatches && enabled == false) continue;
-                var node = root;
-                var prefix = "";
-                foreach (var segment in path.Split('/'))
-                {
-                    prefix = prefix.Length == 0 ? segment : prefix + "/" + segment;
-                    if (!node.Children.TryGetValue(segment, out var child))
-                        node.Children.Add(segment, child = new Node(segment, prefix));
-                    node = child;
-                }
-                node.Note = enabled == null ? "Availability unverified: menu state unavailable."
-                    : !selectionMatches ? "Availability unverified: palette context differs from Unity Selection."
-                    : "Menu enabled for current Unity Selection; execution applicability is unverified.";
+                AddPath(root, path, DescribeAvailability(enabled, selectionMatches));
             }
             return root.Freeze();
+        }
+
+        private static bool? ReadAvailability(string path, Func<string, bool?> getEnabled)
+        {
+            try { return getEnabled(path); }
+            catch { return null; }
+        }
+
+        private static string DescribeAvailability(bool? enabled, bool selectionMatches) => enabled == null
+            ? "Availability unverified: menu state unavailable."
+            : !selectionMatches ? "Availability unverified: palette context differs from Unity Selection."
+            : "Menu enabled for current Unity Selection; execution applicability is unverified.";
+
+        private static void AddPath(Node root, string path, string note)
+        {
+            var node = root;
+            var prefix = "";
+            foreach (var segment in path.Split('/'))
+            {
+                prefix = prefix.Length == 0 ? segment : prefix + "/" + segment;
+                if (!node.Children.TryGetValue(segment, out var child))
+                    node.Children.Add(segment, child = new Node(segment, prefix));
+                node = child;
+            }
+            node.Note = note;
         }
 
         public void Dispose()
