@@ -18,7 +18,7 @@ namespace BrokenMeta.UniPalette.Editor
         internal string Error { get; private set; } = "";
         internal IReadOnlyList<string> Paths => paths;
 
-        internal PaletteState.Item ForContext(PaletteState.Item context)
+        internal PaletteItem ForContext(PaletteItem context)
         {
             if (!started) Start();
             return Build(paths, context, MatchesSelection(context), path => Menu.GetEnabled(path));
@@ -69,34 +69,8 @@ namespace BrokenMeta.UniPalette.Editor
                 .Distinct(StringComparer.Ordinal).OrderBy(path => path, StringComparer.Ordinal).ToArray();
         }
 
-        internal static bool MatchesSelection(PaletteState.Item context)
-        {
-            if (context == null) return false;
-            // Virtual roots have explicit prepared states; never treat ambient Selection as their target.
-            if (context.Kind == UnityContexts.Kind.SceneRoot) return Selection.count == 0;
-            if (context.Kind == UnityContexts.Kind.AssetsRoot)
-                return Selection.count == 1 && Selection.activeObject && AssetDatabase.IsValidFolder("Assets")
-                    && Selection.activeObject == AssetDatabase.LoadMainAssetAtPath("Assets");
-            if (Selection.objects.Length != 1 || !context.Target || Selection.activeObject != context.Target) return false;
-            if (context.Kind != UnityContexts.Kind.Asset) return true;
-            // Folders are DefaultAssets too; compare their GUID, never activeGameObject or activeTransform.
-            var guids = Selection.assetGUIDs;
-            return guids.Length == 1 && guids[0] == context.AssetGuid;
-        }
-
-        internal static bool InScope(string path, PaletteState.Item context)
-        {
-            if (context == null) return false;
-            if (path == "Edit/Duplicate" && (context.Kind == UnityContexts.Kind.GameObject
-                || context.Kind == UnityContexts.Kind.Asset)) return true;
-            var sceneRoot = context.Kind == UnityContexts.Kind.SceneRoot || context.Path == "Scene Root";
-            var gameObject = context.Kind == UnityContexts.Kind.GameObject
-                || (context.Kind == UnityContexts.Kind.Fixture && context.Path.StartsWith("Scene Root/", StringComparison.Ordinal));
-            // This is a menu-family relevance policy, not proof of per-object applicability.
-            return sceneRoot ? path.StartsWith("GameObject/", StringComparison.Ordinal)
-                : gameObject ? path.StartsWith("GameObject/", StringComparison.Ordinal) || path.StartsWith("Component/", StringComparison.Ordinal)
-                : path.StartsWith("Assets/", StringComparison.Ordinal);
-        }
+        internal static bool MatchesSelection(PaletteItem context) => context is ContextItem item && item.MatchesSelection();
+        internal static bool InScope(string path, PaletteItem context) => context != null && context.IsMenuRelevant(path);
 
         private sealed class Node
         {
@@ -105,11 +79,12 @@ namespace BrokenMeta.UniPalette.Editor
             internal string Note;
             internal readonly SortedDictionary<string, Node> Children = new SortedDictionary<string, Node>(StringComparer.Ordinal);
             internal Node(string title, string path) { Title = title; Path = path; }
-            internal PaletteState.Item Freeze() => new PaletteState.Item(Title, Path,
-                Children.Values.Select(child => child.Freeze()).ToArray(), Note ?? "Menu category");
+            internal PaletteItem Freeze() => Children.Count > 0
+                ? (PaletteItem)new MenuCategoryItem(Title, Path, Children.Values.Select(child => child.Freeze()).ToArray(), Note ?? "Menu category")
+                : new MenuCommandItem(Title, Path, Note ?? "Menu category");
         }
 
-        internal static PaletteState.Item Build(IEnumerable<string> source, PaletteState.Item context,
+        internal static PaletteItem Build(IEnumerable<string> source, PaletteItem context,
             bool selectionMatches, Func<string, bool?> getEnabled)
         {
             var root = new Node("Commands", "");

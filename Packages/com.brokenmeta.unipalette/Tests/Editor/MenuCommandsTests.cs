@@ -22,10 +22,10 @@ namespace BrokenMeta.UniPalette.Tests
             "GameObject/Create Empty", "GameObject/3D Object/Cube", "Component/Physics/Box Collider",
             "Window/General/Inspector"
         };
-        private static PaletteState.Item Assets() => new PaletteState.Item(UnityContexts.Kind.AssetsRoot);
-        private static PaletteState.Item SceneRoot() => new PaletteState.Item(UnityContexts.Kind.SceneRoot);
-        private static PaletteState.Item Go() => new PaletteState.Item("Player", "Scene Root/Player");
-        private static PaletteState.Item Build(string[] paths = null, PaletteState.Item context = null) =>
+        private static PaletteItem Assets() => new AssetsRootContext();
+        private static PaletteItem SceneRoot() => new SceneRootContext();
+        private static PaletteItem Go() => new FixtureItem("Player", "Scene Root/Player");
+        private static PaletteItem Build(string[] paths = null, PaletteItem context = null) =>
             MenuCommands.Build(paths ?? Paths, context ?? Assets(), false, _ => true);
         private static void Choose(PaletteState state, string path)
         {
@@ -175,7 +175,7 @@ namespace BrokenMeta.UniPalette.Tests
                     using var evt = KeyDownEvent.GetPooled(new Event { type = EventType.KeyDown, keyCode = key, modifiers = modifiers });
                     evt.target = target; target.SendEvent(evt);
                 }
-                var hierarchy = state.Results.FindIndex(item => item.Kind == UnityContexts.Kind.SceneRoot);
+                var hierarchy = state.Results.FindIndex(item => item is SceneRootContext);
                 state.Select(hierarchy); results.SetSelectionWithoutNotify(new[] { hierarchy });
                 Key(KeyCode.Return, EventModifiers.Control);
                 var deadline = EditorApplication.timeSinceStartup + 5;

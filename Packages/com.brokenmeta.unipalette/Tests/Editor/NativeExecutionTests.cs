@@ -18,7 +18,7 @@ namespace BrokenMeta.UniPalette.Tests
     public class NativeExecutionTests
     {
         private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
-        private Scene originalScene, temporaryScene;
+        private Scene originalScene, testScene;
         private Scene[] userScenes;
         private bool[] dirty;
         private GameObject target;
@@ -30,22 +30,27 @@ namespace BrokenMeta.UniPalette.Tests
         private string rootFolderPath, rootFolderGuid;
         private UnityEngine.Object[] originalSelection;
 
+        private SharedTestScene sharedScene;
+
+        [OneTimeSetUp]
+        public void OpenSharedScene() => sharedScene = new SharedTestScene();
+
+        [OneTimeTearDown]
+        public void CloseSharedScene() => sharedScene?.Dispose();
+
         [SetUp]
         public void SetUp()
         {
             rootFolderPath = rootFolderGuid = null;
             clipboard = EditorGUIUtility.systemCopyBuffer;
             originalSelection = Selection.objects;
-            userScenes = Enumerable.Range(0, SceneManager.sceneCount).Select(SceneManager.GetSceneAt).ToArray();
+            userScenes = Enumerable.Range(0, SceneManager.sceneCount).Select(SceneManager.GetSceneAt)
+                .Where(s => s.path != SharedTestScene.ScenePath).ToArray();
             dirty = userScenes.Select(s => s.isDirty).ToArray();
             originalScene = SceneManager.GetActiveScene();
             temporaryRoot = "Assets/UniPaletteNativeTest_" + Guid.NewGuid().ToString("N");
             AssetDatabase.CreateFolder("Assets", Path.GetFileName(temporaryRoot));
-            var scenePath = temporaryRoot + "/Fixture.unity";
-            File.WriteAllText(scenePath, "%YAML 1.1\n%TAG !u! tag:unity3d.com,2011:\n--- !u!1660057539 &9223372036854775807\nSceneRoots:\n  m_ObjectHideFlags: 0\n  m_Roots: []\n");
-            AssetDatabase.ImportAsset(scenePath, ImportAssetOptions.ForceSynchronousImport);
-            temporaryScene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
-            SceneManager.SetActiveScene(temporaryScene);
+            testScene = sharedScene.Use();
             target = new GameObject("UniPalette execution test");
             folder = temporaryRoot + "/Data";
             AssetDatabase.CreateFolder(temporaryRoot, "Data");
@@ -67,7 +72,7 @@ namespace BrokenMeta.UniPalette.Tests
                     AssetDatabase.DeleteAsset(rootFolderPath); // Only the root folder created by this test.
             }
             Undo.RevertAllDownToGroup(undoGroup);
-            if (temporaryScene.IsValid()) EditorSceneManager.CloseScene(temporaryScene, true);
+            sharedScene.ClearObjects();
             if (originalScene.IsValid()) SceneManager.SetActiveScene(originalScene);
             if (!string.IsNullOrEmpty(temporaryRoot)) AssetDatabase.DeleteAsset(temporaryRoot);
             Selection.objects = originalSelection;
@@ -76,12 +81,14 @@ namespace BrokenMeta.UniPalette.Tests
                 Assert.That(userScenes[i].isDirty, Is.EqualTo(dirty[i]), "User scene dirty state changed");
         }
 
-        private PaletteState.Item Context(string kind) => kind == "GameObject"
-            ? new PaletteState.Item(UnityContexts.Kind.GameObject, target)
-            : new PaletteState.Item(UnityContexts.Kind.Asset, guid: AssetDatabase.AssetPathToGUID(
+        private static ContextItem CreateRoot(string kind) => kind == "SceneRoot"
+            ? (ContextItem)new SceneRootContext() : new AssetsRootContext();
+
+        private PaletteItem Context(string kind) => kind == "GameObject"
+            ? (PaletteItem)new SceneObjectContext(target)
+            : new AssetContext(guid: AssetDatabase.AssetPathToGUID(
                 kind == "Folder" ? folder : folder + (kind == "OtherAsset" ? "/Source.bytes" : "/Source.txt")));
-        private static PaletteState.Item Command(string path) => new PaletteState.Item(path, path,
-            Array.Empty<PaletteState.Item>(), "Test menu");
+        private static PaletteItem Command(string path) => new MenuCommandItem(path, path, "Test menu");
 
         [TestCase("GameObject", "Edit/Duplicate", true)]
         [TestCase("GameObject", "GameObject/Create Empty Parent", true)]
@@ -104,8 +111,8 @@ namespace BrokenMeta.UniPalette.Tests
         public void ExistingMenuFamiliesAreEligibleWithoutPerCommandWhitelist(string kind, string path, bool supported)
         {
             Assert.That(NativeExecution.Supports(path, Context(kind)), Is.EqualTo(supported));
-            Assert.That(NativeExecution.Supports(path, new PaletteState.Item(UnityContexts.Kind.SceneRoot)), Is.EqualTo(path.StartsWith("GameObject/", StringComparison.Ordinal)));
-            Assert.That(NativeExecution.Supports(path, new PaletteState.Item(UnityContexts.Kind.AssetsRoot)), Is.EqualTo(path.StartsWith("Assets/", StringComparison.Ordinal)));
+            Assert.That(NativeExecution.Supports(path, new SceneRootContext()), Is.EqualTo(path.StartsWith("GameObject/", StringComparison.Ordinal)));
+            Assert.That(NativeExecution.Supports(path, new AssetsRootContext()), Is.EqualTo(path.StartsWith("Assets/", StringComparison.Ordinal)));
         }
 
         [TestCase("GameObject")]
@@ -126,6 +133,18 @@ namespace BrokenMeta.UniPalette.Tests
         }
 
         [Test]
+        public void EmptyMenuCategoryCannotPrepareAsAnEnabledCommand()
+        {
+            var context = Context("GameObject");
+            Selection.activeObject = target;
+            Assert.That(Menu.GetEnabled("Edit/Duplicate"), Is.True);
+            var category = new MenuCategoryItem("Duplicate", "Edit/Duplicate", Array.Empty<PaletteItem>());
+            Assert.That(NativeExecution.TryPrepare(category, context, out _, out _), Is.False);
+            Assert.That(Selection.activeGameObject, Is.EqualTo(target));
+            Assert.That(testScene.rootCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public void DeletedTargetAndMenuCategoriesCannotPrepare()
         {
             var context = Context("GameObject");
@@ -133,9 +152,9 @@ namespace BrokenMeta.UniPalette.Tests
             UnityEngine.Object.DestroyImmediate(target);
             Assert.That(NativeExecution.TryPrepare(Command("Edit/Duplicate"), context, out _, out var error), Is.False);
             Assert.That(error, Does.Contain("no longer exists"));
-            var category = new PaletteState.Item("Duplicate", "Edit/Duplicate", new[] { Command("Edit/Duplicate") }, "Category");
+            var category = new MenuCategoryItem("Duplicate", "Edit/Duplicate", new[] { Command("Edit/Duplicate") }, "Category");
             Assert.That(NativeExecution.TryPrepare(category, Context("Asset"), out _, out _), Is.False);
-            Assert.That(NativeExecution.Supports("Edit/Duplicate", new PaletteState.Item(UnityContexts.Kind.AssetsRoot)), Is.False);
+            Assert.That(NativeExecution.Supports("Edit/Duplicate", new AssetsRootContext()), Is.False);
         }
 
         [Test]
@@ -148,7 +167,7 @@ namespace BrokenMeta.UniPalette.Tests
             LogAssert.Expect(LogType.Warning, new Regex("UniPalette: could not dispatch Edit/Duplicate.*Selection"));
             request.ExecuteAfterClose();
             request.ExecuteAfterClose();
-            Assert.That(temporaryScene.rootCount, Is.EqualTo(1));
+            Assert.That(testScene.rootCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -156,7 +175,7 @@ namespace BrokenMeta.UniPalette.Tests
         {
             var material = new Material(Shader.Find("Hidden/InternalErrorShader"));
             AssetDatabase.CreateAsset(material, temporaryRoot + "/Material.mat");
-            var context = new PaletteState.Item(UnityContexts.Kind.Asset,
+            var context = new AssetContext(
                 guid: AssetDatabase.AssetPathToGUID(temporaryRoot + "/Material.mat"));
             Selection.activeObject = material;
             Assert.That(NativeExecution.TryPrepare(Command("Assets/Copy Path"), context, out _, out var error), Is.True, error);
@@ -166,11 +185,11 @@ namespace BrokenMeta.UniPalette.Tests
         public void VirtualRootsNeverPrepareAgainstAmbientSelection()
         {
             Selection.activeObject = target;
-            foreach (var kind in new[] { UnityContexts.Kind.SceneRoot, UnityContexts.Kind.AssetsRoot })
-                Assert.That(NativeExecution.TryPrepare(Command(kind == UnityContexts.Kind.SceneRoot
-                    ? "GameObject/Create Empty" : "Assets/Copy Path"), new PaletteState.Item(kind), out _, out _), Is.False);
+            foreach (var kind in new[] { "SceneRoot", "AssetsRoot" })
+                Assert.That(NativeExecution.TryPrepare(Command(kind == "SceneRoot"
+                    ? "GameObject/Create Empty" : "Assets/Copy Path"), CreateRoot(kind), out _, out _), Is.False);
             Assert.That(Selection.activeGameObject, Is.EqualTo(target));
-            Assert.That(temporaryScene.rootCount, Is.EqualTo(1));
+            Assert.That(testScene.rootCount, Is.EqualTo(1));
         }
 
         [TestCase("GameObject", "GameObject/Create Empty Child")]
@@ -203,7 +222,7 @@ namespace BrokenMeta.UniPalette.Tests
             LogAssert.Expect(LogType.Warning, new Regex("UniPalette: could not dispatch .*no longer exists"));
             request.ExecuteAfterClose();
             request.ExecuteAfterClose();
-            Assert.That(temporaryScene.rootCount, Is.Zero);
+            Assert.That(testScene.rootCount, Is.Zero);
         }
 
         [Test]
@@ -212,7 +231,7 @@ namespace BrokenMeta.UniPalette.Tests
             var context = Context("Asset");
             Selection.activeObject = context.Target;
             Assert.That(NativeExecution.TryPrepare(Command("Assets/Copy Path"), context, out var request, out _), Is.True);
-            AssetDatabase.DeleteAsset(context.AssetPath); // Only this test's disposable asset.
+            AssetDatabase.DeleteAsset(AssetDatabase.GetAssetPath(context.Target)); // Only this test's disposable asset.
             LogAssert.Expect(LogType.Warning, new Regex("UniPalette: could not dispatch .*no longer exists"));
             request.ExecuteAfterClose();
             request.ExecuteAfterClose();
@@ -233,7 +252,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(NativeExecution.TryPrepare(staleCommand, context, out _, out var error), Is.False);
             Assert.That(error, Does.Contain("disabled"));
             Assert.That(Selection.activeGameObject, Is.EqualTo(target));
-            Assert.That(temporaryScene.rootCount, Is.EqualTo(1));
+            Assert.That(testScene.rootCount, Is.EqualTo(1));
         }
 
         private void Key(KeyCode key, EventModifiers modifiers = EventModifiers.None)
@@ -298,37 +317,39 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(!window, Is.True, "Native dispatch closes the palette");
             // A stale UI callback cannot dispatch a second time after OnDisable.
             activate.Invoke(window, new object[] { false, false });
-            yield return null;
             var expected = kind == "GameObject" ? "Unity.Hierarchy.Editor.HierarchyWindow" : "UnityEditor.ProjectBrowser";
+            // Focus is a dispatch precondition, not a promise about Unity's next frame.
+            Assert.That(EditorWindow.focusedWindow, Is.Not.Null);
             Assert.That(EditorWindow.focusedWindow.GetType().FullName, Is.EqualTo(expected));
+            yield return null;
             if (kind == "GameObject")
             {
-                if (path == "Edit/Duplicate") Assert.That(temporaryScene.rootCount, Is.EqualTo(2), "Exactly one duplicate");
-                else if (path == "GameObject/Create Empty") Assert.That(temporaryScene.rootCount, Is.EqualTo(2));
+                if (path == "Edit/Duplicate") Assert.That(testScene.rootCount, Is.EqualTo(2), "Exactly one duplicate");
+                else if (path == "GameObject/Create Empty") Assert.That(testScene.rootCount, Is.EqualTo(2));
                 else if (path == "GameObject/Create Empty Parent")
                 {
                     Assert.That(target.transform.parent, Is.Not.Null);
                     Assert.That(target.transform.parent.childCount, Is.EqualTo(1));
-                    Assert.That(temporaryScene.rootCount, Is.EqualTo(1));
+                    Assert.That(testScene.rootCount, Is.EqualTo(1));
                 }
                 else if (path == "GameObject/Create Empty Child")
                 {
                     Assert.That(target.transform.childCount, Is.EqualTo(1));
                     child = target.transform.GetChild(0).gameObject;
-                    Assert.That(child.scene, Is.EqualTo(temporaryScene));
+                    Assert.That(child.scene, Is.EqualTo(testScene));
                     Assert.That(Selection.activeGameObject, Is.EqualTo(child));
-                    Assert.That(temporaryScene.rootCount, Is.EqualTo(1));
+                    Assert.That(testScene.rootCount, Is.EqualTo(1));
                 }
                 else
                 {
                     Assert.That(target.GetComponents<BoxCollider>().Length, Is.EqualTo(1));
                     Assert.That(target.GetComponents<Component>().Length, Is.EqualTo(withOtherComponent ? 3 : 2));
                     Assert.That(Selection.activeGameObject, Is.EqualTo(target));
-                    Assert.That(temporaryScene.rootCount, Is.EqualTo(1));
+                    Assert.That(testScene.rootCount, Is.EqualTo(1));
                 }
                 Undo.FlushUndoRecordObjects();
                 Undo.PerformUndo();
-                Assert.That(temporaryScene.rootCount, Is.EqualTo(1));
+                Assert.That(testScene.rootCount, Is.EqualTo(1));
                 Assert.That(target.transform.parent, Is.Null, "GameObject Undo restores original hierarchy");
                 Assert.That(target.transform.childCount, Is.Zero);
                 Assert.That(target.GetComponents<BoxCollider>(), Is.Empty);
@@ -340,14 +361,14 @@ namespace BrokenMeta.UniPalette.Tests
                 }
                 else if (path == "Component/Physics/Box Collider")
                     Assert.That(target.GetComponents<BoxCollider>().Length, Is.EqualTo(1));
-                else if (path == "Edit/Duplicate" || path == "GameObject/Create Empty") Assert.That(temporaryScene.rootCount, Is.EqualTo(2));
+                else if (path == "Edit/Duplicate" || path == "GameObject/Create Empty") Assert.That(testScene.rootCount, Is.EqualTo(2));
                 else Assert.That(target.transform.parent, Is.Not.Null);
             }
             else if (copyPath)
             {
-                Assert.That(EditorGUIUtility.systemCopyBuffer, Is.EqualTo(context.AssetPath));
+                Assert.That(EditorGUIUtility.systemCopyBuffer, Is.EqualTo(AssetDatabase.GetAssetPath(context.Target)));
                 Assert.That(Selection.activeObject, Is.EqualTo(context.Target));
-                Assert.That(temporaryScene.rootCount, Is.EqualTo(1));
+                Assert.That(testScene.rootCount, Is.EqualTo(1));
                 var filesAfter = Directory.GetFiles(temporaryRoot, "*", SearchOption.AllDirectories).OrderBy(f => f)
                     .Select(f => f + ":" + Convert.ToBase64String(File.ReadAllBytes(f))).ToArray();
                 Assert.That(filesAfter, Is.EqualTo(filesBefore), "Clipboard command must not create or change files, including meta files");
@@ -420,13 +441,13 @@ namespace BrokenMeta.UniPalette.Tests
             state.Enter(false);
             Assert.That(window, Is.Not.Null);
             Assert.That(state.Message, Does.Contain("Selection"));
-            Assert.That(temporaryScene.rootCount, Is.EqualTo(1));
+            Assert.That(testScene.rootCount, Is.EqualTo(1));
             Assert.That(AssetDatabase.GetAssetPath(Selection.activeObject), Is.EqualTo(folder + "/Source.txt"));
         }
 
-        private IEnumerator RunRoot(UnityContexts.Kind kind, string path, bool click)
+        private IEnumerator RunRoot(string kind, string path, bool click)
         {
-            var sceneRoot = kind == UnityContexts.Kind.SceneRoot;
+            var sceneRoot = kind == "SceneRoot";
             var createFolder = path == "Assets/Create/Folder";
             var foldersBefore = AssetDatabase.GetSubFolders("Assets");
             if (!sceneRoot)
@@ -441,12 +462,12 @@ namespace BrokenMeta.UniPalette.Tests
             typeof(UniPaletteWindow).GetMethod("CreateGUI", Private).Invoke(window, null);
             window.Show(); window.Focus();
             var state = (PaletteState)typeof(UniPaletteWindow).GetField("state", Private).GetValue(window);
-            var rootIndex = state.Results.FindIndex(i => i.Kind == kind);
+            var rootIndex = state.Results.FindIndex(i => i.GetType() == CreateRoot(kind).GetType());
             Assert.That(rootIndex, Is.GreaterThanOrEqualTo(0));
             state.Select(rootIndex);
             Key(KeyCode.Return, EventModifiers.Control);
             Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
-            Assert.That(state.Context.Kind, Is.EqualTo(kind));
+            Assert.That(state.Context.GetType(), Is.EqualTo(CreateRoot(kind).GetType()));
             Assert.That(state.Context.Target, Is.Null);
             Assert.That(MenuCommands.MatchesSelection(state.Context), Is.True);
             if (sceneRoot) Assert.That(Selection.count, Is.Zero);
@@ -488,17 +509,17 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(EditorWindow.focusedWindow.GetType().FullName, Is.EqualTo(expectedWindow));
             if (sceneRoot)
             {
-                Assert.That(temporaryScene.rootCount, Is.EqualTo(2), "Exactly one new root object");
-                var created = temporaryScene.GetRootGameObjects().Single(go => go != target);
+                Assert.That(testScene.rootCount, Is.EqualTo(2), "Exactly one new root object");
+                var created = testScene.GetRootGameObjects().Single(go => go != target);
                 Assert.That(created.transform.parent, Is.Null);
-                Assert.That(created.scene, Is.EqualTo(temporaryScene));
+                Assert.That(created.scene, Is.EqualTo(testScene));
                 Assert.That(Selection.activeGameObject, Is.EqualTo(created));
                 Assert.That(target.transform.childCount, Is.Zero, "Previous Selection was not used as parent");
                 if (path.EndsWith("/Cube", StringComparison.Ordinal)) Assert.That(created.GetComponent<MeshFilter>(), Is.Not.Null);
                 Undo.PerformUndo();
-                Assert.That(temporaryScene.rootCount, Is.EqualTo(1));
+                Assert.That(testScene.rootCount, Is.EqualTo(1));
                 Undo.PerformRedo();
-                Assert.That(temporaryScene.rootCount, Is.EqualTo(2));
+                Assert.That(testScene.rootCount, Is.EqualTo(2));
             }
             else if (createFolder)
             {
@@ -523,23 +544,23 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(target.transform.childCount, Is.Zero);
         }
 
-        [UnityTest] public IEnumerator SceneRootEmptyEnter() => RunRoot(UnityContexts.Kind.SceneRoot, "GameObject/Create Empty", false);
-        [UnityTest] public IEnumerator SceneRootEmptyClick() => RunRoot(UnityContexts.Kind.SceneRoot, "GameObject/Create Empty", true);
-        [UnityTest] public IEnumerator SceneRootCubeEnter() => RunRoot(UnityContexts.Kind.SceneRoot, "GameObject/3D Object/Cube", false);
-        [UnityTest] public IEnumerator SceneRootCubeClick() => RunRoot(UnityContexts.Kind.SceneRoot, "GameObject/3D Object/Cube", true);
-        [UnityTest] public IEnumerator AssetsRootCopyPathEnter() => RunRoot(UnityContexts.Kind.AssetsRoot, "Assets/Copy Path", false);
-        [UnityTest] public IEnumerator AssetsRootCopyPathClick() => RunRoot(UnityContexts.Kind.AssetsRoot, "Assets/Copy Path", true);
-        [UnityTest] public IEnumerator AssetsRootCreateFolderEnter() => RunRoot(UnityContexts.Kind.AssetsRoot, "Assets/Create/Folder", false);
-        [UnityTest] public IEnumerator AssetsRootCreateFolderClick() => RunRoot(UnityContexts.Kind.AssetsRoot, "Assets/Create/Folder", true);
+        [UnityTest] public IEnumerator SceneRootEmptyEnter() => RunRoot("SceneRoot", "GameObject/Create Empty", false);
+        [UnityTest] public IEnumerator SceneRootEmptyClick() => RunRoot("SceneRoot", "GameObject/Create Empty", true);
+        [UnityTest] public IEnumerator SceneRootCubeEnter() => RunRoot("SceneRoot", "GameObject/3D Object/Cube", false);
+        [UnityTest] public IEnumerator SceneRootCubeClick() => RunRoot("SceneRoot", "GameObject/3D Object/Cube", true);
+        [UnityTest] public IEnumerator AssetsRootCopyPathEnter() => RunRoot("AssetsRoot", "Assets/Copy Path", false);
+        [UnityTest] public IEnumerator AssetsRootCopyPathClick() => RunRoot("AssetsRoot", "Assets/Copy Path", true);
+        [UnityTest] public IEnumerator AssetsRootCreateFolderEnter() => RunRoot("AssetsRoot", "Assets/Create/Folder", false);
+        [UnityTest] public IEnumerator AssetsRootCreateFolderClick() => RunRoot("AssetsRoot", "Assets/Create/Folder", true);
 
         [TestCase("SceneRoot", "GameObject/Create Empty")]
         [TestCase("AssetsRoot", "Assets/Copy Path")]
         public void RootRequestRejectsChangedSelectionAndNeverRepairsIt(string kindName, string path)
         {
-            var kind = (UnityContexts.Kind)Enum.Parse(typeof(UnityContexts.Kind), kindName);
-            var context = new PaletteState.Item(kind);
+            var kind = kindName;
+            var context = CreateRoot(kind);
             Selection.activeObject = target;
-            Assert.That(NativeExecution.TryConfirmRoot(context, out var error), Is.True, error);
+            Assert.That(context.TryConfirm(out var error), Is.True, error);
             Assert.That(NativeExecution.TryPrepare(Command(path), context, out var request, out error), Is.True, error);
             Selection.activeObject = target;
             Assert.That(NativeExecution.TryPrepare(Command(path), context, out _, out error), Is.False);
@@ -548,7 +569,7 @@ namespace BrokenMeta.UniPalette.Tests
             request.ExecuteAfterClose();
             request.ExecuteAfterClose();
             Assert.That(Selection.activeGameObject, Is.EqualTo(target));
-            Assert.That(temporaryScene.rootCount, Is.EqualTo(1));
+            Assert.That(testScene.rootCount, Is.EqualTo(1));
             Assert.That(EditorGUIUtility.systemCopyBuffer, Is.EqualTo(clipboard));
         }
 
@@ -556,10 +577,10 @@ namespace BrokenMeta.UniPalette.Tests
         [TestCase(true)]
         public void SceneRootRequestRejectsChangedOrClosedScene(bool closeScene)
         {
-            var context = new PaletteState.Item(UnityContexts.Kind.SceneRoot);
-            Assert.That(NativeExecution.TryConfirmRoot(context, out _), Is.True);
+            var context = new SceneRootContext();
+            Assert.That(context.TryConfirm(out _), Is.True);
             Assert.That(NativeExecution.TryPrepare(Command("GameObject/Create Empty"), context, out var request, out _), Is.True);
-            if (closeScene) EditorSceneManager.CloseScene(temporaryScene, true);
+            if (closeScene) EditorSceneManager.CloseScene(testScene, true);
             else SceneManager.SetActiveScene(originalScene);
             LogAssert.Expect(LogType.Warning, new Regex("UniPalette: could not dispatch .*active scene changed"));
             request.ExecuteAfterClose();
@@ -572,13 +593,13 @@ namespace BrokenMeta.UniPalette.Tests
         [TestCase("AssetsRoot", "Assets/UniPalette Missing Command 004.5")]
         public void RootPreflightRejectsDisabledMenuAndCategories(string kindName, string path)
         {
-            var kind = (UnityContexts.Kind)Enum.Parse(typeof(UnityContexts.Kind), kindName);
-            var context = new PaletteState.Item(kind);
-            Assert.That(NativeExecution.TryConfirmRoot(context, out _), Is.True);
+            var kind = kindName;
+            var context = CreateRoot(kind);
+            Assert.That(context.TryConfirm(out _), Is.True);
             Assert.That(Menu.GetEnabled(path), Is.False);
             Assert.That(NativeExecution.TryPrepare(Command(path), context, out _, out var error), Is.False);
             Assert.That(error, Does.Contain("disabled"));
-            var category = new PaletteState.Item("Category", path, new[] { Command(path + "/Child") }, "Menu category");
+            var category = new MenuCategoryItem("Category", path, new[] { Command(path + "/Child") }, "Menu category");
             Assert.That(NativeExecution.TryPrepare(category, context, out _, out _), Is.False);
         }
     }

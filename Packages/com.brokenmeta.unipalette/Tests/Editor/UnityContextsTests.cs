@@ -24,19 +24,22 @@ namespace BrokenMeta.UniPalette.Tests
         private string temporaryRoot;
         private UniPaletteWindow testWindow;
 
+        private SharedTestScene sharedScene;
+
+        [OneTimeSetUp]
+        public void OpenSharedScene() => sharedScene = new SharedTestScene();
+
+        [OneTimeTearDown]
+        public void CloseSharedScene() => sharedScene?.Dispose();
+
         [SetUp]
         public void SetUp()
         {
             previousScene = SceneManager.GetActiveScene();
             previousSelection = Selection.objects;
-            // Open a saved empty fixture additively: NewScene(Additive) rejects an existing Untitled scene.
             temporaryRoot = "Assets/UniPaletteTests_" + Guid.NewGuid().ToString("N");
             AssetDatabase.CreateFolder("Assets", Path.GetFileName(temporaryRoot));
-            var scenePath = temporaryRoot + "/Fixture.unity";
-            File.WriteAllText(scenePath, "%YAML 1.1\n%TAG !u! tag:unity3d.com,2011:\n--- !u!1660057539 &9223372036854775807\nSceneRoots:\n  m_ObjectHideFlags: 0\n  m_Roots: []\n");
-            AssetDatabase.ImportAsset(scenePath, ImportAssetOptions.ForceSynchronousImport);
-            scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
-            SceneManager.SetActiveScene(scene);
+            scene = sharedScene.Use();
             AssetDatabase.CreateFolder(temporaryRoot, "Data");
             folder = temporaryRoot + "/Data";
             Selection.objects = Array.Empty<Object>();
@@ -47,7 +50,7 @@ namespace BrokenMeta.UniPalette.Tests
         {
             Selection.objects = previousSelection;
             if (previousScene.IsValid() && previousScene.isLoaded) SceneManager.SetActiveScene(previousScene);
-            if (scene.IsValid() && scene.isLoaded) EditorSceneManager.CloseScene(scene, true);
+            sharedScene.ClearObjects();
             if (!string.IsNullOrEmpty(temporaryRoot)) AssetDatabase.DeleteAsset(temporaryRoot);
             temporaryRoot = null;
             folder = null;
@@ -293,7 +296,7 @@ namespace BrokenMeta.UniPalette.Tests
             var parent = Go("Parent");
             var a = Go("Needle", parent);
             var b = Go("Needle", parent);
-            var items = UnityContexts.Children(new PaletteState.Item(UnityContexts.Kind.GameObject, parent), true).ToArray();
+            var items = UnityContexts.Children(new SceneObjectContext(parent), true).ToArray();
             Assert.That(items.Select(item => item.Target), Is.EqualTo(new[] { a, b }));
             Assert.That(items.Select(item => item.Path).Distinct().Count(), Is.EqualTo(2));
         }
@@ -349,7 +352,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(state.Context.Path, Does.Contain("Renamed"));
             Object.DestroyImmediate(parent);
             state.Back();
-            Assert.That(state.Context.Kind, Is.EqualTo(UnityContexts.Kind.SceneRoot));
+            Assert.That(state.Context, Is.TypeOf<SceneRootContext>());
         }
 
         [Test]
@@ -418,8 +421,8 @@ namespace BrokenMeta.UniPalette.Tests
             var target = kind == "Parent" ? (Object)parent : kind == "GameObject" ? leaf
                 : AssetDatabase.LoadMainAssetAtPath(kind == "Asset" ? folder + "/A/Nested/Needle.txt"
                     : kind == "EmptyFolder" ? folder + "/Empty" : folder + "/A");
-            var item = target is GameObject go ? new PaletteState.Item(UnityContexts.Kind.GameObject, go)
-                : new PaletteState.Item(UnityContexts.Kind.Asset, guid: AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(target)));
+            var item = target is GameObject go ? (PaletteItem)new SceneObjectContext(go)
+                : new AssetContext(guid: AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(target)));
             using var state = new PaletteState(new[] { item }, PaletteTestData.Commands());
             state.SetQuery(item.Title);
             state.Select(0);
@@ -447,8 +450,8 @@ namespace BrokenMeta.UniPalette.Tests
             var original = Go("Original");
             var target = kind == "GameObject" ? (Object)Go("Target")
                 : AssetDatabase.LoadMainAssetAtPath(kind == "Asset" ? folder + "/A/Nested/Needle.txt" : folder + "/A");
-            var item = target is GameObject go ? new PaletteState.Item(UnityContexts.Kind.GameObject, go)
-                : new PaletteState.Item(UnityContexts.Kind.Asset, guid: AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(target)));
+            var item = target is GameObject go ? (PaletteItem)new SceneObjectContext(go)
+                : new AssetContext(guid: AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(target)));
             Selection.activeObject = original;
             using var state = new PaletteState(new[] { item }, PaletteTestData.Commands());
             state.MoveSelection(1);
@@ -507,18 +510,48 @@ namespace BrokenMeta.UniPalette.Tests
             testWindow = window;
             var flags = BindingFlags.Instance | BindingFlags.NonPublic;
             typeof(UniPaletteWindow).GetMethod("CreateGUI", flags).Invoke(window, null);
-            var item = new PaletteState.Item(UnityContexts.Kind.GameObject, target);
+            var item = new SceneObjectContext(target);
             using var state = new PaletteState(new[] { item }, PaletteTestData.Commands());
             PaletteTestData.Install(window, state);
             window.Show(); window.Focus();
-            yield return null;
+            // A delayed hierarchy notification from fixture creation is a separate signal:
+            // it legitimately refreshes the list. Settle it before testing our Selection notification.
+            var quietUntil = EditorApplication.timeSinceStartup + 0.25;
+            var settleDeadline = EditorApplication.timeSinceStartup + 5;
+            void PostponeQuietPeriod() => quietUntil = EditorApplication.timeSinceStartup + 0.25;
+            EditorApplication.hierarchyChanged += PostponeQuietPeriod;
+            EditorApplication.projectChanged += PostponeQuietPeriod;
+            try
+            {
+                while ((EditorApplication.timeSinceStartup < quietUntil || EditorApplication.isUpdating)
+                    && EditorApplication.timeSinceStartup < settleDeadline) yield return null;
+                Assert.That(EditorApplication.timeSinceStartup, Is.GreaterThanOrEqualTo(quietUntil), "Fixture notifications did not settle");
+                Assert.That(EditorApplication.isUpdating, Is.False);
+            }
+            finally
+            {
+                EditorApplication.hierarchyChanged -= PostponeQuietPeriod;
+                EditorApplication.projectChanged -= PostponeQuietPeriod;
+            }
             state.Select(0);
             typeof(UniPaletteWindow).GetMethod("ActivateResult", flags).Invoke(window, new object[] { true, false });
             Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
             Assert.That(Selection.activeObject, Is.EqualTo(target));
             typeof(UniPaletteWindow).GetMethod("OnSelectionChanged", flags).Invoke(window, null);
-            for (var i = 0; i < 15; ++i) yield return null;
-            Assert.That(state.SelectedIndex, Is.Zero, "Own notification/poll must not clear forward selection");
+            var hierarchyEvents = 0;
+            var projectEvents = 0;
+            void CountHierarchy() => hierarchyEvents++;
+            void CountProject() => projectEvents++;
+            EditorApplication.hierarchyChanged += CountHierarchy;
+            EditorApplication.projectChanged += CountProject;
+            try { for (var i = 0; i < 15; ++i) yield return null; }
+            finally
+            {
+                EditorApplication.hierarchyChanged -= CountHierarchy;
+                EditorApplication.projectChanged -= CountProject;
+            }
+            Assert.That(state.SelectedIndex, Is.Zero, "Own notification/poll must not clear forward selection; hierarchy="
+                + hierarchyEvents + ", project=" + projectEvents + ", target=" + (Selection.activeObject == target));
             Assert.That(window.rootVisualElement.Q<ListView>("results").selectedIndex, Is.Zero);
             Assert.That(state.Back(), Is.True);
             Assert.That(state.CanGoBack, Is.False, "Exactly one transition was pushed");
@@ -533,7 +566,7 @@ namespace BrokenMeta.UniPalette.Tests
             using var results = UnityEditor.Search.SearchService.Request(context, UnityEditor.Search.SearchFlags.Synchronous);
             var stale = results.Single(item => item.id == "GameObject/Create Empty Parent");
             Assert.That(stale.GetLabel(context), Does.Contain("disabled"));
-            using var state = new PaletteState(new[] { new PaletteState.Item(UnityContexts.Kind.GameObject, target) }, PaletteTestData.Commands());
+            using var state = new PaletteState(new PaletteItem[] { new SceneObjectContext(target) }, PaletteTestData.Commands());
             state.Select(0); state.Enter(true);
             Assert.That(MenuCommands.MatchesSelection(state.Context), Is.True);
             Assert.That(Menu.GetEnabled(stale.id), Is.True);

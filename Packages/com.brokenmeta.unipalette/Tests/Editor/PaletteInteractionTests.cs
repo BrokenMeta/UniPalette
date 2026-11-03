@@ -19,17 +19,17 @@ namespace BrokenMeta.UniPalette.Tests
         private PaletteState state;
         private ListView results;
 
-        private void SetUpWindow(PaletteState.Item[] roots = null)
+        private void SetUpWindow(PaletteItem[] roots = null)
         {
             window = EditorWindow.GetWindow<UniPaletteWindow>();
             typeof(UniPaletteWindow).GetMethod("CreateGUI", PrivateInstance).Invoke(window, null);
             state = new PaletteState(roots ?? new[] {
-                new PaletteState.Item("Hierarchy", "Scene Root", false,
-                    new PaletteState.Item("Parent", "Scene Root/Parent", false,
-                        new PaletteState.Item("Leaf", "Scene Root/Parent/Leaf"))),
-                new PaletteState.Item("Project", "Assets", false,
-                    new PaletteState.Item("Folder", "Assets/Folder", false,
-                        new PaletteState.Item("Asset", "Assets/Folder/Asset")))
+                new FixtureItem("Hierarchy", "Scene Root", false,
+                    new FixtureItem("Parent", "Scene Root/Parent", false,
+                        new FixtureItem("Leaf", "Scene Root/Parent/Leaf"))),
+                new FixtureItem("Project", "Assets", false,
+                    new FixtureItem("Folder", "Assets/Folder", false,
+                        new FixtureItem("Asset", "Assets/Folder/Asset")))
             }, PaletteTestData.Commands());
             PaletteTestData.Install(window, state);
             results = window.rootVisualElement.Q<ListView>("results");
@@ -90,13 +90,13 @@ namespace BrokenMeta.UniPalette.Tests
         [UnityTest]
         public IEnumerator AltArrowFlowSelectsScrollsAndKeepsTextInputFocus()
         {
-            var children = Enumerable.Range(0, 60).Select(i => new PaletteState.Item("Group " + i, "Scene Root/Group " + i, false,
-                new PaletteState.Item("Leaf " + i, "Scene Root/Group " + i + "/Leaf"))).ToArray();
+            var children = Enumerable.Range(0, 60).Select(i => new FixtureItem("Group " + i, "Scene Root/Group " + i, false,
+                new FixtureItem("Leaf " + i, "Scene Root/Group " + i + "/Leaf"))).ToArray();
             SetUpWindow(new[] {
-                new PaletteState.Item("Hierarchy", "Scene Root", false, children),
-                new PaletteState.Item("Project", "Assets", false, children),
-                new PaletteState.Item("Third", "Third", false, children),
-                new PaletteState.Item("Fourth", "Fourth", false, children)
+                new FixtureItem("Hierarchy", "Scene Root", false, children),
+                new FixtureItem("Project", "Assets", false, children),
+                new FixtureItem("Third", "Third", false, children),
+                new FixtureItem("Fourth", "Fourth", false, children)
             });
             yield return null;
             Assert.That(results.selectedIndex, Is.EqualTo(-1), "Opening root never selects automatically");

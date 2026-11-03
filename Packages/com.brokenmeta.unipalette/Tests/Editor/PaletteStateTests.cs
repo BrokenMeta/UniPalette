@@ -7,20 +7,20 @@ namespace BrokenMeta.UniPalette.Tests
     {
         private static PaletteState CreateState(bool hasMockSelection = true)
         {
-            var player = new PaletteState.Item("Player", "Scene Root/Player", false,
-                new PaletteState.Item("Weapon", "Scene Root/Player/Weapon", false,
-                    new PaletteState.Item("Muzzle", "Scene Root/Player/Weapon/Muzzle")),
-                new PaletteState.Item("Camera", "Scene Root/Player/Camera"));
-            var hierarchy = new PaletteState.Item("Hierarchy", "Scene Root", false, player,
-                new PaletteState.Item("Light", "Scene Root/Light"));
-            var project = new PaletteState.Item("Project", "Assets", false,
-                new PaletteState.Item("Characters", "Assets/Characters", false,
-                    new PaletteState.Item("Materials", "Assets/Characters/Materials", false,
-                        new PaletteState.Item("Player Material", "Assets/Characters/Materials/Player Material")),
-                    new PaletteState.Item("Player Prefab", "Assets/Characters/Player Prefab")),
-                new PaletteState.Item("Readme", "Assets/Readme"));
+            var player = new FixtureItem("Player", "Scene Root/Player", false,
+                new FixtureItem("Weapon", "Scene Root/Player/Weapon", false,
+                    new FixtureItem("Muzzle", "Scene Root/Player/Weapon/Muzzle")),
+                new FixtureItem("Camera", "Scene Root/Player/Camera"));
+            var hierarchy = new FixtureItem("Hierarchy", "Scene Root", false, player,
+                new FixtureItem("Light", "Scene Root/Light"));
+            var project = new FixtureItem("Project", "Assets", false,
+                new FixtureItem("Characters", "Assets/Characters", false,
+                    new FixtureItem("Materials", "Assets/Characters/Materials", false,
+                        new FixtureItem("Player Material", "Assets/Characters/Materials/Player Material")),
+                    new FixtureItem("Player Prefab", "Assets/Characters/Player Prefab")),
+                new FixtureItem("Readme", "Assets/Readme"));
             var roots = hasMockSelection
-                ? new[] { new PaletteState.Item("Current Selection (mock: Player)", player.Path, true), hierarchy, project }
+                ? new[] { new FixtureItem("Current Selection (mock: Player)", player.Path, true), hierarchy, project }
                 : new[] { hierarchy, project };
             return new PaletteState(roots, PaletteTestData.Commands());
         }
@@ -205,8 +205,8 @@ namespace BrokenMeta.UniPalette.Tests
         [TestCase(true)]
         public void SmartEnterWithEmptyCommandsKeepsSelectionEmptyAndRestoresLeaf(bool altRight)
         {
-            var leaf = new PaletteState.Item("Leaf", "Leaf");
-            using var state = new PaletteState(new[] { leaf }, new PaletteState.Item("Commands", ""));
+            var leaf = new FixtureItem("Leaf", "Leaf");
+            using var state = new PaletteState(new[] { leaf }, new FixtureItem("Commands", ""));
             state.Select(0);
             Assert.That(state.Enter(false, browseOnly: altRight), Is.True);
             Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));

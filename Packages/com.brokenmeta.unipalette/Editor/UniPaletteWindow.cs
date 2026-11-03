@@ -208,7 +208,7 @@ namespace BrokenMeta.UniPalette.Editor
             searchBar.Focus();
         }
 
-        private void ExecuteCommand(PaletteState.Item command, PaletteState.Item context)
+        private void ExecuteCommand(PaletteItem command, PaletteItem context)
         {
             if (executing) return;
             if (!NativeExecution.TryPrepare(command, context, out var execution, out var error))
@@ -227,7 +227,7 @@ namespace BrokenMeta.UniPalette.Editor
             var mouse = evt as IMouseEvent;
             // A second click must not activate the row rebound beneath the first click.
             if ((pointer?.clickCount ?? mouse?.clickCount ?? 1) > 1) return;
-            var index = state.Results.IndexOf(row.userData as PaletteState.Item);
+            var index = state.Results.IndexOf(row.userData as PaletteItem);
             if (index < 0) return;
             state.Select(index);
             results.SetSelectionWithoutNotify(new[] { index });
@@ -250,9 +250,7 @@ namespace BrokenMeta.UniPalette.Editor
             searchBar.placeholder = commands ? "Search commands..." : "Search contexts...";
             modeLabel.text = commands ? "Commands" : "Context";
             var contextPath = state.Context?.Path;
-            contextTitle.text = contextPath == null ? "Choose a context"
-                : state.Context.Kind == UnityContexts.Kind.GameObject || state.Context.Kind == UnityContexts.Kind.Asset
-                    ? state.Context.Title : LastSegment(contextPath);
+            contextTitle.text = state.Context?.ContextTitle ?? "Choose a context";
             contextLabel.text = contextPath == null ? "Open scenes / Assets" : commands
                 ? contextPath + " / " + state.Location : contextPath;
             contextLabel.tooltip = contextLabel.text;
@@ -326,17 +324,11 @@ namespace BrokenMeta.UniPalette.Editor
                 : item.SelectionEntry ? "Open selection commands" : container ? "Enter Browse / Commands · Ctrl+Enter for commands" : "Enter for commands";
         }
 
-        private static string LastSegment(string path) => path.Substring(path.LastIndexOf('/') + 1);
-
-        private static string ContextIcon(string path) => path == null ? "Search Icon"
-            : path == "Scene Root" ? "SceneAsset Icon"
-            : path.StartsWith("Scene Root/") ? "GameObject Icon" : "Folder Icon";
-
-        private static Texture ItemIcon(PaletteState.Item item)
+        private static Texture ItemIcon(PaletteItem item)
         {
             var target = item?.Target;
             return target ? EditorGUIUtility.ObjectContent(target, target.GetType()).image
-                : EditorGUIUtility.IconContent(ContextIcon(item?.Path)).image;
+                : EditorGUIUtility.IconContent(item?.IconName ?? "Search Icon").image;
         }
 
         private void ScheduleSearchFocus()
