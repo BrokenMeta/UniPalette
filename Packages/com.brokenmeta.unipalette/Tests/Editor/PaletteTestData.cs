@@ -19,7 +19,6 @@ namespace BrokenMeta.UniPalette.Tests
             var field = typeof(UniPaletteWindow).GetField("state", flags);
             ((PaletteState)field.GetValue(window))?.Dispose();
             field.SetValue(window, state);
-            window.rootVisualElement.Q<ListView>("results").itemsSource = state.Results;
             typeof(UniPaletteWindow).GetMethod("Render", flags).Invoke(window, new object[] { true });
         }
     }

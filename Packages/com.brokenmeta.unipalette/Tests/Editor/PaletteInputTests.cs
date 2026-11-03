@@ -12,87 +12,17 @@ using UnityEngine.UIElements;
 
 namespace BrokenMeta.UniPalette.Tests
 {
-    public class PaletteInteractionTests
+    [Category("Input")]
+    [Category("UI")]
+    public class PaletteInputTests : PaletteWindowTestFixture
     {
-        private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
-        private UniPaletteWindow window;
-        private PaletteState state;
-        private ListView results;
-
-        private void SetUpWindow(PaletteItem[] roots = null)
-        {
-            window = EditorWindow.GetWindow<UniPaletteWindow>();
-            typeof(UniPaletteWindow).GetMethod("CreateGUI", PrivateInstance).Invoke(window, null);
-            state = new PaletteState(roots ?? new[] {
-                new FixtureItem("Hierarchy", "Scene Root", false,
-                    new FixtureItem("Parent", "Scene Root/Parent", false,
-                        new FixtureItem("Leaf", "Scene Root/Parent/Leaf"))),
-                new FixtureItem("Project", "Assets", false,
-                    new FixtureItem("Folder", "Assets/Folder", false,
-                        new FixtureItem("Asset", "Assets/Folder/Asset")))
-            }, PaletteTestData.Commands());
-            PaletteTestData.Install(window, state);
-            results = window.rootVisualElement.Q<ListView>("results");
-            results.itemsSource = state.Results;
-            typeof(UniPaletteWindow).GetMethod("Render", PrivateInstance).Invoke(window, new object[] { true });
-            window.Show();
-            window.Focus();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            // Restore the open user's window to live data, without closing it.
-            if (window) typeof(UniPaletteWindow).GetMethod("CreateGUI", PrivateInstance).Invoke(window, null);
-        }
-
-        private void Click(int index, bool control = false, int count = 1, int button = 0)
-        {
-            var row = results.GetRootElementForIndex(index);
-            Assert.That(row, Is.Not.Null, "Row must be realized before sending pointer events");
-            var systemEvent = new Event { type = EventType.MouseDown, button = button, clickCount = count,
-                modifiers = control ? EventModifiers.Control : EventModifiers.None, mousePosition = row.worldBound.center };
-            using (var down = PointerDownEvent.GetPooled(systemEvent))
-            {
-                down.target = row;
-                row.SendEvent(down);
-            }
-            systemEvent.type = EventType.MouseUp;
-            using var up = PointerUpEvent.GetPooled(systemEvent);
-            up.target = row;
-            row.SendEvent(up);
-        }
-
-        private void Key(KeyCode key, EventModifiers modifiers = EventModifiers.None)
-        {
-            var search = window.rootVisualElement.Q<VisualElement>("search");
-            var input = search.Q<TextField>();
-            var target = input?.Q<TextElement>() as VisualElement ?? input?.Q<VisualElement>("unity-text-input") ?? search;
-            using var evt = KeyDownEvent.GetPooled(new Event { type = EventType.KeyDown, keyCode = key, modifiers = modifiers });
-            evt.target = target;
-            target.SendEvent(evt);
-        }
-
-        private bool SearchHasFocus()
-        {
-            var search = window.rootVisualElement.Q<VisualElement>("search");
-            var focused = window.rootVisualElement.panel.focusController.focusedElement;
-            return focused == search || search.Contains(focused as VisualElement);
-        }
-
-        private IEnumerator WaitForSearchFocus()
-        {
-            var deadline = EditorApplication.timeSinceStartup + 0.5;
-            while (!SearchHasFocus() && EditorApplication.timeSinceStartup < deadline) yield return null;
-            Assert.That(SearchHasFocus(), Is.True, "SearchBar must regain focus after pointer dispatch/layout");
-        }
 
         [UnityTest]
         public IEnumerator AltArrowFlowSelectsScrollsAndKeepsTextInputFocus()
         {
             var children = Enumerable.Range(0, 60).Select(i => new FixtureItem("Group " + i, "Scene Root/Group " + i, false,
                 new FixtureItem("Leaf " + i, "Scene Root/Group " + i + "/Leaf"))).ToArray();
-            SetUpWindow(new[] {
+            yield return SetUpWindow(new[] {
                 new FixtureItem("Hierarchy", "Scene Root", false, children),
                 new FixtureItem("Project", "Assets", false, children),
                 new FixtureItem("Third", "Third", false, children),
@@ -153,7 +83,7 @@ namespace BrokenMeta.UniPalette.Tests
         [UnityTest]
         public IEnumerator BackRendersRestoredSelectionWithoutMovingSearchFocus()
         {
-            SetUpWindow();
+            yield return SetUpWindow();
             yield return null;
             Click(1);
             yield return null;
@@ -176,7 +106,7 @@ namespace BrokenMeta.UniPalette.Tests
         [UnityTest]
         public IEnumerator AltRightUsesSmartEnterAndNeverActivatesCommandLeaves()
         {
-            SetUpWindow();
+            yield return SetUpWindow();
             yield return null;
             Key(KeyCode.RightArrow, EventModifiers.Alt);
             Assert.That(state.Context, Is.Null, "No implicit selection");
@@ -227,7 +157,7 @@ namespace BrokenMeta.UniPalette.Tests
         [UnityTest]
         public IEnumerator LeftClickNavigatesAndLeafKeepsEnterSemantics()
         {
-            SetUpWindow();
+            yield return SetUpWindow();
             yield return null;
             Click(0);
             Assert.That(state.Context.Path, Is.EqualTo("Scene Root"));
@@ -256,7 +186,7 @@ namespace BrokenMeta.UniPalette.Tests
         [UnityTest]
         public IEnumerator ControlClickFromRootAndDoubleClickDoNotDuplicateNavigation()
         {
-            SetUpWindow();
+            yield return SetUpWindow();
             yield return null;
             Click(1, control: true);
             Assert.That(state.Context.Path, Is.EqualTo("Assets"));
@@ -278,7 +208,7 @@ namespace BrokenMeta.UniPalette.Tests
         [UnityTest]
         public IEnumerator KeyboardAndRepeatedShortcutUseOneWindowAndKeepSearchFocus()
         {
-            SetUpWindow();
+            yield return SetUpWindow();
             yield return null;
             Key(KeyCode.DownArrow);
             Assert.That(state.SelectedIndex, Is.Zero);
@@ -297,5 +227,3 @@ namespace BrokenMeta.UniPalette.Tests
         }
     }
 }
-
-

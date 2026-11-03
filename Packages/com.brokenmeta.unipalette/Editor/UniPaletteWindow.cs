@@ -2,27 +2,12 @@ using UnityEditor;
 using UnityEditor.ShortcutManagement;
 using UnityEngine;
 using UnityEngine.UIElements;
-using Unity.AppUI.UI;
-using ListView = UnityEngine.UIElements.ListView;
-using Text = Unity.AppUI.UI.Text;
 
 namespace BrokenMeta.UniPalette.Editor
 {
     public class UniPaletteWindow : EditorWindow
     {
-        private const string UIPath = "Packages/com.brokenmeta.unipalette/Editor/UI/";
-        private SearchBar searchBar;
-        private ListView results;
-        private ActionButton back;
-        private Text modeLabel;
-        private Text contextLabel;
-        private Text contextTitle;
-        private Image contextIcon;
-        private Text resultsTitle;
-        private Text resultsCount;
-        private Text hints;
-        private Text messageLabel;
-        private Text dataLabel;
+        private PaletteView view;
         private PaletteState state;
         private UnityEngine.Object observedSelection;
         private int observedSelectionCount;
@@ -45,7 +30,8 @@ namespace BrokenMeta.UniPalette.Editor
             EditorApplication.hierarchyChanged -= RefreshContexts;
             EditorApplication.projectChanged -= RefreshContexts;
             EditorApplication.update -= CheckContextChanges;
-            state?.Dispose();
+            DisposeView();
+            DisposeState();
         }
 
         private void OnFocus() => RefreshContexts();
@@ -69,7 +55,7 @@ namespace BrokenMeta.UniPalette.Editor
 
         private void RefreshContexts()
         {
-            if (!this || state == null || searchBar?.panel == null) return;
+            if (!this || state == null || view?.IsAttached != true) return;
             observedSelection = Selection.activeObject;
             observedSelectionCount = Selection.count;
             if (state.ConfirmingContext) return;
@@ -98,52 +84,48 @@ namespace BrokenMeta.UniPalette.Editor
 
         private void CreateGUI()
         {
-            state?.Dispose();
+            DisposeView();
+            DisposeState();
             titleContent = new GUIContent("UniPalette");
             minSize = new Vector2(360, 240);
-            rootVisualElement.Clear();
-            AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UIPath + "UniPalette.uxml").CloneTree(rootVisualElement);
-            var panel = rootVisualElement.Q<Panel>();
-            panel.theme = EditorGUIUtility.isProSkin ? "editor-dark" : "editor-light";
-            panel.scale = "small";
-            panel.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                "Packages/com.unity.dt.app-ui/PackageResources/Styles/Themes/App UI.tss"));
-            panel.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                "Packages/com.unity.dt.app-ui/PackageResources/Icons/Icons.uss"));
-            panel.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(UIPath + "UniPalette.uss"));
+            view = new PaletteView(rootVisualElement);
             state = new PaletteState();
             state.CommandResultsChanged += OnCommandResultsChanged;
             state.ExecuteCommand += ExecuteCommand;
-            observedSelection = Selection.activeObject;
-            observedSelectionCount = Selection.count;
-            back = rootVisualElement.Q<ActionButton>("back");
-            back.clickable.clicked += GoBack;
-            modeLabel = rootVisualElement.Q<Text>("mode");
-            contextLabel = rootVisualElement.Q<Text>("context");
-            contextTitle = rootVisualElement.Q<Text>("context-title");
-            contextIcon = rootVisualElement.Q<Image>("context-icon");
-            resultsTitle = rootVisualElement.Q<Text>("results-title");
-            resultsCount = rootVisualElement.Q<Text>("results-count");
-            hints = rootVisualElement.Q<Text>("hints");
-            messageLabel = rootVisualElement.Q<Text>("message");
-            dataLabel = rootVisualElement.Q<Text>("data-label");
-            searchBar = rootVisualElement.Q<SearchBar>("search");
-            results = rootVisualElement.Q<ListView>("results");
-            results.makeItem = MakeRow;
-            results.bindItem = BindRow;
-            results.itemsSource = state.Results;
-            results.selectionChanged += _ => state.Select(results.selectedIndex);
-            searchBar.RegisterCallback<ChangingEvent<string>>(evt => UpdateQuery(evt.newValue));
-            searchBar.RegisterValueChangedCallback(evt => UpdateQuery(evt.newValue));
-            // Capture before the native text input and ListView consume navigation keys.
-            panel.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
-            panel.RegisterCallback<NavigationMoveEvent>(evt =>
-            {
-                if (evt.direction == NavigationMoveEvent.Direction.Up || evt.direction == NavigationMoveEvent.Direction.Down)
-                    evt.StopPropagation();
-            }, TrickleDown.TrickleDown);
+            AttachView();
             Render();
         }
+
+        private void AttachView()
+        {
+            view.BackRequested += GoBack;
+            view.QueryChanged += UpdateQuery;
+            view.RowSelectionChanged += SelectRow;
+            view.RowActivated += ActivateRow;
+            view.KeyPressed += OnKeyDown;
+        }
+
+        private void DisposeView()
+        {
+            if (view == null) return;
+            view.BackRequested -= GoBack;
+            view.QueryChanged -= UpdateQuery;
+            view.RowSelectionChanged -= SelectRow;
+            view.RowActivated -= ActivateRow;
+            view.KeyPressed -= OnKeyDown;
+            view.Dispose();
+            view = null;
+        }
+
+        private void DisposeState()
+        {
+            if (state == null) return;
+            state.CommandResultsChanged -= OnCommandResultsChanged;
+            state.ExecuteCommand -= ExecuteCommand;
+            state.Dispose();
+        }
+
+        private void SelectRow(int index) => state.Select(index);
 
         private void OnCommandResultsChanged() => Render(false);
 
@@ -151,7 +133,7 @@ namespace BrokenMeta.UniPalette.Editor
         {
             if (query == state.Query) return;
             state.SetQuery(query);
-            RefreshResults();
+            view.RefreshResults(state);
         }
 
         private void OnKeyDown(KeyDownEvent evt)
@@ -170,22 +152,21 @@ namespace BrokenMeta.UniPalette.Editor
             else if (evt.altKey && evt.keyCode == KeyCode.RightArrow)
             {
                 Consume(evt);
-                if (!evt.ctrlKey && !evt.commandKey && !evt.shiftKey) ActivateResult(false, browseOnly: true);
+                if (!evt.ctrlKey && !evt.commandKey && !evt.shiftKey) BrowseSelected();
             }
             else if (!evt.ctrlKey && !evt.commandKey && !evt.shiftKey &&
                      (evt.keyCode == KeyCode.UpArrow || evt.keyCode == KeyCode.DownArrow))
             {
                 Consume(evt);
                 state.MoveSelection(evt.keyCode == KeyCode.DownArrow ? 1 : -1);
-                results.SetSelectionWithoutNotify(state.SelectedIndex < 0 ? System.Array.Empty<int>() : new[] { state.SelectedIndex });
-                if (state.SelectedIndex >= 0) results.ScrollToItem(state.SelectedIndex);
-                searchBar.Focus();
+                view.RevealSelection(state.SelectedIndex);
+                view.FocusSearch();
             }
             else if (enter)
             {
                 Consume(evt);
                 if (evt.altKey || evt.shiftKey || evt.commandKey) return;
-                ActivateResult(evt.ctrlKey);
+                if (evt.ctrlKey) OpenContextCommands(); else ActivateSelected();
             }
             // Unmodified Left/Right are intentionally left to the text input.
         }
@@ -195,17 +176,21 @@ namespace BrokenMeta.UniPalette.Editor
             evt.StopImmediatePropagation();
         }
 
-        private void ActivateResult(bool control, bool browseOnly = false)
+        private void ActivateSelected() => ApplyNavigation(state.ActivateSelected);
+        private void BrowseSelected() => ApplyNavigation(state.BrowseSelected);
+        private void OpenContextCommands() => ApplyNavigation(state.OpenContextCommands);
+
+        private void ApplyNavigation(System.Func<bool> action)
         {
             if (executing || !this) return;
-            if (state.Enter(control, browseOnly)) Render();
+            if (action()) Render();
             else
             {
                 if (executing || !this) return;
-                UpdateMessage();
+                view.UpdateMessage(state);
                 ScheduleSearchFocus();
             }
-            searchBar.Focus();
+            view.FocusSearch();
         }
 
         private void ExecuteCommand(PaletteItem command, PaletteItem context)
@@ -221,120 +206,34 @@ namespace BrokenMeta.UniPalette.Editor
             execution.ExecuteAfterClose();
         }
 
-        private void ActivateRow(ListViewItem row, EventBase evt)
+        private void ActivateRow(PaletteItem item, EventBase evt)
         {
             var pointer = evt as IPointerEvent;
             var mouse = evt as IMouseEvent;
             // A second click must not activate the row rebound beneath the first click.
             if ((pointer?.clickCount ?? mouse?.clickCount ?? 1) > 1) return;
-            var index = state.Results.IndexOf(row.userData as PaletteItem);
+            var index = state.Results.IndexOf(item);
             if (index < 0) return;
             state.Select(index);
-            results.SetSelectionWithoutNotify(new[] { index });
-            ActivateResult(pointer?.ctrlKey ?? mouse?.ctrlKey ?? false);
+            view.SelectRow(index);
+            if (pointer?.ctrlKey ?? mouse?.ctrlKey ?? false) OpenContextCommands();
+            else ActivateSelected();
         }
 
         private void GoBack()
         {
-            if (state.Back()) Render();
+            if (state.GoBack()) Render();
             else ScheduleSearchFocus();
         }
 
         private void Render(bool focusSearch = true)
         {
-            // Also acknowledge API changes when Unity does not deliver selectionChanged.
+            // Acknowledge API changes even when Unity omits selectionChanged.
             observedSelection = Selection.activeObject;
             observedSelectionCount = Selection.count;
-            searchBar.SetValueWithoutNotify(state.Query);
-            var commands = state.Mode == PaletteState.Browser.Commands;
-            searchBar.placeholder = commands ? "Search commands..." : "Search contexts...";
-            modeLabel.text = commands ? "Commands" : "Context";
-            var contextPath = state.Context?.Path;
-            contextTitle.text = state.Context?.ContextTitle ?? "Choose a context";
-            contextLabel.text = contextPath == null ? "Open scenes / Assets" : commands
-                ? contextPath + " / " + state.Location : contextPath;
-            contextLabel.tooltip = contextLabel.text;
-            contextIcon.image = ItemIcon(state.Context);
-            dataLabel.text = commands ? "Unity menu" : "Unity Editor";
-            dataLabel.tooltip = commands ? "Native execution for discovered, enabled commands in a confirmed context. Scene Root uses no Selection and the active main-stage scene; Assets Root selects Assets. Unity determines applicability and results; special window/UI state may still be required."
-                : "Live scene objects and project assets. Single-object Selection only.";
-            resultsTitle.text = commands ? "Commands" : "Contexts";
-            hints.text = commands ? "↑↓ Select · Enter Open / Run · Esc Back"
-                : "↑↓ Select · Enter Browse / Commands · Ctrl+Enter Commands · Esc Back";
-            back.SetEnabled(state.CanGoBack);
-            back.tooltip = state.CanGoBack ? "Back · Escape / Alt+Left" : "Already at the root";
-            RefreshResults();
-            if (focusSearch) ScheduleSearchFocus();
+            view.Render(state, focusSearch);
         }
 
-        private void RefreshResults()
-        {
-            var selected = state.SelectedIndex;
-            results.SetSelectionWithoutNotify(System.Array.Empty<int>());
-            results.RefreshItems();
-            state.Select(selected);
-            results.SetSelectionWithoutNotify(state.SelectedIndex < 0 ? System.Array.Empty<int>() : new[] { state.SelectedIndex });
-            if (state.SelectedIndex >= 0) results.ScrollToItem(state.SelectedIndex);
-            resultsCount.text = state.Results.Count.ToString();
-            UpdateMessage();
-        }
-
-        private void UpdateMessage()
-        {
-            messageLabel.text = state.Message.Length > 0 ? state.Message
-                : state.Mode == PaletteState.Browser.Commands
-                    ? state.CommandsLoading ? state.CommandNotice
-                        : state.Results.Count == 0 ? "No menu commands found. " + state.CommandNotice : state.CommandNotice
-                    : state.Results.Count == 0 ? "No results" : "";
-            messageLabel.style.display = messageLabel.text.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
-        }
-
-        private VisualElement MakeRow()
-        {
-            var row = new ListViewItem();
-            row.AddToClassList("unipalette__row");
-            row.optionsButton.style.display = DisplayStyle.None;
-            row.focusable = false;
-            // Clickable owns the down/up sequence and suppresses ListView's competing mouse handling.
-            var clickable = new UnityEngine.UIElements.Clickable(evt => ActivateRow(row, evt));
-            clickable.activators.Add(new ManipulatorActivationFilter { button = 0, modifiers = EventModifiers.Control });
-            row.AddManipulator(clickable);
-            var indicator = new Text { name = "indicator", pickingMode = PickingMode.Ignore };
-            indicator.AddToClassList("unipalette__row-indicator");
-            row.trailingContainer.Add(indicator);
-            return row;
-        }
-
-        private void BindRow(VisualElement element, int index)
-        {
-            var item = state.Results[index];
-            var row = (ListViewItem)element;
-            row.userData = item;
-            var commands = state.Mode == PaletteState.Browser.Commands;
-            row.title = item.SelectionEntry ? "Current Selection" : item.Title;
-            var container = item.CanBrowse;
-            var supported = commands && !container && NativeExecution.Supports(item.Path, state.Context);
-            row.subtitle = item.SelectionEntry ? item.Title + " · " + item.Path : item.Path
-                + (commands && !container ? supported ? " · Native execution" : " · Execution unavailable" : "");
-            row.tooltip = row.subtitle + (item.AvailabilityNote == null ? "" : "\n" + item.AvailabilityNote);
-            row.thumbnail = commands ? EditorGUIUtility.IconContent(container ? "Folder Icon" : "TextAsset Icon").image : ItemIcon(item);
-            var indicator = row.Q<Text>("indicator");
-            indicator.text = commands ? (container ? "›" : supported ? "↵" : "—") : item.SelectionEntry ? "↵" : container ? "›" : "↗";
-            indicator.tooltip = commands ? (container ? "Open menu category" : supported ? "Run native Unity command" : "Relevant confirmed context required · No execution")
-                : item.SelectionEntry ? "Open selection commands" : container ? "Enter Browse / Commands · Ctrl+Enter for commands" : "Enter for commands";
-        }
-
-        private static Texture ItemIcon(PaletteItem item)
-        {
-            var target = item?.Target;
-            return target ? EditorGUIUtility.ObjectContent(target, target.GetType()).image
-                : EditorGUIUtility.IconContent(item?.IconName ?? "Search Icon").image;
-        }
-
-        private void ScheduleSearchFocus()
-        {
-            // Resolve the current field after attachment/layout, including GUI recreation.
-            rootVisualElement.schedule.Execute(() => searchBar?.Focus());
-        }
+        private void ScheduleSearchFocus() => view?.ScheduleSearchFocus();
     }
 }

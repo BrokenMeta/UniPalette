@@ -162,45 +162,64 @@ namespace BrokenMeta.UniPalette.Editor
                 : Math.Max(0, Math.Min(Results.Count - 1, SelectedIndex + direction)));
         }
 
-        internal bool Enter(bool control, bool browseOnly = false)
+        private PaletteItem SelectedItem => SelectedIndex >= 0 ? Results[SelectedIndex] : null;
+
+        internal bool ActivateSelected()
         {
-            var selected = SelectedIndex >= 0 ? Results[SelectedIndex] : null;
-            // Alt+Right shares Context Enter, but never previews or executes a command leaf.
-            if (browseOnly && Mode == Browser.Commands && (selected == null || !selected.CanBrowse)) return false;
-            if ((Context != null && !Context.IsValid) || (selected != null && !selected.IsValid))
-            {
-                Message = "Context no longer exists.";
-                return false;
-            }
-            if (Mode == Browser.Commands)
-            {
-                // Ctrl+Enter in Command Browser is deliberately unassigned.
-                if (control || selected == null) return false;
-                if (selected.Children.Length > 0)
-                    return Push(new Level(Browser.Commands, Context, selected));
-                if (selected is MenuCommandItem && NativeExecution.Supports(selected.Path, Context))
-                {
-                    if (ExecuteCommand != null) ExecuteCommand(selected, Context);
-                    else Message = "Native execution is unavailable; nothing executed.";
-                }
-                else Message = selected.Path + " · Execution requires a confirmed context and relevant menu leaf; nothing executed. " + selected.AvailabilityNote;
-                return false;
-            }
-            if (control)
-            {
-                var context = selected ?? Context;
-                return context != null && OpenCommands(context);
-            }
-            if (selected == null) return false;
-            if (selected.SelectionEntry)
-                return OpenCommands(selected);
-            // Source entries always open their area, even when it is empty. A folder's
-            // browse capability alone does not imply that it currently has children.
-            var hasChildren = selected.HasBrowseChildren;
-            return hasChildren ? Push(new Level(Browser.Context, selected)) : OpenCommands(selected);
+            var selected = SelectedItem;
+            if (!ValidateNavigationTarget(selected)) return false;
+            return Mode == Browser.Commands ? ActivateCommand(selected) : ActivateContext(selected);
         }
 
-        internal bool Back()
+        internal bool BrowseSelected()
+        {
+            // Alt+Right may open a category, but must never activate a command leaf.
+            var selected = SelectedItem;
+            if (Mode == Browser.Commands && (selected == null || !selected.CanBrowse)) return false;
+            return ActivateSelected();
+        }
+
+        internal bool OpenContextCommands()
+        {
+            var selected = SelectedItem;
+            if (!ValidateNavigationTarget(selected)) return false;
+            // Ctrl+Enter in Command Browser remains deliberately unassigned.
+            if (Mode == Browser.Commands) return false;
+            var context = selected ?? Context;
+            return context != null && OpenCommands(context);
+        }
+
+        private bool ValidateNavigationTarget(PaletteItem selected)
+        {
+            if ((Context == null || Context.IsValid) && (selected == null || selected.IsValid)) return true;
+            Message = "Context no longer exists.";
+            return false;
+        }
+
+        private bool ActivateCommand(PaletteItem selected)
+        {
+            if (selected == null) return false;
+            if (selected.Children.Length > 0)
+                return Push(new Level(Browser.Commands, Context, selected));
+            if (selected is MenuCommandItem && NativeExecution.Supports(selected.Path, Context))
+            {
+                if (ExecuteCommand != null) ExecuteCommand(selected, Context);
+                else Message = "Native execution is unavailable; nothing executed.";
+            }
+            else Message = selected.Path + " · Execution requires a confirmed context and relevant menu leaf; nothing executed. " + selected.AvailabilityNote;
+            return false;
+        }
+
+        private bool ActivateContext(PaletteItem selected)
+        {
+            if (selected == null) return false;
+            if (selected.SelectionEntry) return OpenCommands(selected);
+            // Source entries open their area even when empty; empty folders open commands.
+            return selected.HasBrowseChildren
+                ? Push(new Level(Browser.Context, selected)) : OpenCommands(selected);
+        }
+
+        internal bool GoBack()
         {
             if (!CanGoBack) return false;
             ReturnToPreviousLevel();

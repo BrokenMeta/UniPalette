@@ -3,6 +3,7 @@
     "rootNamespace": "BrokenMeta.UniPalette.Tests",
     "references": [
         "BrokenMeta.UniPalette.Editor",
+        "Unity.AppUI",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

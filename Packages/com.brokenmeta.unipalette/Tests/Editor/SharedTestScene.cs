@@ -1,80 +1,94 @@
 using System;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEditor.SceneManagement;
-using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace BrokenMeta.UniPalette.Tests
 {
-    // One saved, empty scene per fixture. Never clear an arbitrary active/user scene.
+    // Owned by the namespace SetUpFixture, not by individual test classes.
+    // Lazy initialization keeps Fast runs free of scene/asset setup.
     internal sealed class SharedTestScene : IDisposable
     {
-        internal const string ScenePath = "Packages/com.brokenmeta.unipalette/Tests/Editor/Scenes/UniPaletteTestScene.unity";
-        private readonly Scene previousActiveScene;
-        private readonly bool wasActive;
-        private readonly bool wasLoaded;
+        private const string Template = "Packages/com.brokenmeta.unipalette/Tests/Editor/Scenes/UniPaletteTestScene.unity";
+        internal static SharedTestScene Current { get; set; }
+        internal Scene Scene => scene;
+        private readonly Scene previousActiveScene = SceneManager.GetActiveScene();
         private Scene scene;
-
-        internal SharedTestScene()
-        {
-            previousActiveScene = SceneManager.GetActiveScene();
-            wasActive = previousActiveScene.IsValid() && previousActiveScene.path == ScenePath;
-            scene = SceneManager.GetSceneByPath(ScenePath);
-            wasLoaded = scene.IsValid() && scene.isLoaded;
-            if (wasLoaded)
-            {
-                Assert.That(scene.isDirty, Is.False, "The saved test scene has unsaved changes; refusing to use it.");
-                Assert.That(scene.rootCount, Is.Zero, "The shared test scene must start empty.");
-            }
-            try
-            {
-                EnsureLoaded();
-                Assert.That(scene.rootCount, Is.Zero, "The saved test fixture must be empty.");
-            }
-            catch
-            {
-                if (!wasLoaded && scene.IsValid() && scene.isLoaded) EditorSceneManager.CloseScene(scene, true);
-                throw;
-            }
-            finally { RestorePreviousActiveScene(); }
-        }
+        private string folder, folderGuid;
+        private bool disposed;
 
         internal Scene Use()
         {
-            EnsureLoaded();
-            Assert.That(scene.rootCount, Is.Zero, "A previous test left objects in the shared scene.");
-            Assert.That(SceneManager.SetActiveScene(scene), Is.True);
+            Assert.That(disposed, Is.False, "The test scene session has ended.");
+            if (folder == null)
+            {
+                folder = "Assets/UniPaletteSceneSession_" + Guid.NewGuid().ToString("N");
+                folderGuid = AssetDatabase.CreateFolder("Assets", System.IO.Path.GetFileName(folder));
+                Assert.That(folderGuid, Is.Not.Empty, "Could not create the disposable scene folder.");
+                scene = OpenCopy("Session");
+            }
+            // The runner itself opens an untitled scene. Loading a saved copy works alongside it;
+            // NewScene(Additive) does not. Never save or replace that runner/user scene.
+            Assert.That(scene.IsValid() && scene.isLoaded, Is.True,
+                "The session scene was closed unexpectedly; do not recreate it between tests.");
+            Assert.That(scene.rootCount, Is.Zero, "A previous test left objects in the session scene.");
+            if (SceneManager.GetActiveScene() != scene)
+                Assert.That(SceneManager.SetActiveScene(scene), Is.True);
             return scene;
         }
 
+        private Scene OpenCopy(string name)
+        {
+            var path = folder + "/" + name + ".unity";
+            Assert.That(AssetDatabase.CopyAsset(Template, path), Is.True, "Could not copy the empty scene template.");
+            var copy = EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
+            try
+            {
+                Assert.That(copy.rootCount, Is.Zero, "The scene template must be empty.");
+                return copy;
+            }
+            catch
+            {
+                EditorSceneManager.CloseScene(copy, true);
+                throw;
+            }
+        }
+
+        // Only the regression that deliberately closes its captured scene needs a second copy.
+        internal Scene OpenDisposableScene() => OpenCopy("ClosedScene");
+
         internal void ClearObjects()
         {
-            scene = SceneManager.GetSceneByPath(ScenePath);
-            if (!scene.IsValid() || !scene.isLoaded) return; // The closed-scene test deliberately unloads it.
+            if (folder == null || !scene.IsValid()) return; // Setup may fail before opening the scene.
+            Assert.That(scene.isLoaded, Is.True, "The session scene must remain loaded.");
             foreach (var root in scene.GetRootGameObjects()) UnityEngine.Object.DestroyImmediate(root);
-        }
-
-        private void EnsureLoaded()
-        {
-            scene = SceneManager.GetSceneByPath(ScenePath);
-            if (!scene.IsValid() || !scene.isLoaded)
-                scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
-        }
-
-        private void RestorePreviousActiveScene()
-        {
-            var previous = previousActiveScene;
-            if (wasActive) previous = SceneManager.GetSceneByPath(ScenePath);
-            if (previous.IsValid() && previous.isLoaded) SceneManager.SetActiveScene(previous);
         }
 
         public void Dispose()
         {
-            scene = SceneManager.GetSceneByPath(ScenePath);
-            if (scene.IsValid() && scene.isLoaded) EditorSceneManager.CloseScene(scene, true);
-            // Restore the initial loaded state without saving test mutations to the fixture asset.
-            if (wasLoaded) EnsureLoaded();
-            RestorePreviousActiveScene();
+            if (disposed) return;
+            disposed = true;
+            try
+            {
+                if (scene.IsValid() && scene.isLoaded)
+                {
+                    ClearObjects();
+                    if (previousActiveScene.IsValid() && previousActiveScene.isLoaded)
+                        SceneManager.SetActiveScene(previousActiveScene);
+                    EditorSceneManager.CloseScene(scene, true);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    // Delete only the folder created by this session, even if a test failed.
+                    if (!string.IsNullOrEmpty(folderGuid) && AssetDatabase.AssetPathToGUID(folder) == folderGuid)
+                        AssetDatabase.DeleteAsset(folder);
+                }
+                finally { if (ReferenceEquals(Current, this)) Current = null; }
+            }
         }
     }
 }
