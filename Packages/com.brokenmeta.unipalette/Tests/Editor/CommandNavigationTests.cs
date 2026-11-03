@@ -17,6 +17,35 @@ namespace BrokenMeta.UniPalette.Tests
     {
 
         [Test]
+        public void RefreshingCategoryKeepsPreviousBrowserSnapshot()
+        {
+            var original = Build(new[] { "Assets/Create/Folder" });
+            var browser = new CommandBrowser(Assets(), original.Children[0].Children[0]);
+            var updated = Build(new[] { "Assets/Create/Material" });
+            var refreshed = browser.RefreshCommands(_ => updated);
+
+            Assert.That(refreshed.Location, Is.EqualTo("Assets/Create"));
+            Assert.That(refreshed.Context, Is.SameAs(browser.Context));
+            Assert.That(refreshed.GetItems("").Single().Path, Is.EqualTo("Assets/Create/Material"));
+            Assert.That(browser.GetItems("").Single().Path, Is.EqualTo("Assets/Create/Folder"),
+                "Refreshing the current browser must not mutate a snapshot retained in history");
+        }
+
+        [Test]
+        public void RefreshingRemovedCategoryFallsBackToCommandRoot()
+        {
+            var original = Build(new[] { "Assets/Create/Folder" });
+            var browser = new CommandBrowser(Assets(), original.Children[0].Children[0]);
+            var updated = Build(new[] { "Assets/Open" });
+            var refreshed = browser.RefreshCommands(_ => updated);
+
+            Assert.That(refreshed.Location, Is.EqualTo("Commands"));
+            Assert.That(refreshed.GetItems("").Single().Path, Is.EqualTo("Assets"));
+            Assert.That(refreshed.Context, Is.SameAs(browser.Context));
+            Assert.That(browser.Location, Is.EqualTo("Assets/Create"));
+        }
+
+        [Test]
         public void EmptyQueryShowsChildrenAndRecursiveQueryStaysInsideCategory()
         {
             using var state = new PaletteState(new[] { Assets() }, Build());

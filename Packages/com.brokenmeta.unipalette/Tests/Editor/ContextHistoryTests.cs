@@ -108,7 +108,7 @@ namespace BrokenMeta.UniPalette.Tests
             state.SetQuery("Cube");
             Object.DestroyImmediate(branch);
             state.Refresh();
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Context));
+            Assert.That(state.Browser, Is.TypeOf<ContextBrowser>());
             Assert.That(state.Context.Target, Is.EqualTo(parent));
             Assert.That(state.Query, Is.Empty);
             Assert.That(state.SelectedIndex, Is.EqualTo(-1));

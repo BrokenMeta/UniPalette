@@ -147,21 +147,17 @@ namespace BrokenMeta.UniPalette.Editor
             if (disposed) return;
             BindState(state);
             searchBar.SetValueWithoutNotify(state.Query);
-            var commands = state.Mode == PaletteState.Browser.Commands;
-            searchBar.placeholder = commands ? "Search commands..." : "Search contexts...";
-            modeLabel.text = commands ? "Commands" : "Context";
-            var contextPath = state.Context?.Path;
+            var browser = state.Browser;
+            searchBar.placeholder = browser.SearchPlaceholder;
+            modeLabel.text = browser.Label;
             contextTitle.text = state.Context?.ContextTitle ?? "Choose a context";
-            contextLabel.text = contextPath == null ? "Open scenes / Assets" : commands
-                ? contextPath + " / " + state.Location : contextPath;
+            contextLabel.text = browser.Breadcrumb;
             contextLabel.tooltip = contextLabel.text;
             contextIcon.image = ItemIcon(state.Context);
-            dataLabel.text = commands ? "Unity menu" : "Unity Editor";
-            dataLabel.tooltip = commands ? "Native execution for discovered, enabled commands in a confirmed context. Scene Root uses no Selection and the active main-stage scene; Assets Root selects Assets. Unity determines applicability and results; special window/UI state may still be required."
-                : "Live scene objects and project assets. Single-object Selection only.";
-            resultsTitle.text = commands ? "Commands" : "Contexts";
-            hints.text = commands ? "↑↓ Select · Enter Open / Run · Esc Back"
-                : "↑↓ Select · Enter Browse / Commands · Ctrl+Enter Commands · Esc Back";
+            dataLabel.text = browser.DataLabel;
+            dataLabel.tooltip = browser.DataTooltip;
+            resultsTitle.text = browser.ResultsTitle;
+            hints.text = browser.Hints;
             back.SetEnabled(state.CanGoBack);
             back.tooltip = state.CanGoBack ? "Back · Escape / Alt+Left" : "Already at the root";
             RefreshResults(state);
@@ -186,10 +182,7 @@ namespace BrokenMeta.UniPalette.Editor
         {
             if (disposed) return;
             messageLabel.text = state.Message.Length > 0 ? state.Message
-                : state.Mode == PaletteState.Browser.Commands
-                    ? state.CommandsLoading ? state.CommandNotice
-                        : state.Results.Count == 0 ? "No menu commands found. " + state.CommandNotice : state.CommandNotice
-                    : state.Results.Count == 0 ? "No results" : "";
+                : state.Browser.GetNotice(state);
             messageLabel.style.display = messageLabel.text.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
@@ -216,26 +209,20 @@ namespace BrokenMeta.UniPalette.Editor
             var item = state.Results[index];
             var row = (ListViewItem)element;
             row.userData = item;
-            var commands = state.Mode == PaletteState.Browser.Commands;
-            row.title = item.SelectionEntry ? "Current Selection" : item.Title;
-            var container = item.CanBrowse;
-            var supported = commands && !container && NativeExecution.Supports(item.Path, state.Context);
-            row.subtitle = item.SelectionEntry ? item.Title + " · " + item.Path : item.Path
-                + (commands && !container ? supported ? " · Native execution" : " · Execution unavailable" : "");
-            row.tooltip = row.subtitle + (item.AvailabilityNote == null ? "" : "\n" + item.AvailabilityNote);
-            row.thumbnail = commands ? EditorGUIUtility.IconContent(container ? "Folder Icon" : "TextAsset Icon").image : ItemIcon(item);
+            var description = state.Browser.Describe(item);
+            row.title = description.Title;
+            row.subtitle = description.Subtitle;
+            row.tooltip = description.Tooltip;
+            row.thumbnail = ItemIcon(description.Target, description.IconName);
             var indicator = row.Q<Text>("indicator");
-            indicator.text = commands ? (container ? "›" : supported ? "↵" : "—") : item.SelectionEntry ? "↵" : container ? "›" : "↗";
-            indicator.tooltip = commands ? (container ? "Open menu category" : supported ? "Run native Unity command" : "Relevant confirmed context required · No execution")
-                : item.SelectionEntry ? "Open selection commands" : container ? "Enter Browse / Commands · Ctrl+Enter for commands" : "Enter for commands";
+            indicator.text = description.Indicator;
+            indicator.tooltip = description.IndicatorTooltip;
         }
 
-        private static Texture ItemIcon(PaletteItem item)
-        {
-            var target = item?.Target;
-            return target ? EditorGUIUtility.ObjectContent(target, target.GetType()).image
-                : EditorGUIUtility.IconContent(item?.IconName ?? "Search Icon").image;
-        }
+        private static Texture ItemIcon(PaletteItem item) => ItemIcon(item?.Target, item?.IconName ?? "Search Icon");
+
+        private static Texture ItemIcon(UnityEngine.Object target, string iconName) => target
+            ? EditorGUIUtility.ObjectContent(target, target.GetType()).image : EditorGUIUtility.IconContent(iconName).image;
 
         internal void FocusSearch()
         {

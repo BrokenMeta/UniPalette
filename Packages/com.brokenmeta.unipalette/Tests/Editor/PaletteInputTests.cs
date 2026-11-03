@@ -126,7 +126,7 @@ namespace BrokenMeta.UniPalette.Tests
             Key(KeyCode.DownArrow);
             Key(KeyCode.RightArrow, EventModifiers.Alt);
             Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
             Assert.That(state.Results[state.SelectedIndex].Title, Is.EqualTo("Leaf"));
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
@@ -140,7 +140,7 @@ namespace BrokenMeta.UniPalette.Tests
             var searchInput = window.rootVisualElement.Q<VisualElement>("search").Q<TextField>();
             searchInput.value = "not found"; // Clear the automatic selection to target the current folder.
             Key(KeyCode.Return, EventModifiers.Control);
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(state.SelectedIndex, Is.Zero); // Inspect is selected on entry.
             Key(KeyCode.RightArrow, EventModifiers.Alt);
             Assert.That(state.Message, Is.Empty, "Alt Right must not preview or execute a command");
@@ -168,7 +168,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent"));
             yield return null;
             Click(0);
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
             Assert.That(state.SelectedIndex, Is.Zero);
             yield return null;
@@ -177,7 +177,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(results.selectedIndex, Is.Zero, "Return restores the leaf row");
             yield return null;
             Click(0, control: true);
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
             Key(KeyCode.Escape);
             Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent"), "Exactly one command level was pushed");
@@ -190,7 +190,7 @@ namespace BrokenMeta.UniPalette.Tests
             yield return null;
             Click(1, control: true);
             Assert.That(state.Context.Path, Is.EqualTo("Assets"));
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
             Key(KeyCode.Escape);
             Assert.That(state.Context, Is.Null);
             yield return null;

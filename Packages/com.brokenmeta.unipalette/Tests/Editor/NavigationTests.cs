@@ -8,19 +8,19 @@ namespace BrokenMeta.UniPalette.Tests
     public class NavigationTests : NavigationTestFixture
     {
 
-        [TestCase(0, false, "Commands", "Scene Root/Player")]
-        [TestCase(0, true, "Commands", "Scene Root/Player")]
-        [TestCase(1, false, "Context", "Scene Root")]
-        [TestCase(1, true, "Commands", "Scene Root")]
-        [TestCase(2, false, "Context", "Assets")]
-        [TestCase(2, true, "Commands", "Assets")]
-        public void RootEntries(int index, bool control, string mode, string path)
+        [TestCase(0, false, typeof(CommandBrowser), "Scene Root/Player")]
+        [TestCase(0, true, typeof(CommandBrowser), "Scene Root/Player")]
+        [TestCase(1, false, typeof(ContextBrowser), "Scene Root")]
+        [TestCase(1, true, typeof(CommandBrowser), "Scene Root")]
+        [TestCase(2, false, typeof(ContextBrowser), "Assets")]
+        [TestCase(2, true, typeof(CommandBrowser), "Assets")]
+        public void RootEntries(int index, bool control, System.Type browserType, string path)
         {
             var state = CreateState();
             Assert.That(state.SelectedIndex, Is.EqualTo(-1));
             state.Select(index);
             Assert.That((control ? state.OpenContextCommands() : state.ActivateSelected()), Is.True);
-            Assert.That(state.Mode.ToString(), Is.EqualTo(mode));
+            Assert.That(state.Browser.GetType(), Is.EqualTo(browserType));
             Assert.That(state.Context.Path, Is.EqualTo(path));
             AssertForward(state);
             Assert.That(state.GoBack(), Is.True);
@@ -50,7 +50,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(state.SelectedIndex, Is.EqualTo(-1));
             state.MoveSelection(1);
             Assert.That(state.ActivateSelected(), Is.True, "Smart Enter opens leaf commands");
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Player/Weapon/Muzzle"));
             AssertForward(state);
             state.GoBack();
@@ -144,7 +144,7 @@ namespace BrokenMeta.UniPalette.Tests
             using var state = new PaletteState(new[] { leaf }, new FixtureItem("Commands", ""));
             state.Select(0);
             Assert.That((altRight ? state.BrowseSelected() : state.ActivateSelected()), Is.True);
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(state.Results, Is.Empty);
             Assert.That(state.SelectedIndex, Is.EqualTo(-1));
             state.GoBack();

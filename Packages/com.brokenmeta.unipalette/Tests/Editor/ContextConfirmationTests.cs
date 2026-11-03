@@ -72,7 +72,7 @@ namespace BrokenMeta.UniPalette.Tests
             state.Select(0);
             Assert.That((altRight ? state.BrowseSelected() : state.ActivateSelected()), Is.True);
             var container = kind == "Parent" || kind == "Folder";
-            Assert.That(state.Mode, Is.EqualTo(container ? PaletteState.Browser.Context : PaletteState.Browser.Commands));
+            Assert.That(state.Browser.GetType(), Is.EqualTo(container ? typeof(ContextBrowser) : typeof(CommandBrowser)));
             Assert.That(state.Context.Target, Is.EqualTo(target));
             Assert.That(state.Query, Is.Empty);
             Assert.That(state.SelectedIndex, Is.Zero);
@@ -80,7 +80,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(state.Query, Is.Empty);
             Assert.That(state.Results[state.SelectedIndex].Target, Is.EqualTo(target));
             Assert.That(state.OpenContextCommands(), Is.True, "Ctrl Enter always opens commands, including containers");
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(state.Context.Target, Is.EqualTo(target));
             Assert.That(Selection.objects, Is.EqualTo(new[] { target }));
         }
@@ -161,7 +161,7 @@ namespace BrokenMeta.UniPalette.Tests
             Choose(state, "Project"); state.ActivateSelected();
             state.SetQuery(folder + "/Empty"); state.MoveSelection(1);
             Assert.That(state.ActivateSelected(), Is.True);
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(state.SelectedIndex, Is.Zero);
             Assert.That(state.Context.Path, Is.EqualTo(folder + "/Empty"));
             state.GoBack();

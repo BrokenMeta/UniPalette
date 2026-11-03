@@ -6,32 +6,23 @@ using System.Runtime.CompilerServices;
 
 namespace BrokenMeta.UniPalette.Editor
 {
-    // Navigation owns levels and transient state; Editor data access stays in UnityContexts.
+    // Owns navigation history and transient state; each browser owns its level's behavior.
     internal sealed class PaletteState : IDisposable
     {
-        internal enum Browser { Context, Commands }
-        private readonly struct Level
-        {
-            internal readonly Browser Mode;
-            internal readonly PaletteItem Context;
-            internal readonly PaletteItem Category;
-            internal Level(Browser mode, PaletteItem context, PaletteItem category = null)
-            { Mode = mode; Context = context; Category = category; }
-        }
-
         private readonly struct HistoryEntry
         {
-            internal readonly Level Level;
+            internal readonly PaletteBrowser Browser;
             internal readonly PaletteItem Entry;
-            internal HistoryEntry(Level level, PaletteItem entry) { Level = level; Entry = entry; }
+            internal HistoryEntry(PaletteBrowser browser, PaletteItem entry) { Browser = browser; Entry = entry; }
         }
 
         private readonly Stack<HistoryEntry> history = new Stack<HistoryEntry>();
-        private readonly PaletteItem[] roots;
-        private PaletteItem commands;
+        private readonly ContextBrowser rootBrowser;
+        private readonly PaletteItem fixtureCommands;
         private readonly MenuCommands menuCommands;
         private bool selectFirstWhenLoaded;
         private bool openingCommands;
+        private bool disposed;
         internal bool ConfirmingContext => openingCommands;
         internal event Action CommandResultsChanged;
         internal event Action<PaletteItem, PaletteItem> ExecuteCommand;
@@ -39,12 +30,10 @@ namespace BrokenMeta.UniPalette.Editor
         internal bool CommandsLoading => menuCommands?.IsLoading == true;
         internal string CommandNotice => menuCommands?.Error.Length > 0 ? menuCommands.Error
             : CommandsLoading ? "Loading Unity menu commands…" : "Native execution · Confirmed context required · Unity determines applicability and result";
-        private Level level;
-        internal Browser Mode => level.Mode;
-        internal PaletteItem Context => level.Context;
+        internal PaletteBrowser Browser { get; private set; }
+        internal PaletteItem Context => Browser.Context;
         internal bool CanGoBack => history.Count > 0;
-        internal string Location => level.Category != null ? (level.Category.Path.Length == 0 ? "Commands" : level.Category.Path)
-            : level.Context?.Path ?? "UniPalette / Choose a context";
+        internal string Location => Browser.Location;
         internal string Query { get; private set; } = "";
         internal int SelectedIndex { get; private set; } = -1;
         internal string Message { get; private set; } = "";
@@ -52,60 +41,51 @@ namespace BrokenMeta.UniPalette.Editor
 
         internal PaletteState(PaletteItem[] fixtureRoots = null, PaletteItem commandRoot = null)
         {
-            roots = fixtureRoots;
-            commands = commandRoot;
-            if (commands == null)
+            rootBrowser = new ContextBrowser(roots: fixtureRoots);
+            Browser = rootBrowser;
+            fixtureCommands = commandRoot;
+            if (commandRoot == null)
             {
-                commands = new MenuCategoryItem("Commands", "", Array.Empty<PaletteItem>());
                 menuCommands = new MenuCommands();
                 menuCommands.Changed += OnCommandsChanged;
             }
             Rebuild();
         }
 
-        private bool OpenCommands(PaletteItem context)
+        private PaletteItem LoadCommands(PaletteItem context) => menuCommands != null
+            ? menuCommands.ForContext(context) : fixtureCommands;
+
+        internal bool OpenCommands(PaletteItem context)
         {
+            PaletteItem commands;
             openingCommands = true;
             try
             {
                 if (context is ContextItem confirmed && !confirmed.TryConfirm(out var error))
                 { Message = error; return false; }
-                // Paths are cached, availability is read afresh after Selection changes, never from labels.
-                if (menuCommands != null) commands = menuCommands.ForContext(context);
+                // Availability is read after Selection changes, never from cached search labels.
+                commands = LoadCommands(context);
             }
             finally { openingCommands = false; }
             selectFirstWhenLoaded = CommandsLoading;
-            return Push(new Level(Browser.Commands, context, commands));
+            return Push(new CommandBrowser(context, commands));
         }
 
         private void OnCommandsChanged()
         {
-            if (openingCommands || Mode != Browser.Commands) return;
-            UpdateCommands();
+            if (disposed || openingCommands) return;
+            var next = Browser.OnCommandsChanged(LoadCommands);
+            if (next == null) return;
+            Browser = next;
             Rebuild();
             Select(selectFirstWhenLoaded && Query.Length == 0 ? 0 : -1);
             selectFirstWhenLoaded = false;
             CommandResultsChanged?.Invoke();
         }
 
-        private void UpdateCommands()
-        {
-            var path = level.Category?.Path ?? "";
-            commands = menuCommands.ForContext(Context);
-            level = new Level(Browser.Commands, Context, FindCategory(commands, path) ?? commands);
-        }
-
-        private static PaletteItem FindCategory(PaletteItem node, string path)
-        {
-            if (node.Path == path) return node;
-            foreach (var child in node.Children)
-                if (child.CanBrowse && (path == child.Path || path.StartsWith(child.Path + "/", StringComparison.Ordinal)))
-                    return FindCategory(child, path);
-            return null;
-        }
-
         public void Dispose()
         {
+            disposed = true;
             CommandResultsChanged = null;
             ExecuteCommand = null;
             menuCommands?.Dispose();
@@ -116,28 +96,28 @@ namespace BrokenMeta.UniPalette.Editor
         {
             if (Context != null && !Context.IsValid)
             {
-                ReturnToPreviousLevel();
+                ReturnToPreviousBrowser();
                 return;
             }
-            if (Mode == Browser.Commands && menuCommands != null) UpdateCommands();
+            Browser = Browser.RefreshCommands(LoadCommands);
             SelectedIndex = -1;
             Rebuild();
         }
 
-        private void ReturnToPreviousLevel()
+        private void ReturnToPreviousBrowser()
         {
             HistoryEntry previous;
             do
             {
                 previous = history.Count > 0 ? history.Pop() : default;
-                level = previous.Level;
+                Browser = previous.Browser ?? rootBrowser;
             }
             while (Context != null && !Context.IsValid);
-            if (Mode == Browser.Commands && menuCommands != null) UpdateCommands();
+            Browser = Browser.RefreshCommands(LoadCommands);
             ResetTransient();
             if (previous.Entry == null || !previous.Entry.IsValid) return;
             var index = Results.FindIndex(item => item.SameIdentity(previous.Entry));
-            // With an empty query Results contains immediate children, so only one visible branch can contain the entry.
+            // Empty-query results contain immediate children; restore the visible containing branch.
             if (index < 0) index = Results.FindIndex(item => item.ContainsDescendant(previous.Entry));
             Select(index);
         }
@@ -167,26 +147,15 @@ namespace BrokenMeta.UniPalette.Editor
         internal bool ActivateSelected()
         {
             var selected = SelectedItem;
-            if (!ValidateNavigationTarget(selected)) return false;
-            return Mode == Browser.Commands ? ActivateCommand(selected) : ActivateContext(selected);
+            return ValidateNavigationTarget(selected) && Browser.Activate(this, selected);
         }
 
-        internal bool BrowseSelected()
-        {
-            // Alt+Right may open a category, but must never activate a command leaf.
-            var selected = SelectedItem;
-            if (Mode == Browser.Commands && (selected == null || !selected.CanBrowse)) return false;
-            return ActivateSelected();
-        }
+        internal bool BrowseSelected() => Browser.Browse(this, SelectedItem);
 
         internal bool OpenContextCommands()
         {
             var selected = SelectedItem;
-            if (!ValidateNavigationTarget(selected)) return false;
-            // Ctrl+Enter in Command Browser remains deliberately unassigned.
-            if (Mode == Browser.Commands) return false;
-            var context = selected ?? Context;
-            return context != null && OpenCommands(context);
+            return ValidateNavigationTarget(selected) && Browser.OpenContextCommands(this, selected);
         }
 
         private bool ValidateNavigationTarget(PaletteItem selected)
@@ -196,40 +165,23 @@ namespace BrokenMeta.UniPalette.Editor
             return false;
         }
 
-        private bool ActivateCommand(PaletteItem selected)
+        internal void DispatchCommand(PaletteItem command, PaletteItem context)
         {
-            if (selected == null) return false;
-            if (selected.Children.Length > 0)
-                return Push(new Level(Browser.Commands, Context, selected));
-            if (selected is MenuCommandItem && NativeExecution.Supports(selected.Path, Context))
-            {
-                if (ExecuteCommand != null) ExecuteCommand(selected, Context);
-                else Message = "Native execution is unavailable; nothing executed.";
-            }
-            else Message = selected.Path + " · Execution requires a confirmed context and relevant menu leaf; nothing executed. " + selected.AvailabilityNote;
-            return false;
-        }
-
-        private bool ActivateContext(PaletteItem selected)
-        {
-            if (selected == null) return false;
-            if (selected.SelectionEntry) return OpenCommands(selected);
-            // Source entries open their area even when empty; empty folders open commands.
-            return selected.HasBrowseChildren
-                ? Push(new Level(Browser.Context, selected)) : OpenCommands(selected);
+            if (ExecuteCommand != null) ExecuteCommand(command, context);
+            else Message = "Native execution is unavailable; nothing executed.";
         }
 
         internal bool GoBack()
         {
             if (!CanGoBack) return false;
-            ReturnToPreviousLevel();
+            ReturnToPreviousBrowser();
             return true;
         }
 
-        private bool Push(Level next)
+        internal bool Push(PaletteBrowser next)
         {
-            history.Push(new HistoryEntry(level, SelectedIndex >= 0 ? Results[SelectedIndex] : null));
-            level = next;
+            history.Push(new HistoryEntry(Browser, SelectedItem));
+            Browser = next;
             ResetTransient();
             Select(0);
             return true;
@@ -246,29 +198,7 @@ namespace BrokenMeta.UniPalette.Editor
         private void Rebuild()
         {
             Results.Clear();
-            if (Mode == Browser.Context && Context != null && Context is ContextItem)
-            {
-                foreach (var item in UnityContexts.Children(Context, Query.Length > 0))
-                    if (Matches(item)) Results.Add(item);
-                return;
-            }
-            var items = level.Category?.Children ?? Context?.Children ?? roots ?? UnityContexts.Roots();
-            AddMatches(items, Context != null || Mode == Browser.Commands);
-        }
-
-        private bool Matches(PaletteItem item) => Query.Length == 0
-            || ((item.SelectionEntry ? "Current Selection " : "") + item.Title + " " + item.Path)
-                .IndexOf(Query, StringComparison.OrdinalIgnoreCase) >= 0;
-
-        private void AddMatches(PaletteItem[] items, bool recursive)
-        {
-            foreach (var item in items)
-            {
-                if (Matches(item))
-                    Results.Add(item);
-                // Prototype behavior: immediate children with an empty query.
-                if (recursive && Query.Length > 0) AddMatches(item.Children, true);
-            }
+            Results.AddRange(Browser.GetItems(Query));
         }
     }
 }

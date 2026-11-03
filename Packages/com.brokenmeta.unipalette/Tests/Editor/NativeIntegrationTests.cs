@@ -144,7 +144,7 @@ namespace BrokenMeta.UniPalette.Tests
             window = EditorWindow.GetWindow<UniPaletteWindow>();
             yield return null;
             var reopened = (PaletteState)typeof(UniPaletteWindow).GetField("state", Private).GetValue(window);
-            Assert.That(reopened.Mode, Is.EqualTo(PaletteState.Browser.Context));
+            Assert.That(reopened.Browser, Is.TypeOf<ContextBrowser>());
             Assert.That(reopened.Context, Is.Null, "Reopened window has a new navigation lifecycle");
         }
 
@@ -218,7 +218,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(rootIndex, Is.GreaterThanOrEqualTo(0));
             state.Select(rootIndex);
             Key(KeyCode.Return, EventModifiers.Control);
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(state.Context.GetType(), Is.EqualTo(CreateRoot(kind).GetType()));
             Assert.That(state.Context.Target, Is.Null);
             Assert.That(MenuCommands.MatchesSelection(state.Context), Is.True);

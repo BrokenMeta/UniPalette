@@ -61,7 +61,7 @@ namespace BrokenMeta.UniPalette.Tests
                     search.SendEvent(evt);
                 }
                 Assert.That(state.Context.Target, Is.EqualTo(target), "Alt Right uses the latest selection context");
-                Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+                Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
                 Assert.That(state.Query, Is.Empty);
                 Assert.That(state.SelectedIndex, Is.Zero);
                 using var back = KeyDownEvent.GetPooled('\0', KeyCode.Escape, EventModifiers.None);
@@ -172,7 +172,7 @@ namespace BrokenMeta.UniPalette.Tests
             }
             state.Select(0);
             typeof(UniPaletteWindow).GetMethod("OpenContextCommands", flags).Invoke(window, null);
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(Selection.activeObject, Is.EqualTo(target));
             typeof(UniPaletteWindow).GetMethod("OnSelectionChanged", flags).Invoke(window, null);
             var hierarchyEvents = 0;

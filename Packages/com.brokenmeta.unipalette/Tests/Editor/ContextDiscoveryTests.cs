@@ -69,7 +69,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(state.Results.Select(item => item.Path), Is.EqualTo(new[] { folder + "/A/Nested/Needle.txt" }));
             state.MoveSelection(1);
             Assert.That(state.ActivateSelected(), Is.True);
-            Assert.That(state.Mode, Is.EqualTo(PaletteState.Browser.Commands));
+            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(state.Context.Target, Is.InstanceOf<TextAsset>());
             state.GoBack();
             Assert.That(state.Query, Is.Empty);
