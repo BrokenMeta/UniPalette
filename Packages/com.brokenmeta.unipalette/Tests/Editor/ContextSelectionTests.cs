@@ -15,7 +15,7 @@ namespace BrokenMeta.UniPalette.Tests
             var context = new AssetsRootContext();
             var selection = new TestSelection(succeeds);
             using var source = new TestCommandSource(PaletteTestData.Commands());
-            using var session = new PaletteSession(source, selection, new PaletteItem[] { context });
+            using var session = new PaletteSession(source, selection, new TestContextSource(new PaletteItem[] { context }));
             var browser = session.Browser;
             source.Requesting = requested =>
             {

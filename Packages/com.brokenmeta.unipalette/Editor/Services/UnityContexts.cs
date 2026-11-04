@@ -36,7 +36,6 @@ namespace BrokenMeta.UniPalette.Editor.Services
                 || path.StartsWith("Packages/", StringComparison.Ordinal));
         internal static bool IsSceneObject(GameObject go) => go && go.scene.IsValid() && go.scene.isLoaded
             && !EditorSceneManager.IsPreviewScene(go.scene);
-        internal static IEnumerable<PaletteItem> Children(PaletteItem context, bool recursive) => context.GetChildren(recursive);
         internal static IEnumerable<PaletteItem> AssetChildren(string folder, bool recursive)
         {
             if (!AssetDatabase.IsValidFolder(folder)) yield break;

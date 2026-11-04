@@ -96,7 +96,7 @@ namespace BrokenMeta.UniPalette.Editor
             view = new PaletteView(rootVisualElement);
             contextSelection = new UnityContextSelection();
             commandSource = new MenuCommands(contextSelection);
-            session = new PaletteSession(commandSource, contextSelection);
+            session = new PaletteSession(commandSource, contextSelection, new UnityContextSource());
             AttachPresenter();
             presenter.Render();
         }

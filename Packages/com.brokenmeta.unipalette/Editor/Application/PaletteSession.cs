@@ -32,11 +32,11 @@ namespace BrokenMeta.UniPalette.Editor.Application
         internal string Message { get; private set; } = "";
         internal readonly List<PaletteItem> Results = new List<PaletteItem>();
 
-        internal PaletteSession(ICommandSource commandSource, IContextSelection contextSelection, PaletteItem[] fixtureRoots = null)
+        internal PaletteSession(ICommandSource commandSource, IContextSelection contextSelection, IContextSource contexts)
         {
             this.commandSource = commandSource ?? throw new ArgumentNullException(nameof(commandSource));
             this.contextSelection = contextSelection ?? throw new ArgumentNullException(nameof(contextSelection));
-            Browser = new ContextBrowser(roots: fixtureRoots);
+            Browser = new ContextBrowser(contexts);
             history = new PaletteHistory(Browser);
             Rebuild();
             commandSource.Changed += OnCommandsChanged;

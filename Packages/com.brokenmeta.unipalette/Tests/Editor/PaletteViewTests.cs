@@ -26,14 +26,14 @@ namespace BrokenMeta.UniPalette.Tests
         {
             yield return SetUpWindow();
             var first = new TestCommandSource(PaletteTestData.Commands());
-            var firstSession = new PaletteSession(first, new UnityContextSelection());
+            var firstSession = new PaletteSession(first, new UnityContextSelection(), new UnityContextSource());
             PaletteTestData.Install(window, firstSession, first);
             typeof(UniPaletteWindow).GetMethod("CreateGUI", PrivateInstance).Invoke(window, null);
             Assert.That(first.Subscribers, Is.Zero);
             Assert.That(first.DisposeCalls, Is.EqualTo(1));
 
             var second = new TestCommandSource(PaletteTestData.Commands());
-            var secondSession = new PaletteSession(second, new UnityContextSelection());
+            var secondSession = new PaletteSession(second, new UnityContextSelection(), new UnityContextSource());
             PaletteTestData.Install(window, secondSession, second);
             window.Close();
             yield return null;

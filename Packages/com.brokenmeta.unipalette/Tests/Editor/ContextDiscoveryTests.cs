@@ -51,7 +51,7 @@ namespace BrokenMeta.UniPalette.Tests
             var parent = Go("Parent");
             var a = Go("Needle", parent);
             var b = Go("Needle", parent);
-            var items = UnityContexts.Children(new SceneObjectContext(parent), true).ToArray();
+            var items = new UnityContextSource().GetItems(new SceneObjectContext(parent), true).ToArray();
             Assert.That(items.Select(item => item.Target), Is.EqualTo(new[] { a, b }));
             Assert.That(items.Select(item => item.Path).Distinct().Count(), Is.EqualTo(2));
         }
