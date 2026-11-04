@@ -2,12 +2,16 @@ using System.Reflection;
 using UnityEngine.UIElements;
 using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor.Presentation;
 using BrokenMeta.UniPalette.Editor;
 
 namespace BrokenMeta.UniPalette.Tests
 {
     internal static class PaletteTestData
     {
+        internal static PalettePresenter GetPresenter(UniPaletteWindow window) =>
+            (PalettePresenter)typeof(UniPaletteWindow).GetField("presenter", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(window);
+
         internal static PaletteSession CreateSession(PaletteItem[] fixtureRoots = null, PaletteItem commandRoot = null) =>
             new PaletteSession(new TestCommandSource(commandRoot ?? Commands()), fixtureRoots);
 
@@ -25,7 +29,8 @@ namespace BrokenMeta.UniPalette.Tests
             typeof(UniPaletteWindow).GetMethod("DisposeSession", flags).Invoke(window, null);
             field.SetValue(window, session);
             typeof(UniPaletteWindow).GetField("commandSource", flags).SetValue(window, ownedSource);
-            typeof(UniPaletteWindow).GetMethod("Render", flags).Invoke(window, new object[] { true });
+            typeof(UniPaletteWindow).GetMethod("AttachPresenter", flags).Invoke(window, null);
+            GetPresenter(window).Render();
         }
     }
 }

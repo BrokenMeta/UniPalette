@@ -55,6 +55,7 @@ namespace BrokenMeta.UniPalette.Tests
             oldInput.value = "Folder";
             yield return null;
             var retiredSession = session;
+            var retiredPresenter = PaletteTestData.GetPresenter(window);
             var oldResults = results;
             var oldBack = window.rootVisualElement.Q<Unity.AppUI.UI.ActionButton>("back");
             var retiredView = (PaletteView)typeof(UniPaletteWindow).GetField("view", PrivateInstance).GetValue(window);
@@ -75,6 +76,12 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(retiredSession.Context.Path, Is.EqualTo("Assets"));
 
             typeof(UniPaletteWindow).GetMethod("CreateGUI", PrivateInstance).Invoke(window, null);
+            var retiredBrowser = retiredSession.Browser;
+            retiredSession.Select(0);
+            retiredPresenter.ActivateSelected();
+            Assert.That(retiredSession.Browser, Is.SameAs(retiredBrowser), "Disposed presenter must ignore activation");
+            retiredPresenter.GoBack();
+            Assert.That(retiredSession.Browser, Is.SameAs(retiredBrowser), "Disposed presenter must not navigate its retired session");
             session = PaletteTestData.CreateSession(new[] {
                 new FixtureItem("Project", "Assets", false,
                     new FixtureItem("Folder", "Assets/Folder", false,
@@ -102,6 +109,8 @@ namespace BrokenMeta.UniPalette.Tests
         {
             yield return SetUpWindow();
             yield return null;
+            Assert.That(window.rootVisualElement.Q<Unity.AppUI.UI.Text>("mode").text, Is.EqualTo("Context"));
+            Assert.That(window.rootVisualElement.Q<Unity.AppUI.UI.SearchBar>("search").placeholder, Is.EqualTo("Search contexts..."));
             var category = new MenuCategoryItem("Create", "Assets/Create", new PaletteItem[] {
                 new MenuCommandItem("Folder", "Assets/Create/Folder")
             });
@@ -113,6 +122,10 @@ namespace BrokenMeta.UniPalette.Tests
             PaletteTestData.Install(window, session);
             Assert.That(session.SelectedIndex, Is.Zero, "Rendering a new model must preserve its selection");
             Assert.That(results.selectedIndex, Is.Zero);
+            Assert.That(window.rootVisualElement.Q<Unity.AppUI.UI.Text>("mode").text, Is.EqualTo("Commands"));
+            Assert.That(window.rootVisualElement.Q<Unity.AppUI.UI.Text>("data-label").text, Is.EqualTo("Unity menu"));
+            Assert.That(window.rootVisualElement.Q<Unity.AppUI.UI.Text>("context").text, Is.EqualTo("Assets / Commands"));
+            Assert.That(window.rootVisualElement.Q<Unity.AppUI.UI.SearchBar>("search").placeholder, Is.EqualTo("Search commands..."));
             yield return null;
             var row = (Unity.AppUI.UI.ListViewItem)results.GetRootElementForIndex(0);
             Assert.That(row.title, Is.EqualTo("Create"));
@@ -130,6 +143,16 @@ namespace BrokenMeta.UniPalette.Tests
             Click(0);
             Assert.That(session.Location, Is.EqualTo(location), "Rebound leaf must not activate the former category");
             Assert.That(session.Message, Does.Contain("Assets/Copy Path").And.Contain("nothing executed"));
+            yield return WaitForSearchFocus();
+            PaletteTestData.GetPresenter(window).GoBack();
+            yield return null;
+            Assert.That(window.rootVisualElement.Q<Unity.AppUI.UI.Text>("mode").text, Is.EqualTo("Context"));
+            Assert.That(window.rootVisualElement.Q<Unity.AppUI.UI.Text>("data-label").text, Is.EqualTo("Unity Editor"));
+            Assert.That(window.rootVisualElement.Q<Unity.AppUI.UI.SearchBar>("search").placeholder, Is.EqualTo("Search contexts..."));
+            row = (Unity.AppUI.UI.ListViewItem)results.GetRootElementForIndex(0);
+            Assert.That(row.title, Is.EqualTo("Project"));
+            Assert.That(row.subtitle, Is.EqualTo("Assets"));
+            Assert.That(row.Q<Unity.AppUI.UI.Text>("indicator").text, Is.EqualTo("↗"));
             yield return WaitForSearchFocus();
         }
     }

@@ -28,6 +28,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
         private Text messageLabel;
         private Text dataLabel;
         private PaletteSession session;
+        private BrowserPresentation presentation;
 
         private readonly VisualElement root;
         private Panel panel;
@@ -144,22 +145,23 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             if (index >= 0) results.ScrollToItem(index);
         }
 
-        internal void Render(PaletteSession session, bool focusSearch = true)
+        internal void Render(PaletteSession session, BrowserPresentation presentation, bool focusSearch = true)
         {
             if (disposed) return;
+            this.presentation = presentation;
             BindSession(session);
             searchBar.SetValueWithoutNotify(session.Query);
             var browser = session.Browser;
-            searchBar.placeholder = browser.SearchPlaceholder;
-            modeLabel.text = browser.Label;
+            searchBar.placeholder = presentation.SearchPlaceholder;
+            modeLabel.text = presentation.Label;
             contextTitle.text = session.Context?.ContextTitle ?? "Choose a context";
-            contextLabel.text = browser.Breadcrumb;
+            contextLabel.text = presentation.GetBreadcrumb(browser);
             contextLabel.tooltip = contextLabel.text;
             contextIcon.image = ItemIcon(session.Context);
-            dataLabel.text = browser.DataLabel;
-            dataLabel.tooltip = browser.DataTooltip;
-            resultsTitle.text = browser.ResultsTitle;
-            hints.text = browser.Hints;
+            dataLabel.text = presentation.DataLabel;
+            dataLabel.tooltip = presentation.DataTooltip;
+            resultsTitle.text = presentation.ResultsTitle;
+            hints.text = presentation.Hints;
             back.SetEnabled(session.CanGoBack);
             back.tooltip = session.CanGoBack ? "Back · Escape / Alt+Left" : "Already at the root";
             RefreshResults(session);
@@ -184,7 +186,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
         {
             if (disposed) return;
             messageLabel.text = session.Message.Length > 0 ? session.Message
-                : session.Browser.GetNotice(session);
+                : presentation.GetNotice(session);
             messageLabel.style.display = messageLabel.text.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
@@ -211,7 +213,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             var item = session.Results[index];
             var row = (ListViewItem)element;
             row.userData = item;
-            var description = session.Browser.Describe(item);
+            var description = presentation.Describe(item, session.Context);
             row.title = description.Title;
             row.subtitle = description.Subtitle;
             row.tooltip = description.Tooltip;
@@ -275,6 +277,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             RowActivated = null;
             KeyPressed = null;
             session = null;
+            presentation = null;
         }
     }
 }

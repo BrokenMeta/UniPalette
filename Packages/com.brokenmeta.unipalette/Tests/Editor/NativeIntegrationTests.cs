@@ -56,7 +56,7 @@ namespace BrokenMeta.UniPalette.Tests
             var renderedRow = list.GetRootElementForIndex(index);
             Assert.That(renderedRow, Is.Not.Null);
             Assert.That(renderedRow.tooltip, Does.Contain("Native execution").And.Not.Contain("Unsupported"));
-            var activate = typeof(UniPaletteWindow).GetMethod("ActivateSelected", Private);
+            System.Action activate = PaletteTestData.GetPresenter(window).ActivateSelected;
             if (click)
             {
                 var row = list.GetRootElementForIndex(index);
@@ -69,7 +69,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(!window, Is.True, "Native dispatch closes the palette; message=" + session.Message
                 + "; selected=" + session.SelectedIndex + "; query=" + session.Query);
             // A stale UI callback cannot dispatch a second time after OnDisable.
-            activate.Invoke(window, null);
+            activate();
             var expected = kind == "GameObject" ? "Unity.Hierarchy.Editor.HierarchyWindow" : "UnityEditor.ProjectBrowser";
             // Focus is a dispatch precondition, not a promise about Unity's next frame.
             Assert.That(EditorWindow.focusedWindow, Is.Not.Null);
@@ -249,7 +249,7 @@ namespace BrokenMeta.UniPalette.Tests
                 Assert.That(Directory.Exists(rootFolderPath), Is.False);
             }
             else if (!sceneRoot) EditorGUIUtility.systemCopyBuffer = "root clipboard sentinel";
-            var activate = typeof(UniPaletteWindow).GetMethod("ActivateSelected", Private);
+            System.Action activate = PaletteTestData.GetPresenter(window).ActivateSelected;
             if (click)
             {
                 Click(row, 2);
@@ -258,7 +258,7 @@ namespace BrokenMeta.UniPalette.Tests
             }
             else Key(KeyCode.Return);
             Assert.That(!window, Is.True, "Dispatch closes the palette");
-            activate.Invoke(window, null);
+            activate();
             yield return null;
             var expectedWindow = sceneRoot ? "Unity.Hierarchy.Editor.HierarchyWindow" : "UnityEditor.ProjectBrowser";
             Assert.That(EditorWindow.focusedWindow.GetType().FullName, Is.EqualTo(expectedWindow));

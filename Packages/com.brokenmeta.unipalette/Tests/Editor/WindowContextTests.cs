@@ -173,7 +173,7 @@ namespace BrokenMeta.UniPalette.Tests
                 EditorApplication.projectChanged -= PostponeQuietPeriod;
             }
             session.Select(0);
-            typeof(UniPaletteWindow).GetMethod("OpenContextCommands", flags).Invoke(window, null);
+            PaletteTestData.GetPresenter(window).OpenContextCommands();
             Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(Selection.activeObject, Is.EqualTo(target));
             typeof(UniPaletteWindow).GetMethod("OnSelectionChanged", flags).Invoke(window, null);

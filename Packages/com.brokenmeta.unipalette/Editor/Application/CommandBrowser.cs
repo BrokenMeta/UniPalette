@@ -11,14 +11,9 @@ namespace BrokenMeta.UniPalette.Editor.Application
         internal CommandBrowser(PaletteItem context, PaletteItem category)
             : base(context ?? throw new ArgumentNullException(nameof(context)))
         { Category = category ?? throw new ArgumentNullException(nameof(category)); }
-        internal override string Label => "Commands";
-        internal override string SearchPlaceholder => "Search commands...";
-        internal override string DataLabel => "Unity menu";
-        internal override string DataTooltip => "Native execution for discovered, enabled commands in a confirmed context. Scene Root uses no Selection and the active main-stage scene; Assets Root selects Assets. Unity determines applicability and results; special window/UI state may still be required.";
-        internal override string ResultsTitle => "Commands";
-        internal override string Hints => "↑↓ Select · Enter Open / Run · Esc Back";
         internal override string Location => Category.Path.Length == 0 ? "Commands" : Category.Path;
-        internal override string Breadcrumb => Context.Path + " / " + Location;
+
+        internal override TResult Accept<TResult>(IPaletteBrowserVisitor<TResult> visitor) => visitor.Visit(this);
 
         internal override IEnumerable<PaletteItem> GetItems(string query) => Filter(Category.Children, query, true);
 
@@ -55,19 +50,5 @@ namespace BrokenMeta.UniPalette.Editor.Application
             return null;
         }
 
-        internal override string GetNotice(PaletteSession session) => session.CommandsLoading ? session.CommandNotice
-            : session.Results.Count == 0 ? "No menu commands found. " + session.CommandNotice : session.CommandNotice;
-
-        internal override PaletteRow Describe(PaletteItem item)
-        {
-            var container = item.CanBrowse;
-            var supported = !container && NativeExecution.Supports(item.Path, Context);
-            var subtitle = item.SelectionEntry ? item.Title + " · " + item.Path : item.Path
-                + (!container ? supported ? " · Native execution" : " · Execution unavailable" : "");
-            return new PaletteRow(item, subtitle, null, container ? "Folder Icon" : "TextAsset Icon",
-                container ? "›" : supported ? "↵" : "—",
-                container ? "Open menu category" : supported ? "Run native Unity command"
-                    : "Relevant confirmed context required · No execution");
-        }
     }
 }

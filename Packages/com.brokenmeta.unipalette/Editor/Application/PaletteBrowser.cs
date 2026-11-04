@@ -9,22 +9,14 @@ namespace BrokenMeta.UniPalette.Editor.Application
     {
         internal PaletteItem Context { get; }
         protected PaletteBrowser(PaletteItem context) { Context = context; }
-        internal abstract string Label { get; }
-        internal abstract string SearchPlaceholder { get; }
-        internal abstract string DataLabel { get; }
-        internal abstract string DataTooltip { get; }
-        internal abstract string ResultsTitle { get; }
-        internal abstract string Hints { get; }
         internal abstract string Location { get; }
-        internal abstract string Breadcrumb { get; }
+        internal abstract TResult Accept<TResult>(IPaletteBrowserVisitor<TResult> visitor);
         internal abstract IEnumerable<PaletteItem> GetItems(string query);
         internal abstract bool Activate(PaletteSession session, PaletteItem selected);
         internal virtual bool Browse(PaletteSession session, PaletteItem selected) => session.ActivateSelected();
         internal virtual bool OpenContextCommands(PaletteSession session, PaletteItem selected) => false;
         internal virtual PaletteBrowser RefreshCommands(Func<PaletteItem, PaletteItem> load) => this;
         internal virtual PaletteBrowser OnCommandsChanged(Func<PaletteItem, PaletteItem> load) => null;
-        internal abstract string GetNotice(PaletteSession session);
-        internal abstract PaletteRow Describe(PaletteItem item);
 
         protected static bool Matches(PaletteItem item, string query) => query.Length == 0
             || ((item.SelectionEntry ? "Current Selection " : "") + item.Title + " " + item.Path)
@@ -38,24 +30,6 @@ namespace BrokenMeta.UniPalette.Editor.Application
                 if (recursive && query.Length > 0)
                     foreach (var descendant in Filter(item.Children, query, true)) yield return descendant;
             }
-        }
-    }
-
-    // Data only: no App UI elements, callbacks or window lifetime.
-    internal readonly struct PaletteRow
-    {
-        internal readonly string Title, Subtitle, Tooltip, IconName, Indicator, IndicatorTooltip;
-        internal readonly UnityEngine.Object Target;
-        internal PaletteRow(PaletteItem item, string subtitle, UnityEngine.Object target, string iconName,
-            string indicator, string indicatorTooltip)
-        {
-            Title = item.SelectionEntry ? "Current Selection" : item.Title;
-            Subtitle = subtitle;
-            Tooltip = subtitle + (item.AvailabilityNote == null ? "" : "\n" + item.AvailabilityNote);
-            Target = target;
-            IconName = iconName;
-            Indicator = indicator;
-            IndicatorTooltip = indicatorTooltip;
         }
     }
 }
