@@ -69,7 +69,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             internal override string DataLabel => "Unity commands";
 
             internal override string DataTooltip =>
-                "Main-menu commands and a separate Scene View Actions group for scene objects. "
+                "Main-menu commands and separate contextual action groups for scene objects and assets. "
                 + "An existing Scene View is required for contextual actions. "
                 + "Scene Root uses no Selection and the active main-stage scene; Assets Root selects Assets. "
                 + "Unity determines applicability and results; special window/UI state may still be required.";
@@ -96,12 +96,12 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 {
                     return new PaletteRow(
                         item,
-                        item.Path + " \u00B7 Scene View action",
+                        item.Path + " \u00B7 Contextual action",
                         null,
                         "TextAsset Icon",
                         action.IsEnabled ? "\u21B5" : "\u2014",
                         action.IsEnabled
-                            ? "Run in Scene View; Unity may defer execution"
+                            ? "Run contextual action; Unity may defer execution"
                             : "Disabled in the contextual snapshot; rechecked before execution"
                     );
                 }

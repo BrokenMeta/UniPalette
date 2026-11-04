@@ -95,10 +95,10 @@ namespace BrokenMeta.UniPalette.Tests
         public void PreparationResolvesFreshActionInsteadOfTrustingDescriptor()
         {
             var item = Duplicate();
-            var oldDisabledFlag = new ContextActionItem(_context, item.Name, false);
+            var oldDisabledFlag = new ContextActionItem(_context, item.Name, false, _catalog.GroupTitle);
             Assert.That(SceneViewActionExecution.TryPrepare(_catalog, oldDisabledFlag, _sceneView, out _, out var error), Is.True, error);
 
-            var missing = new ContextActionItem(_context, "UniPalette missing action", true);
+            var missing = new ContextActionItem(_context, "UniPalette missing action", true, _catalog.GroupTitle);
             Assert.That(SceneViewActionExecution.TryPrepare(_catalog, missing, _sceneView, out _, out error), Is.False);
             Assert.That(error, Does.Contain("no longer present"));
             Assert.That(SceneViewActionExecution.TryPrepare(_catalog, item, null, out _, out error), Is.False);

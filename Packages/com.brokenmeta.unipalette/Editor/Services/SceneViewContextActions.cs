@@ -40,7 +40,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
                     var actions = items
                         .Cast<PaletteItem>()
                         .ToArray();
-                    children = new PaletteItem[] { new ContextActionCategoryItem(actions), };
+                    children = new PaletteItem[] { new ContextActionCategoryItem(_catalog.GroupTitle, actions), };
                 }
                 else
                 {

@@ -18,6 +18,8 @@ namespace BrokenMeta.UniPalette.Editor
 
         private SceneViewActionCatalog _sceneViewActions;
 
+        private AssetActionCatalog _assetActions;
+
         private SceneView _contextSceneView;
         private bool _executing;
         private double _nextContextCheck;
@@ -81,9 +83,11 @@ namespace BrokenMeta.UniPalette.Editor
             _view = new PaletteView(rootVisualElement);
             _contextSelection = new UnityContextSelection();
             _sceneViewActions = new SceneViewActionCatalog(_contextSelection);
+            _assetActions = new AssetActionCatalog(_contextSelection);
             _commandSource = new PaletteCommands(
                 new MenuCommands(_contextSelection),
-                new SceneViewContextActions(_sceneViewActions)
+                new SceneViewContextActions(_sceneViewActions),
+                new AssetContextActions(_assetActions)
             );
             _session = new PaletteSession(_commandSource, _contextSelection, new UnityContextSource());
             AttachPresenter();
@@ -199,6 +203,18 @@ namespace BrokenMeta.UniPalette.Editor
                 if (!action.Context.SameIdentity(context))
                 {
                     _session.ShowExecutionError("Contextual action does not belong to the confirmed context.");
+                    return;
+                }
+
+                if (action.Context is AssetContext)
+                {
+                    if (!AssetActionExecution.TryPrepare(_assetActions, action, out var assetExecution, out var assetError))
+                    {
+                        _session.ShowExecutionError(assetError);
+                        return;
+                    }
+
+                    CloseAndExecute(assetExecution.ExecuteAfterClose);
                     return;
                 }
 
