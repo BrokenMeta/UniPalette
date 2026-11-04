@@ -59,7 +59,7 @@ namespace BrokenMeta.UniPalette.Tests
             );
 
             var notifications = 0;
-            session.CommandResultsChanged += () => notifications++;
+            using var subscription = session.SubscribeCommandResultsChanged(() => notifications++);
             session.Select(0);
             session.OpenContextCommands();
             Assert.That(session.CommandsLoading, Is.True);
@@ -90,7 +90,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             var browser = session.Browser;
             var notifications = 0;
-            session.CommandResultsChanged += () => notifications++;
+            using var subscription = session.SubscribeCommandResultsChanged(() => notifications++);
             session.Select(0);
             session.OpenContextCommands();
             session.GoBack();

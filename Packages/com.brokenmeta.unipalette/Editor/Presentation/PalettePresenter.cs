@@ -1,5 +1,6 @@
 ﻿using System;
 using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Lifetime;
 using BrokenMeta.UniPalette.Editor.Model;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -9,6 +10,8 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
     // Borrows the view/session. The host owns their lifetime and Editor-specific operations.
     internal sealed class PalettePresenter : IDisposable
     {
+        private readonly SubscriptionScope _subscriptions = new();
+
         private readonly Action _beforeRender;
         private readonly Action _close;
         private readonly Action<PaletteItem, PaletteItem> _execute;
@@ -33,13 +36,35 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             _close = close ?? throw new ArgumentNullException(nameof(close));
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
             _beforeRender = beforeRender ?? throw new ArgumentNullException(nameof(beforeRender));
-            view.BackRequested += GoBack;
-            view.QueryChanged += UpdateQuery;
-            view.RowSelectionChanged += SelectRow;
-            view.RowActivated += ActivateRow;
-            view.KeyPressed += OnKeyDown;
-            session.CommandResultsChanged += OnCommandResultsChanged;
-            session.ExecuteCommand += ExecuteCommand;
+            try
+            {
+                view
+                    .SubscribeBackRequested(GoBack)
+                    .AddTo(_subscriptions);
+                view
+                    .SubscribeQueryChanged(UpdateQuery)
+                    .AddTo(_subscriptions);
+                view
+                    .SubscribeRowSelectionChanged(SelectRow)
+                    .AddTo(_subscriptions);
+                view
+                    .SubscribeRowActivated(ActivateRow)
+                    .AddTo(_subscriptions);
+                view
+                    .SubscribeKeyPressed(OnKeyDown)
+                    .AddTo(_subscriptions);
+                session
+                    .SubscribeCommandResultsChanged(OnCommandResultsChanged)
+                    .AddTo(_subscriptions);
+                session
+                    .SubscribeExecutionRequested(ExecuteCommand)
+                    .AddTo(_subscriptions);
+            }
+            catch
+            {
+                _subscriptions.Dispose();
+                throw;
+            }
         }
 
         public void Dispose()
@@ -48,13 +73,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 return;
 
             _disposed = true;
-            _view.BackRequested -= GoBack;
-            _view.QueryChanged -= UpdateQuery;
-            _view.RowSelectionChanged -= SelectRow;
-            _view.RowActivated -= ActivateRow;
-            _view.KeyPressed -= OnKeyDown;
-            _session.CommandResultsChanged -= OnCommandResultsChanged;
-            _session.ExecuteCommand -= ExecuteCommand;
+            _subscriptions.Dispose();
         }
 
         private void SelectRow(int index)

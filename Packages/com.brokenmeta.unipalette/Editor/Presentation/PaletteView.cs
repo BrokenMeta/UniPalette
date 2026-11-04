@@ -1,15 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Lifetime;
 using BrokenMeta.UniPalette.Editor.Model;
 using Unity.AppUI.UI;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Clickable = UnityEngine.UIElements.Clickable;
-using Text = Unity.AppUI.UI.Text;
 using ListView = UnityEngine.UIElements.ListView;
 using Object = UnityEngine.Object;
+using Text = Unity.AppUI.UI.Text;
 
 namespace BrokenMeta.UniPalette.Editor.Presentation
 {
@@ -17,6 +18,18 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
     internal sealed class PaletteView : IDisposable
     {
         private const string UIPath = "Packages/com.brokenmeta.unipalette/Editor/Presentation/UI/";
+
+        private readonly SubscriptionScope _subscriptions = new();
+
+        private readonly Signal _backRequested = new();
+
+        private readonly Signal<string> _queryChanged = new();
+
+        private readonly Signal<int> _rowSelectionChanged = new();
+
+        private readonly Signal<(PaletteItem Item, EventBase Event)> _rowActivated = new();
+
+        private readonly Signal<KeyDownEvent> _keyPressed = new();
 
         private readonly VisualElement _root;
         private readonly Dictionary<VisualElement, Clickable> _rowClicks = new();
@@ -58,12 +71,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             _disposed = true;
             _pendingSearchFocus?.Pause();
             _pendingSearchFocus = null;
-            _back.clickable.clicked -= OnBack;
-            _results.selectionChanged -= OnRowSelectionChanged;
-            _searchBar.UnregisterCallback<ChangingEvent<string>>(OnQueryChanging);
-            _searchBar.UnregisterValueChangedCallback(OnQueryChanged);
-            _panel.UnregisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
-            _panel.UnregisterCallback<NavigationMoveEvent>(OnNavigationMove, TrickleDown.TrickleDown);
+            _subscriptions.Dispose();
             _results.itemsSource = null;
 
             foreach (var row in new List<VisualElement>(_rowClicks.Keys))
@@ -72,20 +80,34 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             _results.makeItem = null;
             _results.bindItem = null;
             _results.destroyItem = null;
-            BackRequested = null;
-            QueryChanged = null;
-            RowSelectionChanged = null;
-            RowActivated = null;
-            KeyPressed = null;
+            _backRequested.Dispose();
+            _queryChanged.Dispose();
+            _rowSelectionChanged.Dispose();
+            _rowActivated.Dispose();
+            _keyPressed.Dispose();
             _session = null;
             _presentation = null;
         }
 
-        internal event Action BackRequested;
-        internal event Action<string> QueryChanged;
-        internal event Action<int> RowSelectionChanged;
-        internal event Action<PaletteItem, EventBase> RowActivated;
-        internal event Action<KeyDownEvent> KeyPressed;
+        internal IDisposable SubscribeBackRequested(Action callback) =>
+            _backRequested.Subscribe(callback);
+
+        internal IDisposable SubscribeQueryChanged(Action<string> callback) =>
+            _queryChanged.Subscribe(callback);
+
+        internal IDisposable SubscribeRowSelectionChanged(Action<int> callback) =>
+            _rowSelectionChanged.Subscribe(callback);
+
+        internal IDisposable SubscribeRowActivated(Action<PaletteItem, EventBase> callback)
+        {
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
+            return _rowActivated.Subscribe(activation => callback(activation.Item, activation.Event));
+        }
+
+        internal IDisposable SubscribeKeyPressed(Action<KeyDownEvent> callback) =>
+            _keyPressed.Subscribe(callback);
 
         private void LoadLayout()
         {
@@ -156,48 +178,84 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             }
             finally
             {
-                _results.selectionChanged += OnRowSelectionChanged;
+                if (!_disposed)
+                    _results.selectionChanged += OnRowSelectionChanged;
             }
         }
 
         private void AttachCallbacks()
         {
-            _back.clickable.clicked += OnBack;
-            _results.selectionChanged += OnRowSelectionChanged;
-            _searchBar.RegisterCallback<ChangingEvent<string>>(OnQueryChanging);
-            _searchBar.RegisterValueChangedCallback(OnQueryChanged);
-            _panel.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
-            _panel.RegisterCallback<NavigationMoveEvent>(OnNavigationMove, TrickleDown.TrickleDown);
+            Subscription
+                .Create(
+                    () => _back.clickable.clicked += OnBack,
+                    () => _back.clickable.clicked -= OnBack
+                )
+                .AddTo(_subscriptions);
+
+            Subscription
+                .Create(
+                    () => _results.selectionChanged += OnRowSelectionChanged,
+                    () => _results.selectionChanged -= OnRowSelectionChanged
+                )
+                .AddTo(_subscriptions);
+
+            Subscription
+                .Create(
+                    () => _searchBar.RegisterCallback<ChangingEvent<string>>(OnQueryChanging),
+                    () => _searchBar.UnregisterCallback<ChangingEvent<string>>(OnQueryChanging)
+                )
+                .AddTo(_subscriptions);
+
+            Subscription
+                .Create(
+                    () => _searchBar.RegisterValueChangedCallback(OnQueryChanged),
+                    () => _searchBar.UnregisterValueChangedCallback(OnQueryChanged)
+                )
+                .AddTo(_subscriptions);
+
+            Subscription
+                .Create(
+                    () => _panel.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown),
+                    () => _panel.UnregisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown)
+                )
+                .AddTo(_subscriptions);
+
+            Subscription
+                .Create(
+                    () => _panel.RegisterCallback<NavigationMoveEvent>(OnNavigationMove, TrickleDown.TrickleDown),
+                    () => _panel.UnregisterCallback<NavigationMoveEvent>(OnNavigationMove, TrickleDown.TrickleDown)
+                )
+                .AddTo(_subscriptions);
         }
 
         private void OnBack()
         {
             if (!_disposed)
-                BackRequested?.Invoke();
+                _backRequested.Publish();
         }
 
         private void OnRowSelectionChanged(IEnumerable<object> selected)
         {
             if (!_disposed)
-                RowSelectionChanged?.Invoke(_results.selectedIndex);
+                _rowSelectionChanged.Publish(_results.selectedIndex);
         }
 
         private void OnQueryChanging(ChangingEvent<string> evt)
         {
             if (!_disposed)
-                QueryChanged?.Invoke(evt.newValue);
+                _queryChanged.Publish(evt.newValue);
         }
 
         private void OnQueryChanged(ChangeEvent<string> evt)
         {
             if (!_disposed)
-                QueryChanged?.Invoke(evt.newValue);
+                _queryChanged.Publish(evt.newValue);
         }
 
         private void OnKeyDown(KeyDownEvent evt)
         {
             if (!_disposed)
-                KeyPressed?.Invoke(evt);
+                _keyPressed.Publish(evt);
         }
 
         private void OnNavigationMove(NavigationMoveEvent evt)
@@ -211,7 +269,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
         private void ActivateRow(ListViewItem row, EventBase evt)
         {
             if (!_disposed)
-                RowActivated?.Invoke(row.userData as PaletteItem, evt);
+                _rowActivated.Publish((row.userData as PaletteItem, evt));
         }
 
         private VisualElement MakeRow()

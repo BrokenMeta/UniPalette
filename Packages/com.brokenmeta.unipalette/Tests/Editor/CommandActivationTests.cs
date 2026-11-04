@@ -20,12 +20,12 @@ namespace BrokenMeta.UniPalette.Tests
             var browser = new CommandBrowser(context, category);
             var requests = 0;
 
-            session.ExecuteCommand += (requestedCommand, requestedContext) =>
+            using var subscription = session.SubscribeExecutionRequested((requestedCommand, requestedContext) =>
             {
                 requests++;
                 Assert.That(requestedCommand, Is.SameAs(command));
                 Assert.That(requestedContext, Is.SameAs(context));
-            };
+            });
 
             Assert.That(browser.Activate(session, command), Is.False);
             Assert.That(requests, Is.EqualTo(1), "The executor owns relevance and preparation checks");

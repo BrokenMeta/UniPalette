@@ -1,4 +1,5 @@
 ﻿using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Lifetime;
 using BrokenMeta.UniPalette.Editor.Model;
 using BrokenMeta.UniPalette.Editor.Presentation;
 using BrokenMeta.UniPalette.Editor.Services;
@@ -10,6 +11,8 @@ namespace BrokenMeta.UniPalette.Editor
 {
     public class UniPaletteWindow : EditorWindow
     {
+        private SubscriptionScope _editorSubscriptions;
+
         private ICommandSource _commandSource;
         private UnityContextSelection _contextSelection;
         private bool _executing;
@@ -23,19 +26,43 @@ namespace BrokenMeta.UniPalette.Editor
         private void OnEnable()
         {
             _executing = false;
-            Selection.selectionChanged += OnSelectionChanged;
-            EditorApplication.hierarchyChanged += RefreshContexts;
-            EditorApplication.projectChanged += RefreshContexts;
-            EditorApplication.update += CheckContextChanges;
+            _editorSubscriptions?.Dispose();
+            _editorSubscriptions = new SubscriptionScope();
+
+            Subscription
+                .Create(
+                    () => Selection.selectionChanged += OnSelectionChanged,
+                    () => Selection.selectionChanged -= OnSelectionChanged
+                )
+                .AddTo(_editorSubscriptions);
+
+            Subscription
+                .Create(
+                    () => EditorApplication.hierarchyChanged += RefreshContexts,
+                    () => EditorApplication.hierarchyChanged -= RefreshContexts
+                )
+                .AddTo(_editorSubscriptions);
+
+            Subscription
+                .Create(
+                    () => EditorApplication.projectChanged += RefreshContexts,
+                    () => EditorApplication.projectChanged -= RefreshContexts
+                )
+                .AddTo(_editorSubscriptions);
+
+            Subscription
+                .Create(
+                    () => EditorApplication.update += CheckContextChanges,
+                    () => EditorApplication.update -= CheckContextChanges
+                )
+                .AddTo(_editorSubscriptions);
         }
 
         private void OnDisable()
         {
             _executing = true;
-            Selection.selectionChanged -= OnSelectionChanged;
-            EditorApplication.hierarchyChanged -= RefreshContexts;
-            EditorApplication.projectChanged -= RefreshContexts;
-            EditorApplication.update -= CheckContextChanges;
+            _editorSubscriptions?.Dispose();
+            _editorSubscriptions = null;
             DisposeView();
             DisposeSession();
         }

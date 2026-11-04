@@ -79,6 +79,12 @@ namespace BrokenMeta.UniPalette.Tests
             list.SetSelectionWithoutNotify(new[] { index, });
 
             yield return null;
+            yield return WaitForEditorReady();
+            // Import/Editor notifications can refresh rows while waiting; restore only palette selection.
+            index = session._results.FindIndex(item => item.Path == path);
+            Assert.That(index, Is.GreaterThanOrEqualTo(0));
+            session.Select(index);
+            list.SetSelectionWithoutNotify(new[] { index });
             Assert.That(new UnityContextSelection().MatchesSelection(context), Is.True);
             var renderedRow = list.GetRootElementForIndex(index);
             Assert.That(renderedRow, Is.Not.Null);
@@ -427,6 +433,23 @@ namespace BrokenMeta.UniPalette.Tests
             }
 
             Assert.That(_target.transform.childCount, Is.Zero);
+        }
+
+        private static IEnumerator WaitForEditorReady()
+        {
+            var deadline = EditorApplication.timeSinceStartup + 5;
+            var readyFrames = 0;
+
+            while (readyFrames < 2 && EditorApplication.timeSinceStartup < deadline)
+            {
+                yield return null;
+                var ready = !EditorApplication.isCompiling
+                    && !EditorApplication.isUpdating
+                    && !EditorApplication.isPlayingOrWillChangePlaymode;
+                readyFrames = ready ? readyFrames + 1 : 0;
+            }
+
+            Assert.That(readyFrames, Is.EqualTo(2), "Editor did not become ready before native test input");
         }
 
         [UnityTest]

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Lifetime;
 using BrokenMeta.UniPalette.Editor.Model;
 using UnityEditor;
 using UnityEditor.Search;
@@ -11,6 +12,8 @@ namespace BrokenMeta.UniPalette.Editor.Services
     // A menu snapshot for this palette instance. Query edits only search the resulting local tree.
     internal sealed class MenuCommands : ICommandSource
     {
+        private readonly Signal _changed = new();
+
         private readonly IContextSelection _contextSelection;
         private readonly List<string> _paths = new();
         private bool _disposed;
@@ -23,7 +26,8 @@ namespace BrokenMeta.UniPalette.Editor.Services
 
         internal IReadOnlyList<string> Paths => _paths;
 
-        public event Action Changed;
+        public IDisposable SubscribeChanged(Action callback) =>
+            _changed.Subscribe(callback);
 
         public bool IsLoading { get; private set; }
         public string Error { get; private set; } = "";
@@ -44,7 +48,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
         public void Dispose()
         {
             _disposed = true;
-            Changed = null;
+            _changed.Dispose();
             _request?.Dispose();
             _request = null;
             IsLoading = false;
@@ -118,7 +122,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
             if (!SearchService.Providers.Any(provider => provider.id == "menu"))
             {
                 Error = "Unity menu search provider is unavailable.";
-                Changed?.Invoke();
+                _changed.Publish();
 
                 return;
             }
@@ -148,7 +152,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
                         var completed = _request;
                         _request = null;
                         completed?.Dispose();
-                        Changed?.Invoke();
+                        _changed.Publish();
                     }
                 );
             }
@@ -158,7 +162,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
                 IsLoading = false;
                 _request?.Dispose();
                 _request = null;
-                Changed?.Invoke();
+                _changed.Publish();
             }
         }
 

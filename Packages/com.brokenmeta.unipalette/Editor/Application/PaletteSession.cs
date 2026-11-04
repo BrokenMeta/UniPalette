@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using BrokenMeta.UniPalette.Editor.Lifetime;
 using BrokenMeta.UniPalette.Editor.Model;
 
 [assembly: InternalsVisibleTo("BrokenMeta.UniPalette.Tests")]
@@ -10,6 +11,12 @@ namespace BrokenMeta.UniPalette.Editor.Application
     // Owns navigation history and transient state; each browser owns its level's behavior.
     internal sealed class PaletteSession : IDisposable
     {
+        private readonly Signal _commandResultsChanged = new();
+
+        private readonly Signal<(PaletteItem Command, PaletteItem Context)> _executionRequested = new();
+
+        private readonly IDisposable _commandSubscription;
+
         private readonly ICommandSource _commandSource;
 
         private readonly IContextSelection _contextSelection;
@@ -31,7 +38,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
             Browser = new ContextBrowser(contexts);
             _history = new PaletteHistory(Browser);
             Rebuild();
-            commandSource.Changed += OnCommandsChanged;
+            _commandSubscription = commandSource.SubscribeChanged(OnCommandsChanged);
         }
 
         private PaletteItem SelectedItem => SelectedIndex >= 0 ? _results[SelectedIndex] : null;
@@ -66,14 +73,21 @@ namespace BrokenMeta.UniPalette.Editor.Application
                 return;
 
             _disposed = true;
-            _commandSource.Changed -= OnCommandsChanged;
-            CommandResultsChanged = null;
-            ExecuteCommand = null;
+            _commandSubscription.Dispose();
+            _commandResultsChanged.Dispose();
+            _executionRequested.Dispose();
         }
 
-        internal event Action CommandResultsChanged;
+        internal IDisposable SubscribeCommandResultsChanged(Action callback) =>
+            _commandResultsChanged.Subscribe(callback);
 
-        internal event Action<PaletteItem, PaletteItem> ExecuteCommand;
+        internal IDisposable SubscribeExecutionRequested(Action<PaletteItem, PaletteItem> callback)
+        {
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
+            return _executionRequested.Subscribe(request => callback(request.Command, request.Context));
+        }
 
         private PaletteItem LoadCommands(PaletteItem context) =>
             _commandSource.ForContext(context);
@@ -92,7 +106,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
             Rebuild();
             Select(_selectFirstWhenLoaded && Query.Length == 0 ? 0 : -1);
             _selectFirstWhenLoaded = false;
-            CommandResultsChanged?.Invoke();
+            _commandResultsChanged.Publish();
         }
 
         private void ReturnToPreviousBrowser()
@@ -222,8 +236,8 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         internal void DispatchCommand(PaletteItem command, PaletteItem context)
         {
-            if (ExecuteCommand != null)
-                ExecuteCommand(command, context);
+            if (_executionRequested.SubscriberCount > 0)
+                _executionRequested.Publish((command, context));
             else
                 Message = "Native execution is unavailable; nothing executed.";
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Lifetime;
 using BrokenMeta.UniPalette.Editor.Model;
 
 namespace BrokenMeta.UniPalette.Tests
@@ -7,6 +8,8 @@ namespace BrokenMeta.UniPalette.Tests
     // Fixed data by default; completion is controlled explicitly for loading/lifetime regressions.
     internal sealed class TestCommandSource : ICommandSource
     {
+        private readonly Signal _changed = new();
+
         internal Action<PaletteItem> _requesting;
         private PaletteItem _root;
 
@@ -20,9 +23,10 @@ namespace BrokenMeta.UniPalette.Tests
 
         internal int DisposeCalls { get; private set; }
 
-        internal int Subscribers => Changed?.GetInvocationList().Length ?? 0;
+        internal int Subscribers => _changed.SubscriberCount;
 
-        public event Action Changed;
+        public IDisposable SubscribeChanged(Action callback) =>
+            _changed.Subscribe(callback);
 
         public bool IsLoading { get; private set; }
 
@@ -40,7 +44,7 @@ namespace BrokenMeta.UniPalette.Tests
         {
             DisposeCalls++;
             _requesting = null;
-            Changed = null;
+            _changed.Dispose();
         }
 
         internal void Complete(PaletteItem next, string error = "")
@@ -48,7 +52,7 @@ namespace BrokenMeta.UniPalette.Tests
             _root = next;
             Error = error;
             IsLoading = false;
-            Changed?.Invoke();
+            _changed.Publish();
         }
     }
 }
