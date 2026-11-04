@@ -35,7 +35,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
                 return session.OpenCommands(selected);
 
             // Source entries open their area even when empty; empty folders open commands.
-            return selected.HasBrowseChildren
+            return _source.HasBrowseChildren(selected)
                 ? session.Push(new ContextBrowser(_source, selected))
                 : session.OpenCommands(selected);
         }

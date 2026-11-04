@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using BrokenMeta.UniPalette.Editor.Services;
 
 namespace BrokenMeta.UniPalette.Editor.Model
 {
@@ -17,9 +15,6 @@ namespace BrokenMeta.UniPalette.Editor.Model
 
         internal override bool SameIdentity(PaletteItem other) =>
             other is SceneRootContext;
-
-        internal override IEnumerable<PaletteItem> GetChildren(bool recursive) =>
-            UnityContexts.SceneRoots(recursive);
 
         internal override bool IsMenuRelevant(string path) =>
             path.StartsWith(

@@ -57,14 +57,6 @@ namespace BrokenMeta.UniPalette.Editor.Model
             && context.SceneObject
             && context.SceneObject.transform.IsChildOf(SceneObject.transform);
 
-        internal override IEnumerable<PaletteItem> GetChildren(bool recursive) =>
-            IsValid
-                ? UnityContexts.SceneChildren(
-                    SceneObject.transform,
-                    recursive
-                )
-                : Array.Empty<PaletteItem>();
-
         internal override bool IsMenuRelevant(string path) =>
             path == "Edit/Duplicate"
             || path.StartsWith(

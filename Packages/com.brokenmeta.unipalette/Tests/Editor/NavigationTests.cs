@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor.Services;
 using NUnit.Framework;
 
 namespace BrokenMeta.UniPalette.Tests
@@ -8,6 +11,65 @@ namespace BrokenMeta.UniPalette.Tests
     [Category("Fast")]
     public class NavigationTests : NavigationTestFixture
     {
+        private sealed class ExternalChildrenSource : IContextSource
+        {
+            private readonly PaletteItem _root;
+
+            private readonly PaletteItem _child;
+
+            private readonly bool _canBrowse;
+
+            internal PaletteItem CheckedContext { get; private set; }
+
+            internal ExternalChildrenSource(PaletteItem root, PaletteItem child, bool canBrowse)
+            {
+                _root = root;
+                _child = child;
+                _canBrowse = canBrowse;
+            }
+
+            public IEnumerable<PaletteItem> GetItems(PaletteItem context, bool recursive) =>
+                context == null ? new[] { _root, } : new[] { _child, };
+
+            public bool HasBrowseChildren(PaletteItem context)
+            {
+                CheckedContext = context;
+                return _canBrowse;
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ContextSourceControlsBrowsingIndependentlyOfItemChildren(bool canBrowse)
+        {
+            var child = new FixtureItem("Child", "Root/Child");
+            var embeddedChildren = canBrowse ? Array.Empty<PaletteItem>() : new PaletteItem[] { child, };
+            var root = new FixtureItem("Root", "Root", false, embeddedChildren);
+            var contexts = new ExternalChildrenSource(root, child, canBrowse);
+
+            using var commands = new TestCommandSource(PaletteTestData.Commands());
+            using var session = new PaletteSession(commands, new UnityContextSelection(), contexts);
+            session.Select(0);
+
+            Assert.That(session.ActivateSelected(), Is.True);
+            Assert.That(contexts.CheckedContext, Is.SameAs(root));
+            Assert.That(session.Context, Is.SameAs(root));
+
+            if (canBrowse)
+            {
+                Assert.That(session.Browser, Is.TypeOf<ContextBrowser>());
+                Assert.That(session._results, Is.EqualTo(new[] { child, }));
+            }
+            else
+            {
+                Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
+            }
+
+            Assert.That(session.GoBack(), Is.True);
+            Assert.That(session.Context, Is.Null);
+            Assert.That(session.SelectedIndex, Is.Zero);
+        }
+
         [TestCase(0, false, typeof(CommandBrowser), "Scene Root/Player")]
         [TestCase(0, true, typeof(CommandBrowser), "Scene Root/Player")]
         [TestCase(1, false, typeof(ContextBrowser), "Scene Root")]

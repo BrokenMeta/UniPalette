@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using BrokenMeta.UniPalette.Editor.Services;
 using UnityEditor;
 using Object = UnityEngine.Object;
@@ -26,8 +24,6 @@ namespace BrokenMeta.UniPalette.Editor.Model
 
         internal override bool CanBrowse => AssetDatabase.IsValidFolder(AssetPath);
 
-        internal override bool HasBrowseChildren => CanBrowse && GetChildren(false).Any();
-
         internal override T Accept<T>(IContextVisitor<T> visitor) =>
             visitor.Visit(this);
 
@@ -45,11 +41,6 @@ namespace BrokenMeta.UniPalette.Editor.Model
                 + "/",
                 StringComparison.Ordinal
             );
-
-        internal override IEnumerable<PaletteItem> GetChildren(bool recursive) =>
-            IsValid
-                ? UnityContexts.AssetChildren(AssetPath, recursive)
-                : Array.Empty<PaletteItem>();
 
         internal override bool IsMenuRelevant(string path) =>
             path == "Edit/Duplicate" || path.StartsWith("Assets/", StringComparison.Ordinal);
