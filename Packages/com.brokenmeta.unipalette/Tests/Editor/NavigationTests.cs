@@ -58,7 +58,7 @@ namespace BrokenMeta.UniPalette.Tests
             if (canBrowse)
             {
                 Assert.That(session.Browser, Is.TypeOf<ContextBrowser>());
-                Assert.That(session._results, Is.EqualTo(new[] { child, }));
+                Assert.That(session.Results, Is.EqualTo(new[] { child, }));
             }
             else
             {
@@ -95,7 +95,7 @@ namespace BrokenMeta.UniPalette.Tests
         public void MockSelectionCanBeAbsentAndRootHasNoImplicitContext()
         {
             var session = CreateSession(false);
-            Assert.That(session._results.Count, Is.EqualTo(2));
+            Assert.That(session.Results.Count, Is.EqualTo(2));
             Assert.That(session.ActivateSelected(), Is.False);
             Assert.That(session.OpenContextCommands(), Is.False);
             Assert.That(session.GoBack(), Is.False);
@@ -108,7 +108,7 @@ namespace BrokenMeta.UniPalette.Tests
             Choose(session, "Hierarchy");
             session.ActivateSelected();
             session.SetQuery("Muzzle");
-            Assert.That(session._results.Count, Is.EqualTo(1));
+            Assert.That(session.Results.Count, Is.EqualTo(1));
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             session.MoveSelection(1);
             Assert.That(session.ActivateSelected(), Is.True, "Smart Enter opens leaf commands");
@@ -117,20 +117,20 @@ namespace BrokenMeta.UniPalette.Tests
             AssertForward(session);
             session.GoBack();
             Assert.That(session.Query.IsEmpty, Is.True);
-            Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Player"));
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Player"));
             Choose(session, "Player");
             session.ActivateSelected();
             Choose(session, "Weapon");
             session.ActivateSelected();
             session.SetQuery("Light");
-            Assert.That(session._results, Is.Empty, "Sibling subtree excluded");
+            Assert.That(session.Results, Is.Empty, "Sibling subtree excluded");
             Assert.That(session.OpenContextCommands(), Is.True, "No selection uses Weapon context");
             Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Player/Weapon"));
             session.GoBack();
             session.GoBack();
             Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Player"));
             Assert.That(session.Query.IsEmpty, Is.True);
-            Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Weapon"));
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Weapon"));
         }
 
         [Test]
@@ -153,10 +153,10 @@ namespace BrokenMeta.UniPalette.Tests
             session.GoBack();
             Assert.That(session.Location, Is.EqualTo("Mock commands/Create"));
             Assert.That(session.Query.IsEmpty, Is.True);
-            Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Shapes (experimental category)"));
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Shapes (experimental category)"));
             session.GoBack();
             session.SetQuery("Shapes/Cube");
-            Assert.That(session._results.Count, Is.EqualTo(1));
+            Assert.That(session.Results.Count, Is.EqualTo(1));
         }
 
         [Test]
@@ -175,7 +175,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(session.BrowseSelected(), Is.True);
             var categoryLocation = session.Location;
             Assert.That(session.GoBack(), Is.True);
-            Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Create (experimental category)"));
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Create (experimental category)"));
             Assert.That(session.ActivateSelected(), Is.True);
             Assert.That(session.Location, Is.EqualTo(categoryLocation));
         }
@@ -215,11 +215,11 @@ namespace BrokenMeta.UniPalette.Tests
             session.Select(0);
             Assert.That(altRight ? session.BrowseSelected() : session.ActivateSelected(), Is.True);
             Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
-            Assert.That(session._results, Is.Empty);
+            Assert.That(session.Results, Is.Empty);
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             session.GoBack();
             Assert.That(session.SelectedIndex, Is.Zero);
-            Assert.That(session._results[0], Is.SameAs(leaf));
+            Assert.That(session.Results[0], Is.SameAs(leaf));
             session.SetQuery("Leaf");
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
         }

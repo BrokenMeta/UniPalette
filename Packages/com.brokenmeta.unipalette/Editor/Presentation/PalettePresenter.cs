@@ -198,7 +198,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             if ((pointer?.clickCount ?? mouse?.clickCount ?? 1) > 1)
                 return;
 
-            var index = _session._results.IndexOf(item);
+            var index = _session.Results.IndexOf(item);
 
             if (index < 0)
                 return;

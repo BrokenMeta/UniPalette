@@ -45,17 +45,27 @@ namespace BrokenMeta.UniPalette.Editor.Application
                 _item = item;
             }
 
-            internal int FindSelection(List<PaletteItem> results)
+            internal int FindSelection(IReadOnlyList<PaletteItem> results)
             {
                 var entry = _item;
 
                 if (entry == null || !entry.IsValid)
                     return -1;
 
-                var index = results.FindIndex(candidate => candidate.SameIdentity(entry));
+                for (var index = 0; index < results.Count; index++)
+                {
+                    if (results[index].SameIdentity(entry))
+                        return index;
+                }
 
                 // With an empty query, restore the visible containing branch if the entry is deeper.
-                return index >= 0 ? index : results.FindIndex(candidate => candidate.ContainsDescendant(entry));
+                for (var index = 0; index < results.Count; index++)
+                {
+                    if (results[index].ContainsDescendant(entry))
+                        return index;
+                }
+
+                return -1;
             }
         }
     }

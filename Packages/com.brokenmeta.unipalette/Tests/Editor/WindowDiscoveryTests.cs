@@ -53,7 +53,7 @@ namespace BrokenMeta.UniPalette.Tests
                     target.SendEvent(evt);
                 }
 
-                var hierarchy = session._results.FindIndex(item => item is SceneRootContext);
+                var hierarchy = session.FindResultIndex(item => item is SceneRootContext);
                 session.Select(hierarchy);
                 results.SetSelectionWithoutNotify(new[] { hierarchy, });
                 Key(KeyCode.Return, EventModifiers.Control);
@@ -62,15 +62,15 @@ namespace BrokenMeta.UniPalette.Tests
                 while (session.CommandsLoading && EditorApplication.timeSinceStartup < deadline)
                     yield return null;
 
-                Assert.That(session._results.Any(item => item.Path == "GameObject"), Is.True);
+                Assert.That(session.Results.Any(item => item.Path == "GameObject"), Is.True);
                 Assert.That(session.SelectedIndex, Is.Zero);
                 Assert.That(results.selectedIndex, Is.EqualTo(session.SelectedIndex));
                 Key(KeyCode.RightArrow, EventModifiers.Alt);
                 Assert.That(session.Location, Is.EqualTo("GameObject"));
                 input.value = "Cube";
                 Assert.That(session.SelectedIndex, Is.EqualTo(-1));
-                Assert.That(session._results.Any(item => item.Path == "GameObject/3D Object/Cube"), Is.True);
-                var cube = session._results.FindIndex(item => item.Path == "GameObject/3D Object/Cube");
+                Assert.That(session.Results.Any(item => item.Path == "GameObject/3D Object/Cube"), Is.True);
+                var cube = session.FindResultIndex(item => item.Path == "GameObject/3D Object/Cube");
                 session.Select(cube);
                 results.SetSelectionWithoutNotify(new[] { cube, });
 
@@ -83,7 +83,7 @@ namespace BrokenMeta.UniPalette.Tests
                 Assert.That(Selection.count, Is.Zero);
                 Key(KeyCode.LeftArrow, EventModifiers.Alt);
                 Assert.That(session.Query.IsEmpty, Is.True);
-                Assert.That(session._results[session.SelectedIndex].Path, Is.EqualTo("GameObject"));
+                Assert.That(session.Results[session.SelectedIndex].Path, Is.EqualTo("GameObject"));
 
                 yield return null;
                 var focused = window.rootVisualElement.panel.focusController.focusedElement;

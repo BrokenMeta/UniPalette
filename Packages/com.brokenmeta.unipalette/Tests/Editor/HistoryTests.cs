@@ -22,7 +22,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             session.GoBack();
             Assert.That(session.Query.IsEmpty, Is.True);
-            Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Characters"));
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Characters"));
             Assert.That(session.Context.Path, Is.EqualTo("Assets"));
         }
 
@@ -39,7 +39,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             session.GoBack();
-            Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Hierarchy"));
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Hierarchy"));
             session.SetQuery("Project");
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
         }
@@ -56,7 +56,7 @@ namespace BrokenMeta.UniPalette.Tests
             AssertForward(session);
             session.GoBack();
             Assert.That(session.Query.IsEmpty, Is.True);
-            Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Create (experimental category)"));
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Create (experimental category)"));
             // A forward transition replaces the restored row with the first child of the next level.
             session.ActivateSelected();
             AssertForward(session);
@@ -74,7 +74,7 @@ namespace BrokenMeta.UniPalette.Tests
             session.OpenContextCommands();
             AssertForward(session);
             session.GoBack();
-            Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Readme"));
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Readme"));
             Assert.That(session.SelectedIndex, Is.EqualTo(1), "Back must not pick first instead of its entry");
             session.SetQuery("Characters");
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));

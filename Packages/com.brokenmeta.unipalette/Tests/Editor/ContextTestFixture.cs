@@ -37,7 +37,7 @@ namespace BrokenMeta.UniPalette.Tests
 
         private protected static void Choose(PaletteSession session, string title)
         {
-            var index = session._results.FindIndex(item => item.Title == title);
+            var index = session.FindResultIndex(item => item.Title == title);
             Assert.That(index, Is.GreaterThanOrEqualTo(0), title);
             session.Select(index);
         }

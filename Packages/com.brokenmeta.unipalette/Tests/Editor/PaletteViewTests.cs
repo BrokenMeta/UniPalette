@@ -69,7 +69,7 @@ namespace BrokenMeta.UniPalette.Tests
             retiredView.Dispose();
             retiredView.Dispose(); // Disposal is safe when the window subsequently releases it again.
             oldInput.value = "stale query";
-            oldResults.itemsSource = retiredSession._results;
+            oldResults.itemsSource = retiredSession.Results;
             oldResults.SetSelection(0);
             ClickElement(oldBack);
 

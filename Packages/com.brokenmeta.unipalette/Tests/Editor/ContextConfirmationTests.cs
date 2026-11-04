@@ -20,12 +20,12 @@ namespace BrokenMeta.UniPalette.Tests
             var first = Go("First");
             var second = Go("Second");
             var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
-            Assert.That(session._results.Any(item => item.SelectionEntry), Is.False);
+            Assert.That(session.Results.Any(item => item.SelectionEntry), Is.False);
             Selection.activeObject = first;
             session.Refresh();
-            Assert.That(session._results.Single(item => item.SelectionEntry).Target, Is.EqualTo(first));
+            Assert.That(session.Results.Single(item => item.SelectionEntry).Target, Is.EqualTo(first));
             session.SetQuery("Current Selection");
-            Assert.That(session._results.Single().Target, Is.EqualTo(first));
+            Assert.That(session.Results.Single().Target, Is.EqualTo(first));
             session.SetQuery("");
             session.Select(0);
             session.ActivateSelected();
@@ -33,10 +33,10 @@ namespace BrokenMeta.UniPalette.Tests
             session.Refresh();
             Assert.That(session.Context.Target, Is.EqualTo(first), "Open command context is stable");
             session.GoBack();
-            Assert.That(session._results.Single(item => item.SelectionEntry).Target, Is.EqualTo(second));
+            Assert.That(session.Results.Single(item => item.SelectionEntry).Target, Is.EqualTo(second));
             Object.DestroyImmediate(second);
             session.Refresh();
-            Assert.That(session._results.Any(item => item.SelectionEntry), Is.False);
+            Assert.That(session.Results.Any(item => item.SelectionEntry), Is.False);
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
         }
 
@@ -96,7 +96,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(session.SelectedIndex, Is.Zero);
             session.GoBack();
             Assert.That(session.Query.IsEmpty, Is.True);
-            Assert.That(session._results[session.SelectedIndex].Target, Is.EqualTo(target));
+            Assert.That(session.Results[session.SelectedIndex].Target, Is.EqualTo(target));
 
             Assert.That(
                 session.OpenContextCommands(),
@@ -151,7 +151,7 @@ namespace BrokenMeta.UniPalette.Tests
                 "Back restores palette row, not global Selection"
             );
 
-            Assert.That(session._results[session.SelectedIndex].Target, Is.EqualTo(target));
+            Assert.That(session.Results[session.SelectedIndex].Target, Is.EqualTo(target));
         }
 
         [Test]
@@ -238,7 +238,7 @@ namespace BrokenMeta.UniPalette.Tests
             AssetDatabase.CreateFolder(_folder, "Empty");
             Selection.objects = new Object[] { Go("A"), Go("B"), };
             var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
-            Assert.That(session._results.Any(item => item.SelectionEntry), Is.False);
+            Assert.That(session.Results.Any(item => item.SelectionEntry), Is.False);
             Choose(session, "Project");
             session.ActivateSelected();
             session.SetQuery(_folder + "/Empty");
@@ -250,7 +250,7 @@ namespace BrokenMeta.UniPalette.Tests
             session.GoBack();
 
             Assert.That(
-                session._results[session.SelectedIndex].Path,
+                session.Results[session.SelectedIndex].Path,
                 Is.EqualTo(_temporaryRoot),
                 "Deep entry restores its visible ancestor"
             );

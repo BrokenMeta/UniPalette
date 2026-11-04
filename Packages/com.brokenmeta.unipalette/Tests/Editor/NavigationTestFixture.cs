@@ -74,7 +74,7 @@ namespace BrokenMeta.UniPalette.Tests
 
         private protected static void Choose(PaletteSession session, string title)
         {
-            var index = session._results.FindIndex(item => item.Title == title);
+            var index = session.FindResultIndex(item => item.Title == title);
             Assert.That(index, Is.GreaterThanOrEqualTo(0), title);
             session.Select(index);
         }
@@ -82,7 +82,7 @@ namespace BrokenMeta.UniPalette.Tests
         private protected static void AssertForward(PaletteSession session)
         {
             Assert.That(session.Query.IsEmpty, Is.True);
-            Assert.That(session.SelectedIndex, Is.EqualTo(session._results.Count > 0 ? 0 : -1));
+            Assert.That(session.SelectedIndex, Is.EqualTo(session.Results.Count > 0 ? 0 : -1));
         }
     }
 }

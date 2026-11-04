@@ -40,7 +40,7 @@ namespace BrokenMeta.UniPalette.Tests
             session.Select(0);
             Assert.That(session.OpenContextCommands(), Is.True);
             Assert.That(source.Requests, Is.EqualTo(1), "Synchronous notification must not recursively reload");
-            Assert.That(session._results, Is.Not.Empty);
+            Assert.That(session.Results, Is.Not.Empty);
             Assert.That(session.SelectedIndex, Is.Zero);
             Assert.That(session.GoBack(), Is.True);
             Assert.That(session.CanGoBack, Is.False, "Only one transition was recorded");
@@ -71,10 +71,10 @@ namespace BrokenMeta.UniPalette.Tests
             source.Complete(Build());
             Assert.That(session.CommandsLoading, Is.False);
             Assert.That(notifications, Is.EqualTo(1));
-            Assert.That(session._results, Is.Not.Empty);
+            Assert.That(session.Results, Is.Not.Empty);
             Assert.That(session.SelectedIndex, Is.EqualTo(typeQuery ? -1 : 0));
             Assert.That(session.Query.Text, Is.EqualTo(typeQuery ? "Create/Folder" : ""));
-            Assert.That(session._results[0].Path, Is.EqualTo(typeQuery ? "Assets/Create/Folder" : "Assets"));
+            Assert.That(session.Results[0].Path, Is.EqualTo(typeQuery ? "Assets/Create/Folder" : "Assets"));
         }
 
         [Test]
@@ -101,7 +101,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(session.Browser, Is.SameAs(browser));
             Assert.That(session.Query.Text, Is.EqualTo("Project"));
             Assert.That(session.SelectedIndex, Is.Zero);
-            Assert.That(session._results[0].Path, Is.EqualTo("Assets"));
+            Assert.That(session.Results[0].Path, Is.EqualTo("Assets"));
             Assert.That(source.Requests, Is.EqualTo(requests));
             Assert.That(notifications, Is.Zero);
         }
@@ -125,7 +125,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(source.Subscribers, Is.Zero);
             Assert.That(source.DisposeCalls, Is.Zero);
             source.Complete(Build());
-            Assert.That(session._results, Is.Empty, "A borrowed source cannot update disposed state");
+            Assert.That(session.Results, Is.Empty, "A borrowed source cannot update disposed state");
         }
 
         [Test]
@@ -144,7 +144,7 @@ namespace BrokenMeta.UniPalette.Tests
             source.Complete(Empty(), "Test source unavailable");
             Assert.That(session.CommandsLoading, Is.False);
             Assert.That(session.CommandNotice, Is.EqualTo("Test source unavailable"));
-            Assert.That(session._results, Is.Empty);
+            Assert.That(session.Results, Is.Empty);
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
         }
     }

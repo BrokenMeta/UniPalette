@@ -120,7 +120,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             session.Select(0);
             session.OpenContextCommands();
-            Assert.That(session._results, Is.Empty);
+            Assert.That(session.Results, Is.Empty);
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
         }
     }

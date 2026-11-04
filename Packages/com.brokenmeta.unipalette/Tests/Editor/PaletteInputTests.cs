@@ -155,12 +155,12 @@ namespace BrokenMeta.UniPalette.Tests
             Click(0);
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
             Assert.That(_session.Context.Path, Is.EqualTo("Assets"));
-            Assert.That(_session._results[_session.SelectedIndex].Title, Is.EqualTo("Folder"));
+            Assert.That(_session.Results[_session.SelectedIndex].Title, Is.EqualTo("Folder"));
             Assert.That(_results.selectedIndex, Is.EqualTo(_session.SelectedIndex));
 
             yield return WaitForSearchFocus();
             Key(KeyCode.Escape);
-            Assert.That(_session._results[_session.SelectedIndex].Title, Is.EqualTo("Project"));
+            Assert.That(_session.Results[_session.SelectedIndex].Title, Is.EqualTo("Project"));
             Assert.That(_results.selectedIndex, Is.EqualTo(1));
 
             var input = _window
@@ -206,7 +206,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(_session.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
             Assert.That(_session.Browser, Is.TypeOf<CommandBrowser>());
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
-            Assert.That(_session._results[_session.SelectedIndex].Title, Is.EqualTo("Leaf"));
+            Assert.That(_session.Results[_session.SelectedIndex].Title, Is.EqualTo("Leaf"));
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
             Assert.That(_session.Context, Is.Null, "One back per transition");
@@ -237,7 +237,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(_session.Query.IsEmpty, Is.True);
 
             Assert.That(
-                _session._results[_session.SelectedIndex].Title,
+                _session.Results[_session.SelectedIndex].Title,
                 Is.EqualTo("Create (experimental category)")
             );
 

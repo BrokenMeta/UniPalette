@@ -57,11 +57,11 @@ namespace BrokenMeta.UniPalette.Tests
                 Selection.activeObject = target;
                 var deadline = EditorApplication.timeSinceStartup + 1;
 
-                while (session._results.SingleOrDefault(item => item.SelectionEntry)?.Target != target
+                while (session.Results.SingleOrDefault(item => item.SelectionEntry)?.Target != target
                     && EditorApplication.timeSinceStartup < deadline)
                     yield return null;
 
-                var selection = session._results.Single(item => item.SelectionEntry);
+                var selection = session.Results.Single(item => item.SelectionEntry);
                 Assert.That(selection.Target, Is.EqualTo(target));
                 Assert.That(selection.IsValid, Is.True, selection.Path);
                 Assert.That(session.SelectedIndex, Is.EqualTo(-1));
@@ -100,11 +100,11 @@ namespace BrokenMeta.UniPalette.Tests
             Selection.objects = Array.Empty<Object>();
             var end = EditorApplication.timeSinceStartup + 1;
 
-            while (session._results.Any(item => item.SelectionEntry) && EditorApplication.timeSinceStartup < end)
+            while (session.Results.Any(item => item.SelectionEntry) && EditorApplication.timeSinceStartup < end)
                 yield return null;
 
-            Assert.That(session._results.Any(item => item.SelectionEntry), Is.False);
-            Assert.That(session._results.Count, Is.EqualTo(2));
+            Assert.That(session.Results.Any(item => item.SelectionEntry), Is.False);
+            Assert.That(session.Results.Count, Is.EqualTo(2));
         }
 
         [UnityTest]
@@ -135,12 +135,12 @@ namespace BrokenMeta.UniPalette.Tests
 
                 var deadline = EditorApplication.timeSinceStartup + 1;
 
-                while (!session._results.Any(item => item.SelectionEntry && item.Target == target)
+                while (!session.Results.Any(item => item.SelectionEntry && item.Target == target)
                     && EditorApplication.timeSinceStartup < deadline)
                     yield return null;
 
                 Assert.That(
-                    session._results.SingleOrDefault(item => item.SelectionEntry)?.Target,
+                    session.Results.SingleOrDefault(item => item.SelectionEntry)?.Target,
                     Is.EqualTo(target),
                     "Selection notifications: "
                     + notifications
@@ -151,12 +151,12 @@ namespace BrokenMeta.UniPalette.Tests
                 Selection.objects = Array.Empty<Object>();
                 deadline = EditorApplication.timeSinceStartup + 1;
 
-                while (session._results.Any(item => item.SelectionEntry)
+                while (session.Results.Any(item => item.SelectionEntry)
                     && EditorApplication.timeSinceStartup < deadline)
                     yield return null;
 
                 Assert.That(
-                    session._results.Any(item => item.SelectionEntry),
+                    session.Results.Any(item => item.SelectionEntry),
                     Is.False,
                     "Selection notifications: "
                     + notifications
@@ -166,7 +166,7 @@ namespace BrokenMeta.UniPalette.Tests
                 Selection.activeObject = target;
                 deadline = EditorApplication.timeSinceStartup + 1;
 
-                while (!session._results.Any(item => item.SelectionEntry)
+                while (!session.Results.Any(item => item.SelectionEntry)
                     && EditorApplication.timeSinceStartup < deadline)
                     yield return null;
 

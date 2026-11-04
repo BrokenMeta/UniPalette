@@ -152,7 +152,7 @@ namespace BrokenMeta.UniPalette.Tests
             _window.Focus();
             yield return null;
             var session = (PaletteSession)typeof(UniPaletteWindow).GetField("_session", Private).GetValue(_window);
-            session.Select(session._results.FindIndex(item => item.SelectionEntry));
+            session.Select(session.FindResultIndex(item => item.SelectionEntry));
             Assert.That(session.OpenContextCommands(), Is.True);
             var deadline = EditorApplication.timeSinceStartup + 5;
 
@@ -161,11 +161,11 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(session.CommandsLoading, Is.False);
             Assert.That(
-                session._results.Any(item => item.Path == "Assets"),
+                session.Results.Any(item => item.Path == "Assets"),
                 Is.True,
                 "Main-menu commands stay available"
             );
-            session.Select(session._results.FindIndex(item => item is ContextActionCategoryItem));
+            session.Select(session.FindResultIndex(item => item is ContextActionCategoryItem));
             Assert.That(session.SelectedIndex, Is.GreaterThanOrEqualTo(0));
             PaletteTestData.GetPresenter(_window).Render();
             Key(KeyCode.Return);
@@ -173,7 +173,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(((CommandBrowser)session.Browser).Category.Title, Is.EqualTo("Asset Actions"));
             session.SetQuery("Record Invocation");
             session.Select(0);
-            Assert.That(session._results.Single(), Is.TypeOf<ContextActionItem>());
+            Assert.That(session.Results.Single(), Is.TypeOf<ContextActionItem>());
             PaletteTestData.GetPresenter(_window).Render();
             Key(KeyCode.RightArrow, EventModifiers.Alt);
             Assert.That(_probe.Calls, Is.Zero);

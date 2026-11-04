@@ -59,7 +59,7 @@ namespace BrokenMeta.UniPalette.Tests
                 .GetField("_session", Private)
                 .GetValue(_window);
 
-            session.Select(session._results.FindIndex(i => i.SelectionEntry));
+            session.Select(session.FindResultIndex(i => i.SelectionEntry));
             Key(KeyCode.Return);
             var deadline = EditorApplication.timeSinceStartup + 5;
 
@@ -72,7 +72,7 @@ namespace BrokenMeta.UniPalette.Tests
                 .Q<TextField>()
                 .value = path;
 
-            var index = session._results.FindIndex(i => i.Path == path);
+            var index = session.FindResultIndex(i => i.Path == path);
             Assert.That(index, Is.GreaterThanOrEqualTo(0), "Supported command must be discoverable");
             session.Select(index);
             var list = _window.rootVisualElement.Q<ListView>("results");
@@ -81,7 +81,7 @@ namespace BrokenMeta.UniPalette.Tests
             yield return null;
             yield return WaitForEditorReady();
             // Import/Editor notifications can refresh rows while waiting; restore only palette selection.
-            index = session._results.FindIndex(item => item.Path == path);
+            index = session.FindResultIndex(item => item.Path == path);
             Assert.That(index, Is.GreaterThanOrEqualTo(0));
             session.Select(index);
             list.SetSelectionWithoutNotify(new[] { index });
@@ -285,7 +285,7 @@ namespace BrokenMeta.UniPalette.Tests
                 .GetField("_session", Private)
                 .GetValue(_window);
 
-            var rootIndex = session._results.FindIndex(
+            var rootIndex = session.FindResultIndex(
                 i => i.GetType()
                     == CreateRoot(kind)
                         .GetType()
@@ -323,7 +323,7 @@ namespace BrokenMeta.UniPalette.Tests
                 .Q<TextField>()
                 .value = path;
 
-            var index = session._results.FindIndex(i => i.Path == path);
+            var index = session.FindResultIndex(i => i.Path == path);
             Assert.That(index, Is.GreaterThanOrEqualTo(0), "Root command must be discovered");
             session.Select(index);
             var list = _window.rootVisualElement.Q<ListView>("results");
@@ -528,7 +528,7 @@ namespace BrokenMeta.UniPalette.Tests
                 .GetField("_session", Private)
                 .GetValue(_window);
 
-            session.Select(session._results.FindIndex(i => i.SelectionEntry));
+            session.Select(session.FindResultIndex(i => i.SelectionEntry));
             Key(KeyCode.Return);
             var deadline = EditorApplication.timeSinceStartup + 5;
 
@@ -536,7 +536,7 @@ namespace BrokenMeta.UniPalette.Tests
                 yield return null;
 
             session.SetQuery("Edit/Duplicate");
-            session.Select(session._results.FindIndex(i => i.Path == "Edit/Duplicate"));
+            session.Select(session.FindResultIndex(i => i.Path == "Edit/Duplicate"));
             Selection.activeObject = AssetDatabase.LoadMainAssetAtPath(_folder + "/Source.txt");
             // Direct state activation preserves the stale row to exercise the final preflight check.
             session.ActivateSelected();

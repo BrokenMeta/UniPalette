@@ -64,24 +64,24 @@ namespace BrokenMeta.UniPalette.Tests
             using var session = PaletteTestData.CreateSession(new[] { Assets(), }, Build());
             session.Select(0);
             session.OpenContextCommands();
-            Assert.That(session._results.Select(item => item.Path), Is.EqualTo(new[] { "Assets", }));
+            Assert.That(session.Results.Select(item => item.Path), Is.EqualTo(new[] { "Assets", }));
             Choose(session, "Assets");
             session.ActivateSelected();
             Choose(session, "Assets/Create");
             session.BrowseSelected();
 
             Assert.That(
-                session._results.Select(item => item.Path),
+                session.Results.Select(item => item.Path),
                 Is.EqualTo(new[] { "Assets/Create/Folder", "Assets/Create/Material", })
             );
 
             session.SetQuery("Other");
-            Assert.That(session._results, Is.Empty, "CreateMore is not a descendant of Create");
+            Assert.That(session.Results, Is.Empty, "CreateMore is not a descendant of Create");
             session.SetQuery("CREATE/material");
-            Assert.That(session._results.Single().Path, Is.EqualTo("Assets/Create/Material"));
+            Assert.That(session.Results.Single().Path, Is.EqualTo("Assets/Create/Material"));
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             session.GoBack();
-            Assert.That(session._results[session.SelectedIndex].Path, Is.EqualTo("Assets/Create"));
+            Assert.That(session.Results[session.SelectedIndex].Path, Is.EqualTo("Assets/Create"));
         }
 
         [Test]
@@ -96,11 +96,11 @@ namespace BrokenMeta.UniPalette.Tests
             Choose(session, "Assets/Create/Shapes");
             session.ActivateSelected();
             Assert.That(session.SelectedIndex, Is.Zero);
-            Assert.That(session._results.Single().Path, Is.EqualTo("Assets/Create/Shapes/Cube"));
+            Assert.That(session.Results.Single().Path, Is.EqualTo("Assets/Create/Shapes/Cube"));
             session.GoBack();
 
             Assert.That(
-                session._results[session.SelectedIndex].Path,
+                session.Results[session.SelectedIndex].Path,
                 Is.EqualTo("Assets"),
                 "Restore visible ancestor at menu root"
             );
@@ -108,7 +108,7 @@ namespace BrokenMeta.UniPalette.Tests
             for (var i = 0; i < 3; ++i)
             {
                 session.SetQuery("Cube");
-                Assert.That(session._results.Single().Path, Is.EqualTo("Assets/Create/Shapes/Cube"));
+                Assert.That(session.Results.Single().Path, Is.EqualTo("Assets/Create/Shapes/Cube"));
                 session.SetQuery("");
                 Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             }

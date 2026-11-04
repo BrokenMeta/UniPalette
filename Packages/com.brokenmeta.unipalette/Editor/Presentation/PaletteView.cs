@@ -174,7 +174,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
 
             try
             {
-                _results.itemsSource = _session._results;
+                _results.itemsSource = _session.Results;
             }
             finally
             {
@@ -299,7 +299,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             if (_disposed || _session == null)
                 return;
 
-            var item = _session._results[index];
+            var item = _session.Results[index];
             var row = (ListViewItem)element;
             row.userData = item;
             var description = _presentation.Describe(item, _session.Context);
@@ -402,7 +402,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             if (session.SelectedIndex >= 0)
                 _results.ScrollToItem(session.SelectedIndex);
 
-            _resultsCount.text = session._results.Count.ToString();
+            _resultsCount.text = session.Results.Count.ToString();
             UpdateMessage(session);
         }
 

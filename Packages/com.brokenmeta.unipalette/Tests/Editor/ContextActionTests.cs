@@ -143,7 +143,7 @@ namespace BrokenMeta.UniPalette.Tests
             _window.Focus();
             yield return null;
             _paletteSession = (PaletteSession)typeof(UniPaletteWindow).GetField("_session", Private).GetValue(_window);
-            _paletteSession.Select(_paletteSession._results.FindIndex(item => item.SelectionEntry));
+            _paletteSession.Select(_paletteSession.FindResultIndex(item => item.SelectionEntry));
             Assert.That(_paletteSession.OpenContextCommands(), Is.True);
 
             var deadline = EditorApplication.timeSinceStartup + 5;
@@ -152,13 +152,13 @@ namespace BrokenMeta.UniPalette.Tests
                 yield return null;
 
             Assert.That(_paletteSession.CommandsLoading, Is.False);
-            _paletteSession.Select(_paletteSession._results.FindIndex(item => item is ContextActionCategoryItem));
+            _paletteSession.Select(_paletteSession.FindResultIndex(item => item is ContextActionCategoryItem));
             Assert.That(_paletteSession.SelectedIndex, Is.GreaterThanOrEqualTo(0));
             PaletteTestData.GetPresenter(_window).Render();
             Key(KeyCode.Return);
             Assert.That(((CommandBrowser)_paletteSession.Browser).Category, Is.TypeOf<ContextActionCategoryItem>());
             _paletteSession.SetQuery("Duplicate");
-            Assert.That(_paletteSession._results.Single(), Is.TypeOf<ContextActionItem>());
+            Assert.That(_paletteSession.Results.Single(), Is.TypeOf<ContextActionItem>());
             _paletteSession.Select(0);
             PaletteTestData.GetPresenter(_window).Render();
         }
@@ -190,19 +190,19 @@ namespace BrokenMeta.UniPalette.Tests
             );
             session.Select(0);
             session.OpenContextCommands();
-            Assert.That(session._results[0], Is.SameAs(nativeCategory));
+            Assert.That(session.Results[0], Is.SameAs(nativeCategory));
             session.Select(1);
             Assert.That(session.BrowseSelected(), Is.True);
             session.Refresh();
             Assert.That(((CommandBrowser)session.Browser).Category, Is.TypeOf<ContextActionCategoryItem>());
             session.SetQuery("Duplicate");
-            var action = session._results.Single();
+            var action = session.Results.Single();
             Assert.That(action.SameIdentity(nativeDuplicate), Is.False);
             Assert.That(nativeDuplicate.SameIdentity(action), Is.False);
             session.Select(0);
             Assert.That(session.BrowseSelected(), Is.False);
             Assert.That(session.GoBack(), Is.True);
-            Assert.That(session._results[session.SelectedIndex], Is.TypeOf<ContextActionCategoryItem>());
+            Assert.That(session.Results[session.SelectedIndex], Is.TypeOf<ContextActionCategoryItem>());
         }
 
         [UnityTest]
@@ -211,7 +211,7 @@ namespace BrokenMeta.UniPalette.Tests
             yield return OpenActions();
             _sceneView.Close();
             // Regaining focus refreshes results and clears row selection, as in the existing UI.
-            _paletteSession.Select(_paletteSession._results.FindIndex(item => item is ContextActionItem));
+            _paletteSession.Select(_paletteSession.FindResultIndex(item => item is ContextActionItem));
             PaletteTestData.GetPresenter(_window).Render();
             Key(KeyCode.Return);
             Assert.That(_window != null, Is.True);

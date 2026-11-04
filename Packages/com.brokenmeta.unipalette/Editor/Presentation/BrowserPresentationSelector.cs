@@ -35,7 +35,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 ?? "Open scenes / Assets";
 
             internal override string GetNotice(PaletteSession session) =>
-                session._results.Count == 0
+                session.Results.Count == 0
                     ? "No results"
                     : "";
 
@@ -85,7 +85,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             internal override string GetNotice(PaletteSession session) =>
                 session.CommandsLoading
                     ? session.CommandNotice
-                    : session._results.Count == 0
+                    : session.Results.Count == 0
                         ? "No menu commands found. "
                         + session.CommandNotice
                         : session.CommandNotice;

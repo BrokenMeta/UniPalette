@@ -1,4 +1,6 @@
-﻿using BrokenMeta.UniPalette.Editor.Model;
+﻿using System;
+using System.Collections;
+using BrokenMeta.UniPalette.Editor.Model;
 using NUnit.Framework;
 
 namespace BrokenMeta.UniPalette.Tests
@@ -47,6 +49,31 @@ namespace BrokenMeta.UniPalette.Tests
         }
 
         [Test]
+        public void ResultsRemainReadOnlyAndLiveForTheBoundView()
+        {
+            var first = new FixtureItem("First", "Root/First");
+            var second = new FixtureItem("Second", "Root/Second");
+            using var session = PaletteTestData.CreateSession(new[] { first, second });
+            var results = session.Results;
+            var binding = (IList)results;
+            Assert.That(binding.IsReadOnly, Is.True);
+            Assert.Throws<NotSupportedException>(() => binding[0] = second);
+            Assert.That(session.Results[0], Is.SameAs(first));
+
+            session.Select(1);
+            session.SetQuery("First");
+            Assert.That(session.Results, Is.SameAs(results));
+            Assert.That(binding.Count, Is.EqualTo(1));
+            Assert.That(binding[0], Is.SameAs(first));
+            Assert.That(session.SelectedIndex, Is.EqualTo(-1));
+            Assert.That(session.FindResultIndex(item => item == second), Is.EqualTo(-1));
+
+            session.SetQuery("");
+            Assert.That(binding.Count, Is.EqualTo(2));
+            Assert.That(session.FindResultIndex(item => item == second), Is.EqualTo(1));
+        }
+
+        [Test]
         public void UnchangedQueryKeepsSelectionAndCaseOnlyEditResetsIt()
         {
             var item = new FixtureItem("Needle", "Root/Needle");
@@ -60,7 +87,7 @@ namespace BrokenMeta.UniPalette.Tests
             session.SetQuery("needle");
             Assert.That(session.Query.Text, Is.EqualTo("needle"));
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
-            Assert.That(session._results, Is.EqualTo(new[] { item }));
+            Assert.That(session.Results, Is.EqualTo(new[] { item }));
         }
     }
 }

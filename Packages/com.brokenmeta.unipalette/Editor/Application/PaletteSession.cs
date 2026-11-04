@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 using BrokenMeta.UniPalette.Editor.Lifetime;
 using BrokenMeta.UniPalette.Editor.Model;
@@ -22,26 +23,15 @@ namespace BrokenMeta.UniPalette.Editor.Application
         private readonly IContextSelection _contextSelection;
         private readonly PaletteHistory _history;
 
-        internal readonly List<PaletteItem> _results = new();
+        private readonly List<PaletteItem> _results = new();
 
         private bool _disposed;
 
         private bool _selectFirstWhenLoaded;
 
-        internal PaletteSession(
-            ICommandSource commandSource,
-            IContextSelection contextSelection,
-            IContextSource contexts)
-        {
-            _commandSource = commandSource ?? throw new ArgumentNullException(nameof(commandSource));
-            _contextSelection = contextSelection ?? throw new ArgumentNullException(nameof(contextSelection));
-            Browser = new ContextBrowser(contexts);
-            _history = new PaletteHistory(Browser);
-            Rebuild();
-            _commandSubscription = commandSource.SubscribeChanged(OnCommandsChanged);
-        }
-
         private PaletteItem SelectedItem => SelectedIndex >= 0 ? _results[SelectedIndex] : null;
+
+        internal ReadOnlyCollection<PaletteItem> Results { get; }
 
         internal bool ConfirmingContext { get; private set; }
 
@@ -66,6 +56,20 @@ namespace BrokenMeta.UniPalette.Editor.Application
         internal int SelectedIndex { get; private set; } = -1;
 
         internal string Message { get; private set; } = "";
+
+        internal PaletteSession(
+            ICommandSource commandSource,
+            IContextSelection contextSelection,
+            IContextSource contexts)
+        {
+            _commandSource = commandSource ?? throw new ArgumentNullException(nameof(commandSource));
+            _contextSelection = contextSelection ?? throw new ArgumentNullException(nameof(contextSelection));
+            Results = _results.AsReadOnly();
+            Browser = new ContextBrowser(contexts);
+            _history = new PaletteHistory(Browser);
+            Rebuild();
+            _commandSubscription = commandSource.SubscribeChanged(OnCommandsChanged);
+        }
 
         public void Dispose()
         {
@@ -114,7 +118,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
             var previous = _history.GoBack();
             Browser = previous._browser.RefreshCommands(LoadCommands);
             ResetTransient();
-            Select(previous.FindSelection(_results));
+            Select(previous.FindSelection(Results));
         }
 
         private bool ValidateNavigationTarget(PaletteItem selected)
@@ -201,6 +205,9 @@ namespace BrokenMeta.UniPalette.Editor.Application
             Message = "";
             Rebuild();
         }
+
+        internal int FindResultIndex(Predicate<PaletteItem> match) =>
+            _results.FindIndex(match);
 
         internal void Select(int index)
         {

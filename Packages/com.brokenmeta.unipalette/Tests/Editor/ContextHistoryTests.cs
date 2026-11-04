@@ -29,7 +29,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(session.Query.IsEmpty, Is.True);
 
             Assert.That(
-                session._results[session.SelectedIndex].Target,
+                session.Results[session.SelectedIndex].Target,
                 Is.EqualTo(otherParent),
                 "Current ancestry, not an old path or duplicate name"
             );
@@ -42,7 +42,7 @@ namespace BrokenMeta.UniPalette.Tests
             session.GoBack();
 
             Assert.That(
-                session._results[session.SelectedIndex].Target,
+                session.Results[session.SelectedIndex].Target,
                 Is.EqualTo(leaf),
                 "Visible object restored by identity after rename"
             );
@@ -62,7 +62,7 @@ namespace BrokenMeta.UniPalette.Tests
             Object.DestroyImmediate(leaf);
             session.GoBack();
             Assert.That(session.Query.IsEmpty, Is.True);
-            Assert.That(session._results.Any(item => item.Target == parent), Is.True);
+            Assert.That(session.Results.Any(item => item.Target == parent), Is.True);
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
         }
 
@@ -87,13 +87,13 @@ namespace BrokenMeta.UniPalette.Tests
 
             session.GoBack();
             Assert.That(session.Query.IsEmpty, Is.True);
-            Assert.That(session._results[session.SelectedIndex].Path, Is.EqualTo(_folder + "/AB"));
+            Assert.That(session.Results[session.SelectedIndex].Path, Is.EqualTo(_folder + "/AB"));
             session.ActivateSelected();
             Choose(session, "Moved.txt");
             session.OpenContextCommands();
             Assert.That(AssetDatabase.MoveAsset(_folder + "/AB/Moved.txt", _folder + "/AB/Renamed.txt"), Is.Empty);
             session.GoBack();
-            Assert.That(session._results[session.SelectedIndex].Path, Is.EqualTo(_folder + "/AB/Renamed.txt"));
+            Assert.That(session.Results[session.SelectedIndex].Path, Is.EqualTo(_folder + "/AB/Renamed.txt"));
         }
 
         [Test]
@@ -111,7 +111,7 @@ namespace BrokenMeta.UniPalette.Tests
             Selection.activeObject = second;
             session.GoBack();
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
-            Assert.That(session._results.Single(item => item.SelectionEntry).Target, Is.EqualTo(second));
+            Assert.That(session.Results.Single(item => item.SelectionEntry).Target, Is.EqualTo(second));
         }
 
         [Test]
