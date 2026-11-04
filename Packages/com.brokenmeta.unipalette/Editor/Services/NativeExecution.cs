@@ -66,9 +66,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
         }
 
         internal static bool Supports(string path, PaletteItem context) =>
-            !string.IsNullOrEmpty(path)
-            && context is ContextItem
-            && context.IsMenuRelevant(path);
+            new MenuRelevance(path).Matches(context);
 
         internal static bool TryPrepare(
             UnityContextSelection contextSelection,

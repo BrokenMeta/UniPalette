@@ -46,28 +46,5 @@ namespace BrokenMeta.UniPalette.Tests
 
             return false;
         }
-
-        internal override bool IsMenuRelevant(string path) =>
-            Path == "Scene Root"
-                ? path.StartsWith(
-                    "GameObject/",
-                    StringComparison.Ordinal
-                )
-                : Path.StartsWith(
-                    "Scene Root/",
-                    StringComparison.Ordinal
-                )
-                    ? path.StartsWith(
-                        "GameObject/",
-                        StringComparison.Ordinal
-                    )
-                    || path.StartsWith(
-                        "Component/",
-                        StringComparison.Ordinal
-                    )
-                    : path.StartsWith(
-                        "Assets/",
-                        StringComparison.Ordinal
-                    );
     }
 }

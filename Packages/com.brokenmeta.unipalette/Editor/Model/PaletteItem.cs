@@ -21,8 +21,5 @@ namespace BrokenMeta.UniPalette.Editor.Model
 
         internal virtual bool ContainsDescendant(PaletteItem other) =>
             false;
-
-        internal virtual bool IsMenuRelevant(string path) =>
-            false;
     }
 }

@@ -179,8 +179,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
         }
 
         internal static bool InScope(string path, PaletteItem context) =>
-            context != null
-            && context.IsMenuRelevant(path);
+            new MenuRelevance(path).Matches(context);
 
         internal static PaletteItem Build(
             IEnumerable<string> source,

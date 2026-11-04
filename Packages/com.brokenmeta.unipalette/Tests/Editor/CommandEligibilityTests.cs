@@ -8,6 +8,23 @@ namespace BrokenMeta.UniPalette.Tests
     [Category("Fast")]
     public class CommandEligibilityTests
     {
+        private static void AssertRelevance(string path, PaletteItem context, bool expected)
+        {
+            Assert.That(new MenuRelevance(path).Matches(context), Is.EqualTo(expected), path);
+            Assert.That(MenuCommands.InScope(path, context), Is.EqualTo(expected), path);
+            Assert.That(NativeExecution.Supports(path, context), Is.EqualTo(expected), path);
+        }
+
+        [Test]
+        public void RelevanceRequiresNativeContextAndOrdinalFamilyPrefix()
+        {
+            AssertRelevance("Assets/Copy Path", new FixtureItem("Asset", "Assets/Asset"), false);
+            AssertRelevance("AssetsExtra/Copy Path", new AssetsRootContext(), false);
+            AssertRelevance("assets/Copy Path", new AssetsRootContext(), false);
+            AssertRelevance("GameObjectExtra/Create Empty", new SceneRootContext(), false);
+            AssertRelevance("ComponentExtra/Box Collider", new SceneObjectContext(null), false);
+        }
+
         // Family relevance does not inspect targets or Unity menu state.
         // Invalid targets are intentional here; execution validation has its own tests.
         [TestCase("Object", true, true, false, true)]
@@ -31,21 +48,21 @@ namespace BrokenMeta.UniPalette.Tests
 
             foreach (var path in new[] { "GameObject/Create Empty", "GameObject/Create Empty Child", }
             )
-                Assert.That(NativeExecution.Supports(path, context), Is.EqualTo(gameObject), path);
+                AssertRelevance(path, context, gameObject);
 
             foreach (var path in new[] { "Component/Physics/Box Collider", "Component/Physics/Sphere Collider", }
             )
-                Assert.That(NativeExecution.Supports(path, context), Is.EqualTo(component), path);
+                AssertRelevance(path, context, component);
 
             foreach (var path in new[] { "Assets/Copy Path", "Assets/Create/Folder", }
             )
-                Assert.That(NativeExecution.Supports(path, context), Is.EqualTo(asset), path);
+                AssertRelevance(path, context, asset);
 
-            Assert.That(NativeExecution.Supports("Edit/Duplicate", context), Is.EqualTo(duplicate));
-            Assert.That(NativeExecution.Supports("Window/General/Inspector", context), Is.False);
-            Assert.That(NativeExecution.Supports(null, context), Is.False);
-            Assert.That(NativeExecution.Supports("", context), Is.False);
-            Assert.That(NativeExecution.Supports("Assets/Copy Path", null), Is.False);
+            AssertRelevance("Edit/Duplicate", context, duplicate);
+            AssertRelevance("Window/General/Inspector", context, false);
+            AssertRelevance(null, context, false);
+            AssertRelevance("", context, false);
+            AssertRelevance("Assets/Copy Path", null, false);
         }
     }
 }

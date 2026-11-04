@@ -30,7 +30,7 @@ namespace BrokenMeta.UniPalette.Tests
             new SceneRootContext();
 
         private protected static PaletteItem Go() =>
-            new FixtureItem("Player", "Scene Root/Player");
+            new SceneObjectContext(null);
 
         private protected static PaletteItem Build(string[] paths = null, PaletteItem context = null)
         {

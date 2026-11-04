@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace BrokenMeta.UniPalette.Editor.Model
+﻿namespace BrokenMeta.UniPalette.Editor.Model
 {
     internal sealed class SceneRootContext : ContextItem
     {
@@ -15,11 +13,5 @@ namespace BrokenMeta.UniPalette.Editor.Model
 
         internal override bool SameIdentity(PaletteItem other) =>
             other is SceneRootContext;
-
-        internal override bool IsMenuRelevant(string path) =>
-            path.StartsWith(
-                "GameObject/",
-                StringComparison.Ordinal
-            );
     }
 }

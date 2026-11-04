@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using BrokenMeta.UniPalette.Editor.Services;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -56,16 +55,5 @@ namespace BrokenMeta.UniPalette.Editor.Model
             && SceneObject
             && context.SceneObject
             && context.SceneObject.transform.IsChildOf(SceneObject.transform);
-
-        internal override bool IsMenuRelevant(string path) =>
-            path == "Edit/Duplicate"
-            || path.StartsWith(
-                "GameObject/",
-                StringComparison.Ordinal
-            )
-            || path.StartsWith(
-                "Component/",
-                StringComparison.Ordinal
-            );
     }
 }

@@ -41,8 +41,5 @@ namespace BrokenMeta.UniPalette.Editor.Model
                 + "/",
                 StringComparison.Ordinal
             );
-
-        internal override bool IsMenuRelevant(string path) =>
-            path == "Edit/Duplicate" || path.StartsWith("Assets/", StringComparison.Ordinal);
     }
 }

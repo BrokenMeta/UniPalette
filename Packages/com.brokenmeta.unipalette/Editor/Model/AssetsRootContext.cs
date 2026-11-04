@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace BrokenMeta.UniPalette.Editor.Model
+﻿namespace BrokenMeta.UniPalette.Editor.Model
 {
     internal sealed class AssetsRootContext : ContextItem
     {
@@ -14,8 +12,5 @@ namespace BrokenMeta.UniPalette.Editor.Model
 
         internal override bool SameIdentity(PaletteItem other) =>
             other is AssetsRootContext;
-
-        internal override bool IsMenuRelevant(string path) =>
-            path.StartsWith("Assets/", StringComparison.Ordinal);
     }
 }
