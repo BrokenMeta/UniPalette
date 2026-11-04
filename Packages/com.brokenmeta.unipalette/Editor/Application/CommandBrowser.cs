@@ -15,16 +15,18 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         internal override string Location => Category.Path.Length == 0 ? "Commands" : Category.Path;
 
-        private static PaletteItem FindCategory(PaletteItem node, string path)
+        private static PaletteItem FindCategory(PaletteItem node, PaletteItem category)
         {
-            if (node.Path == path)
+            var path = category.Path;
+
+            if (node.Path == path && node.GetType() == category.GetType())
                 return node;
 
             return node
                 .Children
                 .Where(IsCategoryOnPath)
-                .Select(child => FindCategory(child, path))
-                .FirstOrDefault();
+                .Select(child => FindCategory(child, category))
+                .FirstOrDefault(item => item != null);
 
             bool IsCategoryOnPath(PaletteItem child) =>
                 child.CanBrowse
@@ -42,10 +44,10 @@ namespace BrokenMeta.UniPalette.Editor.Application
             if (selected == null)
                 return false;
 
-            if (selected.Children.Length > 0)
+            if (selected.CanBrowse)
                 return session.Push(new CommandBrowser(Context, selected));
 
-            if (selected is MenuCommandItem)
+            if (selected is MenuCommandItem || selected is ContextActionItem)
                 session.DispatchCommand(selected, Context);
             else
                 session.ShowExecutionError(
@@ -68,7 +70,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
         {
             var root = load(Context);
 
-            return new CommandBrowser(Context, FindCategory(root, Category.Path) ?? root);
+            return new CommandBrowser(Context, FindCategory(root, Category) ?? root);
         }
 
         internal override PaletteBrowser OnCommandsChanged(Func<PaletteItem, PaletteItem> load) =>

@@ -15,6 +15,10 @@ namespace BrokenMeta.UniPalette.Editor
 
         private ICommandSource _commandSource;
         private UnityContextSelection _contextSelection;
+
+        private SceneViewActionCatalog _sceneViewActions;
+
+        private SceneView _contextSceneView;
         private bool _executing;
         private double _nextContextCheck;
         private Object _observedSelection;
@@ -26,6 +30,7 @@ namespace BrokenMeta.UniPalette.Editor
         private void OnEnable()
         {
             _executing = false;
+            _contextSceneView = SceneView.lastActiveSceneView;
             _editorSubscriptions?.Dispose();
             _editorSubscriptions = new SubscriptionScope();
 
@@ -75,7 +80,11 @@ namespace BrokenMeta.UniPalette.Editor
             minSize = new Vector2(360, 240);
             _view = new PaletteView(rootVisualElement);
             _contextSelection = new UnityContextSelection();
-            _commandSource = new MenuCommands(_contextSelection);
+            _sceneViewActions = new SceneViewActionCatalog(_contextSelection);
+            _commandSource = new PaletteCommands(
+                new MenuCommands(_contextSelection),
+                new SceneViewContextActions(_sceneViewActions)
+            );
             _session = new PaletteSession(_commandSource, _contextSelection, new UnityContextSource());
             AttachPresenter();
             _presenter.Render();
@@ -185,6 +194,30 @@ namespace BrokenMeta.UniPalette.Editor
             if (_executing)
                 return;
 
+            if (command is ContextActionItem action)
+            {
+                if (!action.Context.SameIdentity(context))
+                {
+                    _session.ShowExecutionError("Contextual action does not belong to the confirmed context.");
+                    return;
+                }
+
+                if (!SceneViewActionExecution.TryPrepare(
+                    _sceneViewActions,
+                    action,
+                    _contextSceneView,
+                    out var contextual,
+                    out var contextError
+                ))
+                {
+                    _session.ShowExecutionError(contextError);
+                    return;
+                }
+
+                CloseAndExecute(contextual.ExecuteAfterClose);
+                return;
+            }
+
             if (!NativeExecution.TryPrepare(_contextSelection, command, context, out var execution, out var error))
             {
                 _session.ShowExecutionError(error);
@@ -192,9 +225,14 @@ namespace BrokenMeta.UniPalette.Editor
                 return;
             }
 
+            CloseAndExecute(execution.ExecuteAfterClose);
+        }
+
+        private void CloseAndExecute(System.Action execute)
+        {
             _executing = true;
             Close();
-            execution.ExecuteAfterClose();
+            execute();
         }
 
         private void ObserveSelection()

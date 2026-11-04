@@ -201,7 +201,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(
                 _window.rootVisualElement.Q<Text>("data-label").text,
-                Is.EqualTo("Unity menu")
+                Is.EqualTo("Unity commands")
             );
 
             Assert.That(
