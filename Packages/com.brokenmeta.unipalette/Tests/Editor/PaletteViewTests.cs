@@ -81,7 +81,7 @@ namespace BrokenMeta.UniPalette.Tests
                 oldSearch.SendEvent(staleKey);
             }
 
-            Assert.That(retiredSession.Query, Is.EqualTo("Folder"));
+            Assert.That(retiredSession.Query.Text, Is.EqualTo("Folder"));
             Assert.That(retiredSession.SelectedIndex, Is.EqualTo(-1));
             Assert.That(retiredSession.Context.Path, Is.EqualTo("Assets"));
 
@@ -139,7 +139,7 @@ namespace BrokenMeta.UniPalette.Tests
             input.value = "Project";
             oldInput.value = "late retired input";
             oldResults.SetSelection(0);
-            Assert.That(_session.Query, Is.EqualTo("Project"));
+            Assert.That(_session.Query.Text, Is.EqualTo("Project"));
             Assert.That(_session.SelectedIndex, Is.EqualTo(-1));
             Key(KeyCode.DownArrow);
             Key(KeyCode.Return);

@@ -362,7 +362,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
 
             _presentation = presentation;
             BindSession(session);
-            _searchBar.SetValueWithoutNotify(session.Query);
+            _searchBar.SetValueWithoutNotify(session.Query.Text);
             var browser = session.Browser;
             _searchBar.placeholder = presentation.SearchPlaceholder;
             _modeLabel.text = presentation.Label;

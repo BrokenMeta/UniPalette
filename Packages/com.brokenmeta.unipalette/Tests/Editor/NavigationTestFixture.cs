@@ -81,7 +81,7 @@ namespace BrokenMeta.UniPalette.Tests
 
         private protected static void AssertForward(PaletteSession session)
         {
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session.SelectedIndex, Is.EqualTo(session._results.Count > 0 ? 0 : -1));
         }
     }

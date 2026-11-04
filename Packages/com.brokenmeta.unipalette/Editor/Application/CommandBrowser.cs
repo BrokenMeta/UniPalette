@@ -34,7 +34,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
         internal override TResult Accept<TResult>(IPaletteBrowserVisitor<TResult> visitor) =>
             visitor.Visit(this);
 
-        internal override IEnumerable<PaletteItem> GetItems(string query) =>
+        internal override IEnumerable<PaletteItem> GetItems(SearchQuery query) =>
             Filter(Category.Children, query, true);
 
         internal override bool Activate(PaletteSession session, PaletteItem selected)

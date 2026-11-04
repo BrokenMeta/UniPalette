@@ -26,7 +26,7 @@ namespace BrokenMeta.UniPalette.Tests
             leaf.transform.SetParent(otherParent.transform);
             leaf.name = "Renamed";
             session.GoBack();
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
 
             Assert.That(
                 session._results[session.SelectedIndex].Target,
@@ -61,7 +61,7 @@ namespace BrokenMeta.UniPalette.Tests
             session.OpenContextCommands();
             Object.DestroyImmediate(leaf);
             session.GoBack();
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session._results.Any(item => item.Target == parent), Is.True);
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
         }
@@ -86,7 +86,7 @@ namespace BrokenMeta.UniPalette.Tests
             );
 
             session.GoBack();
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session._results[session.SelectedIndex].Path, Is.EqualTo(_folder + "/AB"));
             session.ActivateSelected();
             Choose(session, "Moved.txt");
@@ -135,7 +135,7 @@ namespace BrokenMeta.UniPalette.Tests
             session.Refresh();
             Assert.That(session.Browser, Is.TypeOf<ContextBrowser>());
             Assert.That(session.Context.Target, Is.EqualTo(parent));
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             parent.name = "Renamed";
             session.Refresh();

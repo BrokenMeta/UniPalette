@@ -82,7 +82,7 @@ namespace BrokenMeta.UniPalette.Tests
                 Assert.That(session.Message, Is.Empty);
                 Assert.That(Selection.count, Is.Zero);
                 Key(KeyCode.LeftArrow, EventModifiers.Alt);
-                Assert.That(session.Query, Is.Empty);
+                Assert.That(session.Query.IsEmpty, Is.True);
                 Assert.That(session._results[session.SelectedIndex].Path, Is.EqualTo("GameObject"));
 
                 yield return null;

@@ -151,6 +151,13 @@ namespace BrokenMeta.UniPalette.Tests
 
                 EditorWindow.focusedWindow.SendEvent(new Event { type = EventType.KeyDown, keyCode = KeyCode.Escape, });
 
+                // The generated root path was asserted absent before this test dispatched Create Folder.
+                // Focusing Project during teardown can finish its pending rename after an early failure.
+                if (string.IsNullOrEmpty(_rootFolderGuid)
+                    && AssetDatabase.IsValidFolder(_rootFolderPath)
+                    && Directory.GetFileSystemEntries(_rootFolderPath).Length == 0)
+                    _rootFolderGuid = AssetDatabase.AssetPathToGUID(_rootFolderPath);
+
                 if (!string.IsNullOrEmpty(_rootFolderGuid)
                     && AssetDatabase.AssetPathToGUID(_rootFolderPath) == _rootFolderGuid)
                     AssetDatabase.DeleteAsset(_rootFolderPath); // Only the root folder created by this test.

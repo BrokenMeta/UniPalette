@@ -103,7 +103,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(session.Context.Target, Is.InstanceOf<TextAsset>());
             session.GoBack();
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Nested"));
             session.SetQuery("not found"); // Clear the restored row before testing commands for the current folder.
             session.OpenContextCommands();

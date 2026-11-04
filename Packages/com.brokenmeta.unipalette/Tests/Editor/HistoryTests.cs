@@ -21,7 +21,7 @@ namespace BrokenMeta.UniPalette.Tests
             session.SetQuery("Player");
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             session.GoBack();
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Characters"));
             Assert.That(session.Context.Path, Is.EqualTo("Assets"));
         }
@@ -36,7 +36,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(session.OpenContextCommands(), Is.True);
             session.SetQuery("Inspect");
             session.GoBack();
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             session.GoBack();
             Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Hierarchy"));
@@ -55,7 +55,7 @@ namespace BrokenMeta.UniPalette.Tests
             session.BrowseSelected();
             AssertForward(session);
             session.GoBack();
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Create (experimental category)"));
             // A forward transition replaces the restored row with the first child of the next level.
             session.ActivateSelected();

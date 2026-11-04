@@ -95,7 +95,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
 
         private void UpdateQuery(string query)
         {
-            if (_disposed || query == _session.Query)
+            if (_disposed || query == _session.Query.Text)
                 return;
 
             _session.SetQuery(query);

@@ -89,7 +89,7 @@ namespace BrokenMeta.UniPalette.Tests
                 );
 
                 Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
-                Assert.That(session.Query, Is.Empty);
+                Assert.That(session.Query.IsEmpty, Is.True);
                 Assert.That(session.SelectedIndex, Is.Zero);
                 using var back = KeyDownEvent.GetPooled('\0', KeyCode.Escape, EventModifiers.None);
                 back.target = search;
@@ -188,7 +188,7 @@ namespace BrokenMeta.UniPalette.Tests
                     yield return null;
 
                 Assert.That(session.Context, Is.Null, "Deleted command context returns to root automatically");
-                Assert.That(session.Query, Is.Empty);
+                Assert.That(session.Query.IsEmpty, Is.True);
                 Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             }
             finally

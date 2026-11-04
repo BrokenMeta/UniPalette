@@ -61,7 +61,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         internal string Location => Browser.Location;
 
-        internal string Query { get; private set; } = "";
+        internal SearchQuery Query { get; private set; } = SearchQuery.Empty;
 
         internal int SelectedIndex { get; private set; } = -1;
 
@@ -104,7 +104,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
             Browser = next;
             Rebuild();
-            Select(_selectFirstWhenLoaded && Query.Length == 0 ? 0 : -1);
+            Select(_selectFirstWhenLoaded && Query.IsEmpty ? 0 : -1);
             _selectFirstWhenLoaded = false;
             _commandResultsChanged.Publish();
         }
@@ -129,7 +129,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         private void ResetTransient()
         {
-            Query = "";
+            Query = SearchQuery.Empty;
             SelectedIndex = -1;
             Message = "";
             Rebuild();
@@ -188,11 +188,11 @@ namespace BrokenMeta.UniPalette.Editor.Application
             Rebuild();
         }
 
-        internal void SetQuery(string query)
+        internal void SetQuery(string text)
         {
-            query = query ?? "";
+            var query = new SearchQuery(text);
 
-            if (query == Query)
+            if (query.Equals(Query))
                 return;
 
             Query = query;

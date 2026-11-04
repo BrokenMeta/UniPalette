@@ -199,7 +199,7 @@ namespace BrokenMeta.UniPalette.Tests
             Key(KeyCode.DownArrow);
             Key(KeyCode.RightArrow, EventModifiers.Alt);
             Assert.That(_session.Context.Path, Is.EqualTo("Scene Root/Parent"));
-            Assert.That(_session.Query, Is.Empty);
+            Assert.That(_session.Query.IsEmpty, Is.True);
             Assert.That(_session.SelectedIndex, Is.Zero);
             Key(KeyCode.DownArrow);
             Key(KeyCode.RightArrow, EventModifiers.Alt);
@@ -234,7 +234,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(_session.Location, Is.EqualTo("Mock commands/Create"));
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
             Assert.That(_session.Location, Is.EqualTo("Mock commands"));
-            Assert.That(_session.Query, Is.Empty);
+            Assert.That(_session.Query.IsEmpty, Is.True);
 
             Assert.That(
                 _session._results[_session.SelectedIndex].Title,

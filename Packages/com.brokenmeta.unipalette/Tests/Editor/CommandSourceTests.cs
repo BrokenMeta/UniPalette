@@ -73,7 +73,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(notifications, Is.EqualTo(1));
             Assert.That(session._results, Is.Not.Empty);
             Assert.That(session.SelectedIndex, Is.EqualTo(typeQuery ? -1 : 0));
-            Assert.That(session.Query, Is.EqualTo(typeQuery ? "Create/Folder" : ""));
+            Assert.That(session.Query.Text, Is.EqualTo(typeQuery ? "Create/Folder" : ""));
             Assert.That(session._results[0].Path, Is.EqualTo(typeQuery ? "Assets/Create/Folder" : "Assets"));
         }
 
@@ -99,7 +99,7 @@ namespace BrokenMeta.UniPalette.Tests
             var requests = source.Requests;
             source.Complete(Build());
             Assert.That(session.Browser, Is.SameAs(browser));
-            Assert.That(session.Query, Is.EqualTo("Project"));
+            Assert.That(session.Query.Text, Is.EqualTo("Project"));
             Assert.That(session.SelectedIndex, Is.Zero);
             Assert.That(session._results[0].Path, Is.EqualTo("Assets"));
             Assert.That(source.Requests, Is.EqualTo(requests));

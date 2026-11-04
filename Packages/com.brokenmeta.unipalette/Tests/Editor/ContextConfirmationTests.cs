@@ -92,10 +92,10 @@ namespace BrokenMeta.UniPalette.Tests
             );
 
             Assert.That(session.Context.Target, Is.EqualTo(target));
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session.SelectedIndex, Is.Zero);
             session.GoBack();
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session._results[session.SelectedIndex].Target, Is.EqualTo(target));
 
             Assert.That(

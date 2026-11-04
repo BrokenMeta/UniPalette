@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
 using NUnit.Framework;
 
 namespace BrokenMeta.UniPalette.Tests
@@ -20,7 +21,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(
                 refreshed
-                    .GetItems("")
+                    .GetItems(SearchQuery.Empty)
                     .Single()
                     .Path,
                 Is.EqualTo("Assets/Create/Material")
@@ -28,7 +29,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(
                 browser
-                    .GetItems("")
+                    .GetItems(SearchQuery.Empty)
                     .Single()
                     .Path,
                 Is.EqualTo("Assets/Create/Folder"),
@@ -47,7 +48,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(
                 refreshed
-                    .GetItems("")
+                    .GetItems(SearchQuery.Empty)
                     .Single()
                     .Path,
                 Is.EqualTo("Assets")

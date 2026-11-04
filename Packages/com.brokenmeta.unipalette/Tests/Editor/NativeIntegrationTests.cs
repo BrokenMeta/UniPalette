@@ -364,13 +364,15 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(!_window, Is.True, "Dispatch closes the palette");
             activate();
 
-            yield return null;
-
             var expectedWindow = sceneRoot
                 ? "Unity.Hierarchy.Editor.HierarchyWindow"
                 : "UnityEditor.ProjectBrowser";
 
+            // Focus is a dispatch precondition, not a promise about Unity's next frame.
+            Assert.That(EditorWindow.focusedWindow, Is.Not.Null);
             Assert.That(EditorWindow.focusedWindow.GetType().FullName, Is.EqualTo(expectedWindow));
+
+            yield return null;
 
             if (sceneRoot)
             {

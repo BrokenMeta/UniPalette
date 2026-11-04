@@ -25,7 +25,7 @@ namespace BrokenMeta.UniPalette.Tests
             AssertForward(session);
             Assert.That(session.GoBack(), Is.True);
             Assert.That(session.Context, Is.Null);
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session.SelectedIndex, Is.EqualTo(index));
         }
 
@@ -54,7 +54,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Player/Weapon/Muzzle"));
             AssertForward(session);
             session.GoBack();
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Player"));
             Choose(session, "Player");
             session.ActivateSelected();
@@ -67,7 +67,7 @@ namespace BrokenMeta.UniPalette.Tests
             session.GoBack();
             session.GoBack();
             Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Player"));
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Weapon"));
         }
 
@@ -90,7 +90,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(session.Message, Does.Contain("nothing executed"));
             session.GoBack();
             Assert.That(session.Location, Is.EqualTo("Mock commands/Create"));
-            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Query.IsEmpty, Is.True);
             Assert.That(session._results[session.SelectedIndex].Title, Is.EqualTo("Shapes (experimental category)"));
             session.GoBack();
             session.SetQuery("Shapes/Cube");
