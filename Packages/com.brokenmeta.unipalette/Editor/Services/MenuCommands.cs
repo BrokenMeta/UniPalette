@@ -1,148 +1,252 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEditor;
-using UnityEditor.Search;
 using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Model;
+using UnityEditor;
+using UnityEditor.Search;
 
 namespace BrokenMeta.UniPalette.Editor.Services
 {
     // A menu snapshot for this palette instance. Query edits only search the resulting local tree.
     internal sealed class MenuCommands : ICommandSource
     {
-        private readonly IContextSelection contextSelection;
-        private SearchContext request;
-        private bool disposed;
-        private bool started;
-        private readonly List<string> paths = new List<string>();
+        private readonly IContextSelection _contextSelection;
+        private readonly List<string> _paths = new();
+        private bool _disposed;
+        private SearchContext _request;
+        private bool _started;
+
+        internal MenuCommands(IContextSelection contextSelection) => _contextSelection =
+            contextSelection ?? throw new ArgumentNullException(nameof(contextSelection));
+
+        internal IReadOnlyList<string> Paths => _paths;
+
         public event Action Changed;
+
         public bool IsLoading { get; private set; }
         public string Error { get; private set; } = "";
-        internal IReadOnlyList<string> Paths => paths;
-
-        internal MenuCommands(IContextSelection contextSelection)
-        { this.contextSelection = contextSelection ?? throw new ArgumentNullException(nameof(contextSelection)); }
 
         public PaletteItem ForContext(PaletteItem context)
         {
-            if (!started) Start();
-            return Build(paths, context, contextSelection.MatchesSelection(context), path => Menu.GetEnabled(path));
+            if (!_started)
+                Start();
+
+            return Build(
+                _paths,
+                context,
+                _contextSelection.MatchesSelection(context),
+                path => Menu.GetEnabled(path)
+            );
+        }
+
+        public void Dispose()
+        {
+            _disposed = true;
+            Changed = null;
+            _request?.Dispose();
+            _request = null;
+            IsLoading = false;
+        }
+
+        private static bool IsValidMenuPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)
+                || path != path.Trim()
+                || path.Any(char.IsControl)
+                || path.Contains(
+                    '\\'
+                ))
+                return false;
+
+            string[] segments = path.Split('/');
+
+            return segments.Length > 1 && segments.All(IsValidSegment);
+        }
+
+        private static bool IsValidSegment(string segment)
+        {
+            return !string.IsNullOrWhiteSpace(segment)
+                && segment != "."
+                && segment != ".."
+                && segment.Any(
+                    c => c != '-'
+                );
+        }
+
+        private static bool? ReadAvailability(string path, Func<string, bool?> getEnabled)
+        {
+            try
+            {
+                return getEnabled(path);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string DescribeAvailability(bool? enabled, bool selectionMatches) => enabled == null
+            ? "Availability unverified: menu state unavailable."
+            : !selectionMatches
+                ? "Availability unverified: palette context differs from Unity Selection."
+                : "Menu enabled for current Unity Selection; execution applicability is unverified.";
+
+        private static void AddPath(Node root, string path, string note)
+        {
+            var node = root;
+            var prefix = "";
+
+            foreach (string segment in path.Split('/'))
+            {
+                prefix = prefix.Length == 0 ? segment : prefix + "/" + segment;
+
+                if (!node._children.TryGetValue(segment, out var child))
+                    node._children.Add(segment, child = new Node(segment, prefix));
+
+                node = child;
+            }
+
+            node._note = note;
         }
 
         internal void Start()
         {
-            if (started || disposed) return;
-            started = true;
+            if (_started || _disposed)
+                return;
+
+            _started = true;
+
             if (!SearchService.Providers.Any(provider => provider.id == "menu"))
             {
                 Error = "Unity menu search provider is unavailable.";
                 Changed?.Invoke();
+
                 return;
             }
+
             IsLoading = true;
+
             try
             {
-                request = SearchService.CreateContext(new[] { "menu" }, "", SearchFlags.None);
-                SearchService.Request(request, (SearchContext context, IList<SearchItem> items) =>
-                {
-                    if (disposed) return;
-                    paths.AddRange(Normalize(items.Where(item => item?.provider?.id == "menu").Select(item => item.id)));
-                    IsLoading = false;
-                    var completed = request;
-                    request = null;
-                    completed?.Dispose();
-                    Changed?.Invoke();
-                }, SearchFlags.None);
+                _request = SearchService.CreateContext(new[] { "menu", }, "", SearchFlags.None);
+
+                SearchService.Request(
+                    _request,
+                    (context, items) =>
+                    {
+                        if (_disposed)
+                            return;
+
+                        _paths.AddRange(
+                            Normalize(
+                                items
+                                    .Where(item => item?.provider?.id == "menu")
+                                    .Select(
+                                        item => item.id
+                                    )
+                            )
+                        );
+
+                        IsLoading = false;
+                        var completed = _request;
+                        _request = null;
+                        completed?.Dispose();
+                        Changed?.Invoke();
+                    }
+                );
             }
             catch (Exception exception)
             {
                 Error = "Menu discovery failed: " + exception.Message;
                 IsLoading = false;
-                request?.Dispose();
-                request = null;
+                _request?.Dispose();
+                _request = null;
                 Changed?.Invoke();
             }
         }
 
         internal static string[] Normalize(IEnumerable<string> source)
         {
-            return (source ?? Array.Empty<string>()).Where(IsValidMenuPath)
-                .Distinct(StringComparer.Ordinal).OrderBy(path => path, StringComparer.Ordinal).ToArray();
+            return (source ?? Array.Empty<string>())
+                .Where(IsValidMenuPath)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(
+                    path => path,
+                    StringComparer.Ordinal
+                )
+                .ToArray();
         }
 
-        private static bool IsValidMenuPath(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path) || path != path.Trim()
-                || path.Any(char.IsControl) || path.Contains('\\')) return false;
-            var segments = path.Split('/');
-            return segments.Length > 1 && segments.All(IsValidSegment);
-        }
+        internal static bool InScope(string path, PaletteItem context) => context != null
+            && context.IsMenuRelevant(
+                path
+            );
 
-        private static bool IsValidSegment(string segment) => !string.IsNullOrWhiteSpace(segment)
-            && segment != "." && segment != ".." && segment.Any(c => c != '-');
-
-        internal static bool InScope(string path, PaletteItem context) => context != null && context.IsMenuRelevant(path);
-
-        private sealed class Node
-        {
-            internal readonly string Title;
-            internal readonly string Path;
-            internal string Note;
-            internal readonly SortedDictionary<string, Node> Children = new SortedDictionary<string, Node>(StringComparer.Ordinal);
-            internal Node(string title, string path) { Title = title; Path = path; }
-            internal PaletteItem Freeze() => Children.Count > 0
-                ? (PaletteItem)new MenuCategoryItem(Title, Path, Children.Values.Select(child => child.Freeze()).ToArray(), Note ?? "Menu category")
-                : new MenuCommandItem(Title, Path, Note ?? "Menu category");
-        }
-
-        internal static PaletteItem Build(IEnumerable<string> source, PaletteItem context,
-            bool selectionMatches, Func<string, bool?> getEnabled)
+        internal static PaletteItem Build(
+            IEnumerable<string> source,
+            PaletteItem context,
+            bool selectionMatches,
+            Func<string, bool?> getEnabled)
         {
             var root = new Node("Commands", "");
-            foreach (var path in Normalize(source))
+
+            foreach (string path in Normalize(source))
             {
-                if (!InScope(path, context)) continue;
-                var enabled = ReadAvailability(path, getEnabled);
+                if (!InScope(path, context))
+                    continue;
+
+                bool? enabled = ReadAvailability(path, getEnabled);
+
                 // A false flag is evidence only for the actual global menu/Selection snapshot.
-                if (selectionMatches && enabled == false) continue;
+                if (selectionMatches && enabled == false)
+                    continue;
+
                 AddPath(root, path, DescribeAvailability(enabled, selectionMatches));
             }
+
             return root.Freeze();
         }
 
-        private static bool? ReadAvailability(string path, Func<string, bool?> getEnabled)
+        private sealed class Node
         {
-            try { return getEnabled(path); }
-            catch { return null; }
-        }
+            internal readonly SortedDictionary<string, Node> _children = new(
+                StringComparer.Ordinal
+            );
 
-        private static string DescribeAvailability(bool? enabled, bool selectionMatches) => enabled == null
-            ? "Availability unverified: menu state unavailable."
-            : !selectionMatches ? "Availability unverified: palette context differs from Unity Selection."
-            : "Menu enabled for current Unity Selection; execution applicability is unverified.";
+            internal readonly string _path;
+            internal readonly string _title;
 
-        private static void AddPath(Node root, string path, string note)
-        {
-            var node = root;
-            var prefix = "";
-            foreach (var segment in path.Split('/'))
+            internal string _note;
+
+            internal Node(string title, string path)
             {
-                prefix = prefix.Length == 0 ? segment : prefix + "/" + segment;
-                if (!node.Children.TryGetValue(segment, out var child))
-                    node.Children.Add(segment, child = new Node(segment, prefix));
-                node = child;
+                _title = title;
+                _path = path;
             }
-            node.Note = note;
-        }
 
-        public void Dispose()
-        {
-            disposed = true;
-            Changed = null;
-            request?.Dispose();
-            request = null;
-            IsLoading = false;
+            internal PaletteItem Freeze()
+            {
+                return _children.Count > 0
+                    ? new MenuCategoryItem(
+                        _title,
+                        _path,
+                        _children
+                            .Values
+                            .Select(
+                                child => child.Freeze()
+                            )
+                            .ToArray(),
+                        _note
+                        ?? "Menu category"
+                    )
+                    : new MenuCommandItem(
+                        _title,
+                        _path,
+                        _note
+                        ?? "Menu category"
+                    );
+            }
         }
     }
 }

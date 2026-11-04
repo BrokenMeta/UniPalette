@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using BrokenMeta.UniPalette.Editor.Model;
@@ -10,161 +10,106 @@ namespace BrokenMeta.UniPalette.Editor.Application
     // Owns navigation history and transient state; each browser owns its level's behavior.
     internal sealed class PaletteSession : IDisposable
     {
-        private readonly PaletteHistory history;
-        private readonly ICommandSource commandSource;
-        private readonly IContextSelection contextSelection;
-        private bool selectFirstWhenLoaded;
-        private bool openingCommands;
-        private bool disposed;
-        internal bool ConfirmingContext => openingCommands;
-        internal event Action CommandResultsChanged;
-        internal event Action<PaletteItem, PaletteItem> ExecuteCommand;
-        internal void ShowExecutionError(string error) => Message = error;
-        internal bool CommandsLoading => commandSource.IsLoading;
-        internal string CommandNotice => commandSource.Error.Length > 0 ? commandSource.Error
-            : CommandsLoading ? "Loading Unity menu commands…" : "Native execution · Confirmed context required · Unity determines applicability and result";
-        internal PaletteBrowser Browser { get; private set; }
-        internal PaletteItem Context => Browser.Context;
-        internal bool CanGoBack => history.CanGoBack;
-        internal string Location => Browser.Location;
-        internal string Query { get; private set; } = "";
-        internal int SelectedIndex { get; private set; } = -1;
-        internal string Message { get; private set; } = "";
-        internal readonly List<PaletteItem> Results = new List<PaletteItem>();
+        private readonly ICommandSource _commandSource;
 
-        internal PaletteSession(ICommandSource commandSource, IContextSelection contextSelection, IContextSource contexts)
+        private readonly IContextSelection _contextSelection;
+        private readonly PaletteHistory _history;
+
+        internal readonly List<PaletteItem> _results = new();
+
+        private bool _disposed;
+
+        private bool _selectFirstWhenLoaded;
+
+        internal PaletteSession(
+            ICommandSource commandSource,
+            IContextSelection contextSelection,
+            IContextSource contexts)
         {
-            this.commandSource = commandSource ?? throw new ArgumentNullException(nameof(commandSource));
-            this.contextSelection = contextSelection ?? throw new ArgumentNullException(nameof(contextSelection));
+            _commandSource = commandSource ?? throw new ArgumentNullException(nameof(commandSource));
+            _contextSelection = contextSelection ?? throw new ArgumentNullException(nameof(contextSelection));
             Browser = new ContextBrowser(contexts);
-            history = new PaletteHistory(Browser);
+            _history = new PaletteHistory(Browser);
             Rebuild();
             commandSource.Changed += OnCommandsChanged;
         }
 
-        private PaletteItem LoadCommands(PaletteItem context) => commandSource.ForContext(context);
+        private PaletteItem SelectedItem => SelectedIndex >= 0 ? _results[SelectedIndex] : null;
 
-        internal bool OpenCommands(PaletteItem context)
-        {
-            PaletteItem commands;
-            openingCommands = true;
-            try
-            {
-                if (context is ContextItem confirmed && !contextSelection.TryConfirm(confirmed, out var error))
-                { Message = error; return false; }
-                // Availability is read after Selection changes, never from cached search labels.
-                commands = LoadCommands(context);
-            }
-            finally { openingCommands = false; }
-            selectFirstWhenLoaded = CommandsLoading;
-            return Push(new CommandBrowser(context, commands));
-        }
+        internal bool ConfirmingContext { get; private set; }
 
-        private void OnCommandsChanged()
-        {
-            if (disposed || openingCommands) return;
-            var next = Browser.OnCommandsChanged(LoadCommands);
-            if (next == null) return;
-            Browser = next;
-            Rebuild();
-            Select(selectFirstWhenLoaded && Query.Length == 0 ? 0 : -1);
-            selectFirstWhenLoaded = false;
-            CommandResultsChanged?.Invoke();
-        }
+        internal bool CommandsLoading => _commandSource.IsLoading;
+
+        internal string CommandNotice => _commandSource.Error.Length > 0
+            ? _commandSource.Error
+            : CommandsLoading
+                ? "Loading Unity menu commands\u2026"
+                : "Native execution \u00B7 Confirmed context required \u00B7 Unity determines applicability and result";
+
+        internal PaletteBrowser Browser { get; private set; }
+
+        internal PaletteItem Context => Browser.Context;
+
+        internal bool CanGoBack => _history.CanGoBack;
+
+        internal string Location => Browser.Location;
+
+        internal string Query { get; private set; } = "";
+
+        internal int SelectedIndex { get; private set; } = -1;
+
+        internal string Message { get; private set; } = "";
 
         public void Dispose()
         {
-            if (disposed) return;
-            disposed = true;
-            commandSource.Changed -= OnCommandsChanged;
+            if (_disposed)
+                return;
+
+            _disposed = true;
+            _commandSource.Changed -= OnCommandsChanged;
             CommandResultsChanged = null;
             ExecuteCommand = null;
         }
 
-        // Editor notifications rebuild the current area without restoring an old query/selection.
-        internal void Refresh()
+        internal event Action CommandResultsChanged;
+
+        internal event Action<PaletteItem, PaletteItem> ExecuteCommand;
+
+        private PaletteItem LoadCommands(PaletteItem context) => _commandSource.ForContext(context);
+
+        private void OnCommandsChanged()
         {
-            if (Context != null && !Context.IsValid)
-            {
-                ReturnToPreviousBrowser();
+            if (_disposed || ConfirmingContext)
                 return;
-            }
-            Browser = Browser.RefreshCommands(LoadCommands);
-            SelectedIndex = -1;
+
+            var next = Browser.OnCommandsChanged(LoadCommands);
+
+            if (next == null)
+                return;
+
+            Browser = next;
             Rebuild();
+            Select(_selectFirstWhenLoaded && Query.Length == 0 ? 0 : -1);
+            _selectFirstWhenLoaded = false;
+            CommandResultsChanged?.Invoke();
         }
 
         private void ReturnToPreviousBrowser()
         {
-            var previous = history.GoBack();
-            Browser = previous.Browser.RefreshCommands(LoadCommands);
+            var previous = _history.GoBack();
+            Browser = previous._browser.RefreshCommands(LoadCommands);
             ResetTransient();
-            Select(previous.FindSelection(Results));
-        }
-
-        internal void SetQuery(string query)
-        {
-            query = query ?? "";
-            if (query == Query) return;
-            Query = query;
-            selectFirstWhenLoaded = false;
-            SelectedIndex = -1;
-            Message = "";
-            Rebuild();
-        }
-
-        internal void Select(int index) => SelectedIndex = index >= 0 && index < Results.Count ? index : -1;
-
-        internal void MoveSelection(int direction)
-        {
-            if (Results.Count == 0) return;
-            Select(SelectedIndex < 0 ? (direction > 0 ? 0 : Results.Count - 1)
-                : Math.Max(0, Math.Min(Results.Count - 1, SelectedIndex + direction)));
-        }
-
-        private PaletteItem SelectedItem => SelectedIndex >= 0 ? Results[SelectedIndex] : null;
-
-        internal bool ActivateSelected()
-        {
-            var selected = SelectedItem;
-            return ValidateNavigationTarget(selected) && Browser.Activate(this, selected);
-        }
-
-        internal bool BrowseSelected() => Browser.Browse(this, SelectedItem);
-
-        internal bool OpenContextCommands()
-        {
-            var selected = SelectedItem;
-            return ValidateNavigationTarget(selected) && Browser.OpenContextCommands(this, selected);
+            Select(previous.FindSelection(_results));
         }
 
         private bool ValidateNavigationTarget(PaletteItem selected)
         {
-            if ((Context == null || Context.IsValid) && (selected == null || selected.IsValid)) return true;
+            if ((Context == null || Context.IsValid) && (selected == null || selected.IsValid))
+                return true;
+
             Message = "Context no longer exists.";
+
             return false;
-        }
-
-        internal void DispatchCommand(PaletteItem command, PaletteItem context)
-        {
-            if (ExecuteCommand != null) ExecuteCommand(command, context);
-            else Message = "Native execution is unavailable; nothing executed.";
-        }
-
-        internal bool GoBack()
-        {
-            if (!CanGoBack) return false;
-            ReturnToPreviousBrowser();
-            return true;
-        }
-
-        internal bool Push(PaletteBrowser next)
-        {
-            history.Push(Browser, SelectedItem);
-            Browser = next;
-            ResetTransient();
-            Select(0);
-            return true;
         }
 
         private void ResetTransient()
@@ -177,8 +122,137 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         private void Rebuild()
         {
-            Results.Clear();
-            Results.AddRange(Browser.GetItems(Query));
+            _results.Clear();
+            _results.AddRange(Browser.GetItems(Query));
+        }
+
+        internal void ShowExecutionError(string error)
+        {
+            Message = error;
+        }
+
+        internal bool OpenCommands(PaletteItem context)
+        {
+            PaletteItem commands;
+            ConfirmingContext = true;
+
+            try
+            {
+                if (context is ContextItem confirmed && !_contextSelection.TryConfirm(confirmed, out string error))
+                {
+                    Message = error;
+
+                    return false;
+                }
+
+                // Availability is read after Selection changes, never from cached search labels.
+                commands = LoadCommands(context);
+            }
+            finally
+            {
+                ConfirmingContext = false;
+            }
+
+            _selectFirstWhenLoaded = CommandsLoading;
+
+            return Push(new CommandBrowser(context, commands));
+        }
+
+        // Editor notifications rebuild the current area without restoring an old query/selection.
+        internal void Refresh()
+        {
+            if (Context != null && !Context.IsValid)
+            {
+                ReturnToPreviousBrowser();
+
+                return;
+            }
+
+            Browser = Browser.RefreshCommands(LoadCommands);
+            SelectedIndex = -1;
+            Rebuild();
+        }
+
+        internal void SetQuery(string query)
+        {
+            query = query ?? "";
+
+            if (query == Query)
+                return;
+
+            Query = query;
+            _selectFirstWhenLoaded = false;
+            SelectedIndex = -1;
+            Message = "";
+            Rebuild();
+        }
+
+        internal void Select(int index)
+        {
+            SelectedIndex = index >= 0 && index < _results.Count ? index : -1;
+        }
+
+        internal void MoveSelection(int direction)
+        {
+            if (_results.Count == 0)
+                return;
+
+            Select(
+                SelectedIndex < 0
+                    ? direction > 0 ? 0 : _results.Count - 1
+                    : Math.Max(
+                        0,
+                        Math.Min(
+                            _results.Count - 1,
+                            SelectedIndex
+                            + direction
+                        )
+                    )
+            );
+        }
+
+        internal bool ActivateSelected()
+        {
+            var selected = SelectedItem;
+
+            return ValidateNavigationTarget(selected) && Browser.Activate(this, selected);
+        }
+
+        internal bool BrowseSelected() => Browser.Browse(this, SelectedItem);
+
+        internal bool OpenContextCommands()
+        {
+            var selected = SelectedItem;
+
+            return ValidateNavigationTarget(selected) && Browser.OpenContextCommands(this, selected);
+        }
+
+        internal void DispatchCommand(PaletteItem command, PaletteItem context)
+        {
+            if (ExecuteCommand != null)
+                ExecuteCommand(command, context);
+            else
+                Message = "Native execution is unavailable; nothing executed.";
+        }
+
+        internal bool GoBack()
+        {
+            if (!CanGoBack)
+                return false;
+
+            ReturnToPreviousBrowser();
+
+            return true;
+        }
+
+        internal bool Push(PaletteBrowser next)
+        {
+            _history.Push(Browser, SelectedItem);
+            Browser = next;
+            ResetTransient();
+            Select(0);
+
+            return true;
         }
     }
 }

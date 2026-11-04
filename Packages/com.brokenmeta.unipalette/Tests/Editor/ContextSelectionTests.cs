@@ -1,6 +1,6 @@
-using NUnit.Framework;
-using BrokenMeta.UniPalette.Editor.Application;
+﻿using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Model;
+using NUnit.Framework;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -15,19 +15,29 @@ namespace BrokenMeta.UniPalette.Tests
             var context = new AssetsRootContext();
             var selection = new TestSelection(succeeds);
             using var source = new TestCommandSource(PaletteTestData.Commands());
-            using var session = new PaletteSession(source, selection, new TestContextSource(new PaletteItem[] { context }));
+
+            using var session = new PaletteSession(
+                source,
+                selection,
+                new TestContextSource(
+                    new PaletteItem[] { context, }
+                )
+            );
+
             var browser = session.Browser;
-            source.Requesting = requested =>
+
+            source._requesting = requested =>
             {
-                Assert.That(selection.Confirmed, Is.SameAs(requested));
+                Assert.That(selection._confirmed, Is.SameAs(requested));
                 Assert.That(session.ConfirmingContext, Is.True);
             };
 
             Assert.That(session.OpenCommands(context), Is.EqualTo(succeeds));
-            Assert.That(selection.Confirmed, Is.SameAs(context));
+            Assert.That(selection._confirmed, Is.SameAs(context));
             Assert.That(source.Requests, Is.EqualTo(succeeds ? 1 : 0));
             Assert.That(session.ConfirmingContext, Is.False);
             Assert.That(session.CanGoBack, Is.EqualTo(succeeds));
+
             if (!succeeds)
             {
                 Assert.That(session.Browser, Is.SameAs(browser));
@@ -37,16 +47,21 @@ namespace BrokenMeta.UniPalette.Tests
 
         private sealed class TestSelection : IContextSelection
         {
-            private readonly bool succeeds;
-            internal ContextItem Confirmed;
-            internal TestSelection(bool succeeds) { this.succeeds = succeeds; }
+            private readonly bool _succeeds;
+
+            internal ContextItem _confirmed;
+
+            internal TestSelection(bool succeeds) => _succeeds = succeeds;
+
             public bool TryConfirm(ContextItem context, out string error)
             {
-                Confirmed = context;
-                error = succeeds ? "" : "Confirmation failed";
-                return succeeds;
+                _confirmed = context;
+                error = _succeeds ? "" : "Confirmation failed";
+
+                return _succeeds;
             }
-            public bool MatchesSelection(PaletteItem context) => succeeds && ReferenceEquals(context, Confirmed);
+
+            public bool MatchesSelection(PaletteItem context) => _succeeds && ReferenceEquals(context, _confirmed);
         }
     }
 }

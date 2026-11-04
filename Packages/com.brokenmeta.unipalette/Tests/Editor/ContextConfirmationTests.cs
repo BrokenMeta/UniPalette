@@ -1,19 +1,12 @@
-using System;
-using System.Collections;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using NUnit.Framework;
-using UnityEditor;
-using UnityEditor.SceneManagement;
-using UnityEngine;
-using UnityEngine.SceneManagement;
-using UnityEngine.TestTools;
-using UnityEngine.UIElements;
-using Object = UnityEngine.Object;
+﻿using System.Linq;
 using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Model;
 using BrokenMeta.UniPalette.Editor.Services;
+using NUnit.Framework;
+using UnityEditor;
+using UnityEditor.Search;
+using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -21,19 +14,18 @@ namespace BrokenMeta.UniPalette.Tests
     [Category("EditorIntegration")]
     public class ContextConfirmationTests : ContextTestFixture
     {
-
         [Test]
         public void SelectionEntryTracksChangeAndDeletionWithoutRetargetingOpenCommands()
         {
             var first = Go("First");
             var second = Go("Second");
             var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
-            Assert.That(session.Results.Any(item => item.SelectionEntry), Is.False);
+            Assert.That(session._results.Any(item => item.SelectionEntry), Is.False);
             Selection.activeObject = first;
             session.Refresh();
-            Assert.That(session.Results.Single(item => item.SelectionEntry).Target, Is.EqualTo(first));
+            Assert.That(session._results.Single(item => item.SelectionEntry).Target, Is.EqualTo(first));
             session.SetQuery("Current Selection");
-            Assert.That(session.Results.Single().Target, Is.EqualTo(first));
+            Assert.That(session._results.Single().Target, Is.EqualTo(first));
             session.SetQuery("");
             session.Select(0);
             session.ActivateSelected();
@@ -41,10 +33,10 @@ namespace BrokenMeta.UniPalette.Tests
             session.Refresh();
             Assert.That(session.Context.Target, Is.EqualTo(first), "Open command context is stable");
             session.GoBack();
-            Assert.That(session.Results.Single(item => item.SelectionEntry).Target, Is.EqualTo(second));
+            Assert.That(session._results.Single(item => item.SelectionEntry).Target, Is.EqualTo(second));
             Object.DestroyImmediate(second);
             session.Refresh();
-            Assert.That(session.Results.Any(item => item.SelectionEntry), Is.False);
+            Assert.That(session._results.Any(item => item.SelectionEntry), Is.False);
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
         }
 
@@ -61,30 +53,66 @@ namespace BrokenMeta.UniPalette.Tests
         public void SmartEnterUsesActualChildrenAndRestoresEntry(string kind, bool altRight)
         {
             CreateAssets();
-            AssetDatabase.CreateFolder(folder, "Empty");
+            AssetDatabase.CreateFolder(_folder, "Empty");
             var parent = Go("Parent");
             var leaf = Go("Leaf", parent);
-            var target = kind == "Parent" ? (Object)parent : kind == "GameObject" ? leaf
-                : AssetDatabase.LoadMainAssetAtPath(kind == "Asset" ? folder + "/A/Nested/Needle.txt"
-                    : kind == "EmptyFolder" ? folder + "/Empty" : folder + "/A");
-            var item = target is GameObject go ? (PaletteItem)new SceneObjectContext(go)
-                : new AssetContext(guid: AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(target)));
-            using var session = PaletteTestData.CreateSession(new[] { item }, PaletteTestData.Commands());
+
+            var target = kind == "Parent"
+                ? parent
+                : kind == "GameObject"
+                    ? leaf
+                    : AssetDatabase.LoadMainAssetAtPath(
+                        kind == "Asset"
+                            ? _folder
+                            + "/A/Nested/Needle.txt"
+                            : kind == "EmptyFolder"
+                                ? _folder
+                                + "/Empty"
+                                : _folder
+                                + "/A"
+                    );
+
+            var item = target is GameObject go
+                ? (PaletteItem)new SceneObjectContext(go)
+                : new AssetContext(
+                    AssetDatabase.AssetPathToGUID(
+                        AssetDatabase.GetAssetPath(
+                            target
+                        )
+                    )
+                );
+
+            using var session = PaletteTestData.CreateSession(new[] { item, }, PaletteTestData.Commands());
             session.SetQuery(item.Title);
             session.Select(0);
-            Assert.That((altRight ? session.BrowseSelected() : session.ActivateSelected()), Is.True);
-            var container = kind == "Parent" || kind == "Folder";
-            Assert.That(session.Browser.GetType(), Is.EqualTo(container ? typeof(ContextBrowser) : typeof(CommandBrowser)));
+            Assert.That(altRight ? session.BrowseSelected() : session.ActivateSelected(), Is.True);
+            bool container = kind == "Parent" || kind == "Folder";
+
+            Assert.That(
+                session.Browser.GetType(),
+                Is.EqualTo(
+                    container
+                        ? typeof(ContextBrowser)
+                        : typeof(CommandBrowser)
+                )
+            );
+
             Assert.That(session.Context.Target, Is.EqualTo(target));
             Assert.That(session.Query, Is.Empty);
             Assert.That(session.SelectedIndex, Is.Zero);
             session.GoBack();
             Assert.That(session.Query, Is.Empty);
-            Assert.That(session.Results[session.SelectedIndex].Target, Is.EqualTo(target));
-            Assert.That(session.OpenContextCommands(), Is.True, "Ctrl Enter always opens commands, including containers");
+            Assert.That(session._results[session.SelectedIndex].Target, Is.EqualTo(target));
+
+            Assert.That(
+                session.OpenContextCommands(),
+                Is.True,
+                "Ctrl Enter always opens commands, including containers"
+            );
+
             Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(session.Context.Target, Is.EqualTo(target));
-            Assert.That(Selection.objects, Is.EqualTo(new[] { target }));
+            Assert.That(Selection.objects, Is.EqualTo(new[] { target, }));
         }
 
         [TestCase("GameObject")]
@@ -94,22 +122,48 @@ namespace BrokenMeta.UniPalette.Tests
         {
             CreateAssets();
             var original = Go("Original");
-            var target = kind == "GameObject" ? (Object)Go("Target")
-                : AssetDatabase.LoadMainAssetAtPath(kind == "Asset" ? folder + "/A/Nested/Needle.txt" : folder + "/A");
-            var item = target is GameObject go ? (PaletteItem)new SceneObjectContext(go)
-                : new AssetContext(guid: AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(target)));
+
+            var target = kind == "GameObject"
+                ? Go("Target")
+                : AssetDatabase.LoadMainAssetAtPath(
+                    kind == "Asset"
+                        ? _folder
+                        + "/A/Nested/Needle.txt"
+                        : _folder
+                        + "/A"
+                );
+
+            var item = target is GameObject go
+                ? (PaletteItem)new SceneObjectContext(go)
+                : new AssetContext(
+                    AssetDatabase.AssetPathToGUID(
+                        AssetDatabase.GetAssetPath(
+                            target
+                        )
+                    )
+                );
+
             Selection.activeObject = original;
-            using var session = PaletteTestData.CreateSession(new[] { item }, PaletteTestData.Commands());
+            using var session = PaletteTestData.CreateSession(new[] { item, }, PaletteTestData.Commands());
             session.MoveSelection(1);
             session.SetQuery(item.Title);
             Assert.That(Selection.activeObject, Is.EqualTo(original), "Browsing/query/selection are passive");
-            session.Select(0); session.OpenContextCommands();
-            Assert.That(Selection.objects, Is.EqualTo(new[] { target }));
-            session.Select(1); session.ActivateSelected(); // Command category.
+            session.Select(0);
+            session.OpenContextCommands();
+            Assert.That(Selection.objects, Is.EqualTo(new[] { target, }));
+            session.Select(1);
+            session.ActivateSelected(); // Command category.
             Assert.That(Selection.activeObject, Is.EqualTo(target));
-            session.GoBack(); session.GoBack();
-            Assert.That(Selection.activeObject, Is.EqualTo(target), "Back restores palette row, not global Selection");
-            Assert.That(session.Results[session.SelectedIndex].Target, Is.EqualTo(target));
+            session.GoBack();
+            session.GoBack();
+
+            Assert.That(
+                Selection.activeObject,
+                Is.EqualTo(target),
+                "Back restores palette row, not global Selection"
+            );
+
+            Assert.That(session._results[session.SelectedIndex].Target, Is.EqualTo(target));
         }
 
         [Test]
@@ -118,17 +172,25 @@ namespace BrokenMeta.UniPalette.Tests
             var original = Go("Original");
             Selection.activeObject = original;
             using var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
-            foreach (var title in new[] { "Hierarchy", "Project" })
+
+            foreach (string title in new[] { "Hierarchy", "Project", }
+            )
             {
                 Selection.activeObject = original;
-                Choose(session, title); session.ActivateSelected();
+                Choose(session, title);
+                session.ActivateSelected();
                 Assert.That(Selection.activeObject, Is.EqualTo(original), "Browsing a root is passive");
                 session.GoBack();
-                Choose(session, title); session.OpenContextCommands();
+                Choose(session, title);
+                session.OpenContextCommands();
                 Assert.That(session.Context.Target, Is.Null, "A virtual root does not adopt the previous object");
                 Assert.That(new UnityContextSelection().MatchesSelection(session.Context), Is.True);
-                if (title == "Hierarchy") Assert.That(Selection.count, Is.Zero);
-                else Assert.That(AssetDatabase.GetAssetPath(Selection.activeObject), Is.EqualTo("Assets"));
+
+                if (title == "Hierarchy")
+                    Assert.That(Selection.count, Is.Zero);
+                else
+                    Assert.That(AssetDatabase.GetAssetPath(Selection.activeObject), Is.EqualTo("Assets"));
+
                 var prepared = Selection.objects;
                 session.GoBack();
                 Assert.That(Selection.objects, Is.EqualTo(prepared), "Back does not restore ambient Selection");
@@ -139,35 +201,82 @@ namespace BrokenMeta.UniPalette.Tests
         public void ConfirmedContextReadsFreshMenuStateWithoutCachedSearchLabels()
         {
             var target = Go("Target");
-            using var context = UnityEditor.Search.SearchService.CreateContext("menu", "", UnityEditor.Search.SearchFlags.Synchronous);
-            using var results = UnityEditor.Search.SearchService.Request(context, UnityEditor.Search.SearchFlags.Synchronous);
-            var stale = results.Single(item => item.id == "GameObject/Create Empty Parent");
+
+            using var context = SearchService.CreateContext(
+                "menu",
+                "",
+                SearchFlags.Synchronous
+            );
+
+            using var results = SearchService.Request(
+                context,
+                SearchFlags.Synchronous
+            );
+
+            var stale = results.Single(
+                item => item.id == "GameObject/Create Empty Parent"
+            );
+
             Assert.That(stale.GetLabel(context), Does.Contain("disabled"));
-            using var session = PaletteTestData.CreateSession(new PaletteItem[] { new SceneObjectContext(target) }, PaletteTestData.Commands());
-            session.Select(0); session.OpenContextCommands();
+
+            using var session = PaletteTestData.CreateSession(
+                new PaletteItem[]
+                {
+                    new SceneObjectContext(
+                        target
+                    ),
+                },
+                PaletteTestData.Commands()
+            );
+
+            session.Select(0);
+            session.OpenContextCommands();
             Assert.That(new UnityContextSelection().MatchesSelection(session.Context), Is.True);
             Assert.That(Menu.GetEnabled(stale.id), Is.True);
-            var tree = MenuCommands.Build(new[] { stale.id }, session.Context, new UnityContextSelection().MatchesSelection(session.Context), path => Menu.GetEnabled(path));
+
+            var tree = MenuCommands.Build(
+                new[] { stale.id, },
+                session.Context,
+                new UnityContextSelection().MatchesSelection(
+                    session.Context
+                ),
+                path => Menu.GetEnabled(
+                    path
+                )
+            );
+
             Assert.That(tree.Children[0].Children.Single().Path, Is.EqualTo(stale.id));
-            Assert.That(stale.GetLabel(context), Does.Contain("disabled"), "Stale label is deliberately not the availability source");
+
+            Assert.That(
+                stale.GetLabel(context),
+                Does.Contain("disabled"),
+                "Stale label is deliberately not the availability source"
+            );
         }
 
         [Test]
         public void EmptyFolderOpensCommandsAndMultiSelectionIsNotReinterpreted()
         {
             CreateAssets();
-            AssetDatabase.CreateFolder(folder, "Empty");
-            Selection.objects = new Object[] { Go("A"), Go("B") };
+            AssetDatabase.CreateFolder(_folder, "Empty");
+            Selection.objects = new Object[] { Go("A"), Go("B"), };
             var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
-            Assert.That(session.Results.Any(item => item.SelectionEntry), Is.False);
-            Choose(session, "Project"); session.ActivateSelected();
-            session.SetQuery(folder + "/Empty"); session.MoveSelection(1);
+            Assert.That(session._results.Any(item => item.SelectionEntry), Is.False);
+            Choose(session, "Project");
+            session.ActivateSelected();
+            session.SetQuery(_folder + "/Empty");
+            session.MoveSelection(1);
             Assert.That(session.ActivateSelected(), Is.True);
             Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(session.SelectedIndex, Is.Zero);
-            Assert.That(session.Context.Path, Is.EqualTo(folder + "/Empty"));
+            Assert.That(session.Context.Path, Is.EqualTo(_folder + "/Empty"));
             session.GoBack();
-            Assert.That(session.Results[session.SelectedIndex].Path, Is.EqualTo(temporaryRoot), "Deep entry restores its visible ancestor");
+
+            Assert.That(
+                session._results[session.SelectedIndex].Path,
+                Is.EqualTo(_temporaryRoot),
+                "Deep entry restores its visible ancestor"
+            );
         }
     }
 }

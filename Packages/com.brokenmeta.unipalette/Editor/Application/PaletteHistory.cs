@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using BrokenMeta.UniPalette.Editor.Model;
 
 namespace BrokenMeta.UniPalette.Editor.Application
@@ -6,38 +6,56 @@ namespace BrokenMeta.UniPalette.Editor.Application
     // Browser snapshots and entry identity only; no query, loading, Selection or UI mutations.
     internal sealed class PaletteHistory
     {
-        internal readonly struct Entry
+        private readonly Stack<Entry> _entries = new();
+
+        private readonly PaletteBrowser _root;
+
+        internal PaletteHistory(PaletteBrowser root) => _root = root;
+
+        internal bool CanGoBack => _entries.Count > 0;
+
+        internal void Push(PaletteBrowser browser, PaletteItem item)
         {
-            internal readonly PaletteBrowser Browser;
-            private readonly PaletteItem item;
-            internal Entry(PaletteBrowser browser, PaletteItem item) { Browser = browser; this.item = item; }
-
-            internal int FindSelection(List<PaletteItem> results)
-            {
-                var entry = item;
-                if (entry == null || !entry.IsValid) return -1;
-                var index = results.FindIndex(candidate => candidate.SameIdentity(entry));
-                // With an empty query, restore the visible containing branch if the entry is deeper.
-                return index >= 0 ? index : results.FindIndex(candidate => candidate.ContainsDescendant(entry));
-            }
+            _entries.Push(new Entry(browser, item));
         }
-
-        private readonly Stack<Entry> entries = new Stack<Entry>();
-        private readonly PaletteBrowser root;
-        internal bool CanGoBack => entries.Count > 0;
-
-        internal PaletteHistory(PaletteBrowser root) { this.root = root; }
-
-        internal void Push(PaletteBrowser browser, PaletteItem item) => entries.Push(new Entry(browser, item));
 
         internal Entry GoBack()
         {
-            while (entries.Count > 0)
+            while (_entries.Count > 0)
             {
-                var previous = entries.Pop();
-                if (previous.Browser.Context == null || previous.Browser.Context.IsValid) return previous;
+                var previous = _entries.Pop();
+
+                if (previous._browser.Context == null || previous._browser.Context.IsValid)
+                    return previous;
             }
-            return new Entry(root, null);
+
+            return new Entry(_root, null);
+        }
+
+        internal readonly struct Entry
+        {
+            private readonly PaletteItem _item;
+
+            internal readonly PaletteBrowser _browser;
+
+            internal Entry(PaletteBrowser browser, PaletteItem item)
+            {
+                _browser = browser;
+                _item = item;
+            }
+
+            internal int FindSelection(List<PaletteItem> results)
+            {
+                var entry = _item;
+
+                if (entry == null || !entry.IsValid)
+                    return -1;
+
+                int index = results.FindIndex(candidate => candidate.SameIdentity(entry));
+
+                // With an empty query, restore the visible containing branch if the entry is deeper.
+                return index >= 0 ? index : results.FindIndex(candidate => candidate.ContainsDescendant(entry));
+            }
         }
     }
 }

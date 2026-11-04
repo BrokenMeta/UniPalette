@@ -1,6 +1,5 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using UnityEngine;
 using Object = UnityEngine.Object;
 
 namespace BrokenMeta.UniPalette.Editor.Model
@@ -18,8 +17,11 @@ namespace BrokenMeta.UniPalette.Editor.Model
         internal virtual bool HasBrowseChildren => CanBrowse;
         internal virtual string ContextTitle => Title;
         internal virtual string IconName => "Folder Icon";
+
         internal virtual bool SameIdentity(PaletteItem other) => ReferenceEquals(this, other);
+
         internal virtual bool ContainsDescendant(PaletteItem other) => false;
+
         internal virtual bool IsMenuRelevant(string path) => false;
 
         internal virtual IEnumerable<PaletteItem> GetChildren(bool recursive)
@@ -27,8 +29,10 @@ namespace BrokenMeta.UniPalette.Editor.Model
             foreach (var child in Children)
             {
                 yield return child;
+
                 if (recursive)
-                    foreach (var descendant in child.GetChildren(true)) yield return descendant;
+                    foreach (var descendant in child.GetChildren(true))
+                        yield return descendant;
             }
         }
     }

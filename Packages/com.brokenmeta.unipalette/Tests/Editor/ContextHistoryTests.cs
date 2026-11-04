@@ -1,18 +1,9 @@
-using System;
-using System.Collections;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using NUnit.Framework;
-using UnityEditor;
-using UnityEditor.SceneManagement;
-using UnityEngine;
-using UnityEngine.SceneManagement;
-using UnityEngine.TestTools;
-using UnityEngine.UIElements;
-using Object = UnityEngine.Object;
+﻿using System.Linq;
 using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Model;
+using NUnit.Framework;
+using UnityEditor;
+using Object = UnityEngine.Object;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -20,7 +11,6 @@ namespace BrokenMeta.UniPalette.Tests
     [Category("EditorIntegration")]
     public class ContextHistoryTests : ContextTestFixture
     {
-
         [Test]
         public void BackRestoresGameObjectIdentityAndNearestVisibleAncestor()
         {
@@ -28,19 +18,34 @@ namespace BrokenMeta.UniPalette.Tests
             var otherParent = Go("Parent");
             var leaf = Go("Needle", Go("Branch", parent));
             var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
-            Choose(session, "Hierarchy"); session.ActivateSelected();
-            session.SetQuery("Needle"); session.MoveSelection(1); session.OpenContextCommands();
+            Choose(session, "Hierarchy");
+            session.ActivateSelected();
+            session.SetQuery("Needle");
+            session.MoveSelection(1);
+            session.OpenContextCommands();
             leaf.transform.SetParent(otherParent.transform);
             leaf.name = "Renamed";
             session.GoBack();
             Assert.That(session.Query, Is.Empty);
-            Assert.That(session.Results[session.SelectedIndex].Target, Is.EqualTo(otherParent), "Current ancestry, not an old path or duplicate name");
+
+            Assert.That(
+                session._results[session.SelectedIndex].Target,
+                Is.EqualTo(otherParent),
+                "Current ancestry, not an old path or duplicate name"
+            );
+
             session.ActivateSelected();
             Assert.That(session.SelectedIndex, Is.Zero);
-            session.Select(0); session.OpenContextCommands();
+            session.Select(0);
+            session.OpenContextCommands();
             leaf.name = "RenamedAgain";
             session.GoBack();
-            Assert.That(session.Results[session.SelectedIndex].Target, Is.EqualTo(leaf), "Visible object restored by identity after rename");
+
+            Assert.That(
+                session._results[session.SelectedIndex].Target,
+                Is.EqualTo(leaf),
+                "Visible object restored by identity after rename"
+            );
         }
 
         [Test]
@@ -49,12 +54,15 @@ namespace BrokenMeta.UniPalette.Tests
             var parent = Go("Parent");
             var leaf = Go("Needle", parent);
             var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
-            Choose(session, "Hierarchy"); session.ActivateSelected();
-            session.SetQuery("Needle"); session.MoveSelection(1); session.OpenContextCommands();
+            Choose(session, "Hierarchy");
+            session.ActivateSelected();
+            session.SetQuery("Needle");
+            session.MoveSelection(1);
+            session.OpenContextCommands();
             Object.DestroyImmediate(leaf);
             session.GoBack();
             Assert.That(session.Query, Is.Empty);
-            Assert.That(session.Results.Any(item => item.Target == parent), Is.True);
+            Assert.That(session._results.Any(item => item.Target == parent), Is.True);
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
         }
 
@@ -63,19 +71,29 @@ namespace BrokenMeta.UniPalette.Tests
         {
             CreateAssets();
             var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
-            Choose(session, "Project"); session.ActivateSelected();
-            session.SetQuery(folder);
-            Choose(session, "Data"); session.ActivateSelected();
-            session.SetQuery(folder + "/A/Nested/Needle.txt"); session.MoveSelection(1); session.OpenContextCommands();
-            Assert.That(AssetDatabase.MoveAsset(folder + "/A/Nested/Needle.txt", folder + "/AB/Moved.txt"), Is.Empty);
+            Choose(session, "Project");
+            session.ActivateSelected();
+            session.SetQuery(_folder);
+            Choose(session, "Data");
+            session.ActivateSelected();
+            session.SetQuery(_folder + "/A/Nested/Needle.txt");
+            session.MoveSelection(1);
+            session.OpenContextCommands();
+
+            Assert.That(
+                AssetDatabase.MoveAsset(_folder + "/A/Nested/Needle.txt", _folder + "/AB/Moved.txt"),
+                Is.Empty
+            );
+
             session.GoBack();
             Assert.That(session.Query, Is.Empty);
-            Assert.That(session.Results[session.SelectedIndex].Path, Is.EqualTo(folder + "/AB"));
+            Assert.That(session._results[session.SelectedIndex].Path, Is.EqualTo(_folder + "/AB"));
             session.ActivateSelected();
-            Choose(session, "Moved.txt"); session.OpenContextCommands();
-            Assert.That(AssetDatabase.MoveAsset(folder + "/AB/Moved.txt", folder + "/AB/Renamed.txt"), Is.Empty);
+            Choose(session, "Moved.txt");
+            session.OpenContextCommands();
+            Assert.That(AssetDatabase.MoveAsset(_folder + "/AB/Moved.txt", _folder + "/AB/Renamed.txt"), Is.Empty);
             session.GoBack();
-            Assert.That(session.Results[session.SelectedIndex].Path, Is.EqualTo(folder + "/AB/Renamed.txt"));
+            Assert.That(session._results[session.SelectedIndex].Path, Is.EqualTo(_folder + "/AB/Renamed.txt"));
         }
 
         [Test]
@@ -85,13 +103,15 @@ namespace BrokenMeta.UniPalette.Tests
             var second = Go("Second");
             Selection.activeObject = first;
             var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
-            session.Select(0); session.ActivateSelected(); session.GoBack();
+            session.Select(0);
+            session.ActivateSelected();
+            session.GoBack();
             Assert.That(session.SelectedIndex, Is.Zero, "Previously explicit first row is restored");
             session.ActivateSelected();
             Selection.activeObject = second;
             session.GoBack();
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
-            Assert.That(session.Results.Single(item => item.SelectionEntry).Target, Is.EqualTo(second));
+            Assert.That(session._results.Single(item => item.SelectionEntry).Target, Is.EqualTo(second));
         }
 
         [Test]
@@ -101,11 +121,15 @@ namespace BrokenMeta.UniPalette.Tests
             var branch = Go("Branch", parent);
             Go("Leaf", branch);
             var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
-            Choose(session, "Hierarchy"); session.ActivateSelected();
-            Choose(session, "Parent"); session.ActivateSelected();
-            Choose(session, "Branch"); session.ActivateSelected();
+            Choose(session, "Hierarchy");
+            session.ActivateSelected();
+            Choose(session, "Parent");
+            session.ActivateSelected();
+            Choose(session, "Branch");
+            session.ActivateSelected();
             session.OpenContextCommands();
-            session.Select(1); session.ActivateSelected(); // Experimental category.
+            session.Select(1);
+            session.ActivateSelected(); // Experimental category.
             session.SetQuery("Cube");
             Object.DestroyImmediate(branch);
             session.Refresh();

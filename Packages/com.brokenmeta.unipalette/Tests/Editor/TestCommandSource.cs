@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Model;
 
@@ -7,38 +7,48 @@ namespace BrokenMeta.UniPalette.Tests
     // Fixed data by default; completion is controlled explicitly for loading/lifetime regressions.
     internal sealed class TestCommandSource : ICommandSource
     {
-        private PaletteItem root;
-        public event Action Changed;
-        public bool IsLoading { get; private set; }
-        public string Error { get; private set; } = "";
-        internal Action<PaletteItem> Requesting;
-        internal int Requests { get; private set; }
-        internal int DisposeCalls { get; private set; }
-        internal int Subscribers => Changed?.GetInvocationList().Length ?? 0;
+        internal Action<PaletteItem> _requesting;
+        private PaletteItem _root;
 
         internal TestCommandSource(PaletteItem root, bool loading = false)
-        { this.root = root; IsLoading = loading; }
+        {
+            _root = root;
+            IsLoading = loading;
+        }
+
+        internal int Requests { get; private set; }
+
+        internal int DisposeCalls { get; private set; }
+
+        internal int Subscribers => Changed?.GetInvocationList().Length ?? 0;
+
+        public event Action Changed;
+
+        public bool IsLoading { get; private set; }
+
+        public string Error { get; private set; } = "";
 
         public PaletteItem ForContext(PaletteItem context)
         {
             Requests++;
-            Requesting?.Invoke(context);
-            return root;
-        }
+            _requesting?.Invoke(context);
 
-        internal void Complete(PaletteItem next, string error = "")
-        {
-            root = next;
-            Error = error;
-            IsLoading = false;
-            Changed?.Invoke();
+            return _root;
         }
 
         public void Dispose()
         {
             DisposeCalls++;
-            Requesting = null;
+            _requesting = null;
             Changed = null;
+        }
+
+        internal void Complete(PaletteItem next, string error = "")
+        {
+            _root = next;
+            Error = error;
+            IsLoading = false;
+            Changed?.Invoke();
         }
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using BrokenMeta.UniPalette.Editor.Model;
 
 namespace BrokenMeta.UniPalette.Editor.Application
@@ -7,9 +7,11 @@ namespace BrokenMeta.UniPalette.Editor.Application
     // ForContext may start loading and synchronously raise Changed; confirm context before calling it.
     internal interface ICommandSource : IDisposable
     {
-        event Action Changed;
         bool IsLoading { get; }
+
         string Error { get; }
+        event Action Changed;
+
         PaletteItem ForContext(PaletteItem context);
     }
 }

@@ -1,13 +1,15 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
+using Unity.AppUI.UI;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
-using Unity.AppUI.UI;
-using ListView = UnityEngine.UIElements.ListView;
+using Clickable = UnityEngine.UIElements.Clickable;
 using Text = Unity.AppUI.UI.Text;
-using BrokenMeta.UniPalette.Editor.Application;
-using BrokenMeta.UniPalette.Editor.Model;
+using ListView = UnityEngine.UIElements.ListView;
+using Object = UnityEngine.Object;
 
 namespace BrokenMeta.UniPalette.Editor.Presentation
 {
@@ -15,38 +17,30 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
     internal sealed class PaletteView : IDisposable
     {
         private const string UIPath = "Packages/com.brokenmeta.unipalette/Editor/Presentation/UI/";
-        private SearchBar searchBar;
-        private ListView results;
-        private ActionButton back;
-        private Text modeLabel;
-        private Text contextLabel;
-        private Text contextTitle;
-        private Image contextIcon;
-        private Text resultsTitle;
-        private Text resultsCount;
-        private Text hints;
-        private Text messageLabel;
-        private Text dataLabel;
-        private PaletteSession session;
-        private BrowserPresentation presentation;
 
-        private readonly VisualElement root;
-        private Panel panel;
-        private bool disposed;
-        private IVisualElementScheduledItem pendingSearchFocus;
-        private readonly Dictionary<VisualElement, UnityEngine.UIElements.Clickable> rowClicks =
-            new Dictionary<VisualElement, UnityEngine.UIElements.Clickable>();
-
-        internal event Action BackRequested;
-        internal event Action<string> QueryChanged;
-        internal event Action<int> RowSelectionChanged;
-        internal event Action<PaletteItem, EventBase> RowActivated;
-        internal event Action<KeyDownEvent> KeyPressed;
-        internal bool IsAttached => !disposed && searchBar.panel != null;
+        private readonly VisualElement _root;
+        private readonly Dictionary<VisualElement, Clickable> _rowClicks = new();
+        private ActionButton _back;
+        private Image _contextIcon;
+        private Text _contextLabel;
+        private Text _contextTitle;
+        private Text _dataLabel;
+        private bool _disposed;
+        private Text _hints;
+        private Text _messageLabel;
+        private Text _modeLabel;
+        private Panel _panel;
+        private IVisualElementScheduledItem _pendingSearchFocus;
+        private BrowserPresentation _presentation;
+        private ListView _results;
+        private Text _resultsCount;
+        private Text _resultsTitle;
+        private SearchBar _searchBar;
+        private PaletteSession _session;
 
         internal PaletteView(VisualElement root)
         {
-            this.root = root;
+            _root = root;
             LoadLayout();
             ConfigureTheme();
             FindElements();
@@ -54,140 +48,170 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             AttachCallbacks();
         }
 
+        internal bool IsAttached => !_disposed && _searchBar.panel != null;
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+            _pendingSearchFocus?.Pause();
+            _pendingSearchFocus = null;
+            _back.clickable.clicked -= OnBack;
+            _results.selectionChanged -= OnRowSelectionChanged;
+            _searchBar.UnregisterCallback<ChangingEvent<string>>(OnQueryChanging);
+            _searchBar.UnregisterValueChangedCallback(OnQueryChanged);
+            _panel.UnregisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
+            _panel.UnregisterCallback<NavigationMoveEvent>(OnNavigationMove, TrickleDown.TrickleDown);
+            _results.itemsSource = null;
+
+            foreach (var row in new List<VisualElement>(_rowClicks.Keys))
+                ReleaseRow(row);
+
+            _results.makeItem = null;
+            _results.bindItem = null;
+            _results.destroyItem = null;
+            BackRequested = null;
+            QueryChanged = null;
+            RowSelectionChanged = null;
+            RowActivated = null;
+            KeyPressed = null;
+            _session = null;
+            _presentation = null;
+        }
+
+        internal event Action BackRequested;
+        internal event Action<string> QueryChanged;
+        internal event Action<int> RowSelectionChanged;
+        internal event Action<PaletteItem, EventBase> RowActivated;
+        internal event Action<KeyDownEvent> KeyPressed;
+
         private void LoadLayout()
         {
-            root.Clear();
-            AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UIPath + "UniPalette.uxml").CloneTree(root);
-            panel = root.Q<Panel>();
+            _root.Clear();
+
+            AssetDatabase
+                .LoadAssetAtPath<VisualTreeAsset>(UIPath + "UniPalette.uxml")
+                .CloneTree(_root);
+
+            _panel = _root.Q<Panel>();
         }
 
         private void ConfigureTheme()
         {
-            panel.theme = EditorGUIUtility.isProSkin ? "editor-dark" : "editor-light";
-            panel.scale = "small";
-            panel.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                "Packages/com.unity.dt.app-ui/PackageResources/Styles/Themes/App UI.tss"));
-            panel.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                "Packages/com.unity.dt.app-ui/PackageResources/Icons/Icons.uss"));
-            panel.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(UIPath + "UniPalette.uss"));
+            _panel.theme = EditorGUIUtility.isProSkin ? "editor-dark" : "editor-light";
+            _panel.scale = "small";
+
+            _panel.styleSheets.Add(
+                AssetDatabase.LoadAssetAtPath<StyleSheet>(
+                    "Packages/com.unity.dt.app-ui/PackageResources/Styles/Themes/App UI.tss"
+                )
+            );
+
+            _panel.styleSheets.Add(
+                AssetDatabase.LoadAssetAtPath<StyleSheet>(
+                    "Packages/com.unity.dt.app-ui/PackageResources/Icons/Icons.uss"
+                )
+            );
+
+            _panel.styleSheets.Add(AssetDatabase.LoadAssetAtPath<StyleSheet>(UIPath + "UniPalette.uss"));
         }
 
         private void FindElements()
         {
-            back = root.Q<ActionButton>("back");
-            modeLabel = root.Q<Text>("mode");
-            contextLabel = root.Q<Text>("context");
-            contextTitle = root.Q<Text>("context-title");
-            contextIcon = root.Q<Image>("context-icon");
-            resultsTitle = root.Q<Text>("results-title");
-            resultsCount = root.Q<Text>("results-count");
-            hints = root.Q<Text>("hints");
-            messageLabel = root.Q<Text>("message");
-            dataLabel = root.Q<Text>("data-label");
-            searchBar = root.Q<SearchBar>("search");
-            results = root.Q<ListView>("results");
+            _back = _root.Q<ActionButton>("back");
+            _modeLabel = _root.Q<Text>("mode");
+            _contextLabel = _root.Q<Text>("context");
+            _contextTitle = _root.Q<Text>("context-title");
+            _contextIcon = _root.Q<Image>("context-icon");
+            _resultsTitle = _root.Q<Text>("results-title");
+            _resultsCount = _root.Q<Text>("results-count");
+            _hints = _root.Q<Text>("hints");
+            _messageLabel = _root.Q<Text>("message");
+            _dataLabel = _root.Q<Text>("data-label");
+            _searchBar = _root.Q<SearchBar>("search");
+            _results = _root.Q<ListView>("results");
         }
 
         private void ConfigureResults()
         {
-            results.makeItem = MakeRow;
-            results.bindItem = BindRow;
-            results.destroyItem = ReleaseRow;
+            _results.makeItem = MakeRow;
+            _results.bindItem = BindRow;
+            _results.destroyItem = ReleaseRow;
         }
 
         private void BindSession(PaletteSession next)
         {
-            if (ReferenceEquals(session, next)) return;
-            session = next;
+            if (ReferenceEquals(_session, next))
+                return;
+
+            _session = next;
             // Rebinding is a render operation, not a user selection change.
-            results.selectionChanged -= OnRowSelectionChanged;
-            try { results.itemsSource = session.Results; }
-            finally { results.selectionChanged += OnRowSelectionChanged; }
+            _results.selectionChanged -= OnRowSelectionChanged;
+
+            try
+            {
+                _results.itemsSource = _session._results;
+            }
+            finally
+            {
+                _results.selectionChanged += OnRowSelectionChanged;
+            }
         }
 
         private void AttachCallbacks()
         {
-            back.clickable.clicked += OnBack;
-            results.selectionChanged += OnRowSelectionChanged;
-            searchBar.RegisterCallback<ChangingEvent<string>>(OnQueryChanging);
-            searchBar.RegisterValueChangedCallback(OnQueryChanged);
-            panel.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
-            panel.RegisterCallback<NavigationMoveEvent>(OnNavigationMove, TrickleDown.TrickleDown);
+            _back.clickable.clicked += OnBack;
+            _results.selectionChanged += OnRowSelectionChanged;
+            _searchBar.RegisterCallback<ChangingEvent<string>>(OnQueryChanging);
+            _searchBar.RegisterValueChangedCallback(OnQueryChanged);
+            _panel.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
+            _panel.RegisterCallback<NavigationMoveEvent>(OnNavigationMove, TrickleDown.TrickleDown);
         }
 
-        private void OnBack() { if (!disposed) BackRequested?.Invoke(); }
+        private void OnBack()
+        {
+            if (!_disposed)
+                BackRequested?.Invoke();
+        }
+
         private void OnRowSelectionChanged(IEnumerable<object> selected)
-        { if (!disposed) RowSelectionChanged?.Invoke(results.selectedIndex); }
+        {
+            if (!_disposed)
+                RowSelectionChanged?.Invoke(_results.selectedIndex);
+        }
+
         private void OnQueryChanging(ChangingEvent<string> evt)
-        { if (!disposed) QueryChanged?.Invoke(evt.newValue); }
+        {
+            if (!_disposed)
+                QueryChanged?.Invoke(evt.newValue);
+        }
+
         private void OnQueryChanged(ChangeEvent<string> evt)
-        { if (!disposed) QueryChanged?.Invoke(evt.newValue); }
+        {
+            if (!_disposed)
+                QueryChanged?.Invoke(evt.newValue);
+        }
+
         private void OnKeyDown(KeyDownEvent evt)
-        { if (!disposed) KeyPressed?.Invoke(evt); }
+        {
+            if (!_disposed)
+                KeyPressed?.Invoke(evt);
+        }
+
         private void OnNavigationMove(NavigationMoveEvent evt)
         {
-            if (!disposed && (evt.direction == NavigationMoveEvent.Direction.Up || evt.direction == NavigationMoveEvent.Direction.Down))
+            if (!_disposed
+                && (evt.direction == NavigationMoveEvent.Direction.Up
+                    || evt.direction == NavigationMoveEvent.Direction.Down))
                 evt.StopPropagation();
         }
+
         private void ActivateRow(ListViewItem row, EventBase evt)
-        { if (!disposed) RowActivated?.Invoke(row.userData as PaletteItem, evt); }
-
-        internal void SelectRow(int index)
         {
-            if (disposed) return;
-            results.SetSelectionWithoutNotify(index < 0 ? Array.Empty<int>() : new[] { index });
-        }
-
-        internal void RevealSelection(int index)
-        {
-            if (disposed) return;
-            SelectRow(index);
-            if (index >= 0) results.ScrollToItem(index);
-        }
-
-        internal void Render(PaletteSession session, BrowserPresentation presentation, bool focusSearch = true)
-        {
-            if (disposed) return;
-            this.presentation = presentation;
-            BindSession(session);
-            searchBar.SetValueWithoutNotify(session.Query);
-            var browser = session.Browser;
-            searchBar.placeholder = presentation.SearchPlaceholder;
-            modeLabel.text = presentation.Label;
-            contextTitle.text = session.Context?.ContextTitle ?? "Choose a context";
-            contextLabel.text = presentation.GetBreadcrumb(browser);
-            contextLabel.tooltip = contextLabel.text;
-            contextIcon.image = ItemIcon(session.Context);
-            dataLabel.text = presentation.DataLabel;
-            dataLabel.tooltip = presentation.DataTooltip;
-            resultsTitle.text = presentation.ResultsTitle;
-            hints.text = presentation.Hints;
-            back.SetEnabled(session.CanGoBack);
-            back.tooltip = session.CanGoBack ? "Back · Escape / Alt+Left" : "Already at the root";
-            RefreshResults(session);
-            if (focusSearch) ScheduleSearchFocus();
-        }
-
-        internal void RefreshResults(PaletteSession session)
-        {
-            if (disposed) return;
-            BindSession(session);
-            var selected = session.SelectedIndex;
-            results.SetSelectionWithoutNotify(System.Array.Empty<int>());
-            results.RefreshItems();
-            session.Select(selected);
-            results.SetSelectionWithoutNotify(session.SelectedIndex < 0 ? System.Array.Empty<int>() : new[] { session.SelectedIndex });
-            if (session.SelectedIndex >= 0) results.ScrollToItem(session.SelectedIndex);
-            resultsCount.text = session.Results.Count.ToString();
-            UpdateMessage(session);
-        }
-
-        internal void UpdateMessage(PaletteSession session)
-        {
-            if (disposed) return;
-            messageLabel.text = session.Message.Length > 0 ? session.Message
-                : presentation.GetNotice(session);
-            messageLabel.style.display = messageLabel.text.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!_disposed)
+                RowActivated?.Invoke(row.userData as PaletteItem, evt);
         }
 
         private VisualElement MakeRow()
@@ -197,87 +221,162 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             row.optionsButton.style.display = DisplayStyle.None;
             row.focusable = false;
             // Clickable owns the down/up sequence and suppresses ListView's competing mouse handling.
-            var clickable = new UnityEngine.UIElements.Clickable(evt => ActivateRow(row, evt));
-            clickable.activators.Add(new ManipulatorActivationFilter { button = 0, modifiers = EventModifiers.Control });
+            var clickable = new Clickable(evt => ActivateRow(row, evt));
+
+            clickable.activators.Add(
+                new ManipulatorActivationFilter { button = 0, modifiers = EventModifiers.Control, }
+            );
+
             row.AddManipulator(clickable);
-            rowClicks.Add(row, clickable);
-            var indicator = new Text { name = "indicator", pickingMode = PickingMode.Ignore };
+            _rowClicks.Add(row, clickable);
+            var indicator = new Text { name = "indicator", pickingMode = PickingMode.Ignore, };
             indicator.AddToClassList("unipalette__row-indicator");
             row.trailingContainer.Add(indicator);
+
             return row;
         }
 
         private void BindRow(VisualElement element, int index)
         {
-            if (disposed || session == null) return;
-            var item = session.Results[index];
+            if (_disposed || _session == null)
+                return;
+
+            var item = _session._results[index];
             var row = (ListViewItem)element;
             row.userData = item;
-            var description = presentation.Describe(item, session.Context);
-            row.title = description.Title;
-            row.subtitle = description.Subtitle;
-            row.tooltip = description.Tooltip;
-            row.thumbnail = ItemIcon(description.Target, description.IconName);
+            var description = _presentation.Describe(item, _session.Context);
+            row.title = description._title;
+            row.subtitle = description._subtitle;
+            row.tooltip = description._tooltip;
+            row.thumbnail = ItemIcon(description._target, description._iconName);
             var indicator = row.Q<Text>("indicator");
-            indicator.text = description.Indicator;
-            indicator.tooltip = description.IndicatorTooltip;
+            indicator.text = description._indicator;
+            indicator.tooltip = description._indicatorTooltip;
         }
 
         private static Texture ItemIcon(PaletteItem item) => ItemIcon(item?.Target, item?.IconName ?? "Search Icon");
 
-        private static Texture ItemIcon(UnityEngine.Object target, string iconName) => target
-            ? EditorGUIUtility.ObjectContent(target, target.GetType()).image : EditorGUIUtility.IconContent(iconName).image;
+        private static Texture ItemIcon(Object target, string iconName) => target
+            ? EditorGUIUtility.ObjectContent(
+                    target,
+                    target.GetType()
+                )
+                .image
+            : EditorGUIUtility.IconContent(
+                    iconName
+                )
+                .image;
+
+        private void ReleaseRow(VisualElement row)
+        {
+            if (_rowClicks.TryGetValue(row, out var clickable))
+            {
+                row.RemoveManipulator(clickable);
+                _rowClicks.Remove(row);
+            }
+
+            row.userData = null;
+        }
+
+        internal void SelectRow(int index)
+        {
+            if (_disposed)
+                return;
+
+            _results.SetSelectionWithoutNotify(index < 0 ? Array.Empty<int>() : new[] { index, });
+        }
+
+        internal void RevealSelection(int index)
+        {
+            if (_disposed)
+                return;
+
+            SelectRow(index);
+
+            if (index >= 0)
+                _results.ScrollToItem(index);
+        }
+
+        internal void Render(PaletteSession session, BrowserPresentation presentation, bool focusSearch = true)
+        {
+            if (_disposed)
+                return;
+
+            _presentation = presentation;
+            BindSession(session);
+            _searchBar.SetValueWithoutNotify(session.Query);
+            var browser = session.Browser;
+            _searchBar.placeholder = presentation.SearchPlaceholder;
+            _modeLabel.text = presentation.Label;
+            _contextTitle.text = session.Context?.ContextTitle ?? "Choose a context";
+            _contextLabel.text = presentation.GetBreadcrumb(browser);
+            _contextLabel.tooltip = _contextLabel.text;
+            _contextIcon.image = ItemIcon(session.Context);
+            _dataLabel.text = presentation.DataLabel;
+            _dataLabel.tooltip = presentation.DataTooltip;
+            _resultsTitle.text = presentation.ResultsTitle;
+            _hints.text = presentation.Hints;
+            _back.SetEnabled(session.CanGoBack);
+            _back.tooltip = session.CanGoBack ? "Back \u00B7 Escape / Alt+Left" : "Already at the root";
+            RefreshResults(session);
+
+            if (focusSearch)
+                ScheduleSearchFocus();
+        }
+
+        internal void RefreshResults(PaletteSession session)
+        {
+            if (_disposed)
+                return;
+
+            BindSession(session);
+            int selected = session.SelectedIndex;
+            _results.SetSelectionWithoutNotify(Array.Empty<int>());
+            _results.RefreshItems();
+            session.Select(selected);
+
+            _results.SetSelectionWithoutNotify(
+                session.SelectedIndex < 0
+                    ? Array.Empty<int>()
+                    : new[] { session.SelectedIndex, }
+            );
+
+            if (session.SelectedIndex >= 0)
+                _results.ScrollToItem(session.SelectedIndex);
+
+            _resultsCount.text = session._results.Count.ToString();
+            UpdateMessage(session);
+        }
+
+        internal void UpdateMessage(PaletteSession session)
+        {
+            if (_disposed)
+                return;
+
+            _messageLabel.text = session.Message.Length > 0 ? session.Message : _presentation.GetNotice(session);
+            _messageLabel.style.display = _messageLabel.text.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+        }
 
         internal void FocusSearch()
         {
-            if (!disposed) searchBar.Focus();
+            if (!_disposed)
+                _searchBar.Focus();
         }
 
         internal void ScheduleSearchFocus()
         {
-            if (disposed) return;
-            pendingSearchFocus?.Pause();
-            pendingSearchFocus = root.schedule.Execute(() =>
-            {
-                pendingSearchFocus = null;
-                FocusSearch();
-            });
-        }
+            if (_disposed)
+                return;
 
-        private void ReleaseRow(VisualElement row)
-        {
-            if (rowClicks.TryGetValue(row, out var clickable))
-            {
-                row.RemoveManipulator(clickable);
-                rowClicks.Remove(row);
-            }
-            row.userData = null;
-        }
+            _pendingSearchFocus?.Pause();
 
-        public void Dispose()
-        {
-            if (disposed) return;
-            disposed = true;
-            pendingSearchFocus?.Pause();
-            pendingSearchFocus = null;
-            back.clickable.clicked -= OnBack;
-            results.selectionChanged -= OnRowSelectionChanged;
-            searchBar.UnregisterCallback<ChangingEvent<string>>(OnQueryChanging);
-            searchBar.UnregisterValueChangedCallback(OnQueryChanged);
-            panel.UnregisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
-            panel.UnregisterCallback<NavigationMoveEvent>(OnNavigationMove, TrickleDown.TrickleDown);
-            results.itemsSource = null;
-            foreach (var row in new List<VisualElement>(rowClicks.Keys)) ReleaseRow(row);
-            results.makeItem = null;
-            results.bindItem = null;
-            results.destroyItem = null;
-            BackRequested = null;
-            QueryChanged = null;
-            RowSelectionChanged = null;
-            RowActivated = null;
-            KeyPressed = null;
-            session = null;
-            presentation = null;
+            _pendingSearchFocus = _root.schedule.Execute(
+                () =>
+                {
+                    _pendingSearchFocus = null;
+                    FocusSearch();
+                }
+            );
         }
     }
 }

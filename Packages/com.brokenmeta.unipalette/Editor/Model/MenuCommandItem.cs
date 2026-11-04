@@ -1,4 +1,4 @@
-namespace BrokenMeta.UniPalette.Editor.Model
+﻿namespace BrokenMeta.UniPalette.Editor.Model
 {
     internal sealed class MenuCommandItem : MenuItem
     {

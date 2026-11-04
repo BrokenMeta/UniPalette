@@ -1,14 +1,8 @@
-using System;
-using System.Collections;
-using System.Linq;
-using System.Reflection;
-using NUnit.Framework;
-using UnityEditor;
-using UnityEngine;
-using UnityEngine.TestTools;
-using UnityEngine.UIElements;
+﻿using System;
 using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Model;
+using NUnit.Framework;
+using UnityEditor;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -21,10 +15,11 @@ namespace BrokenMeta.UniPalette.Tests
         {
             var context = Assets();
             var command = new MenuCommandItem("Create Empty", "GameObject/Create Empty");
-            var category = new MenuCategoryItem("Commands", "", new PaletteItem[] { command });
+            var category = new MenuCategoryItem("Commands", "", new PaletteItem[] { command, });
             using var session = PaletteTestData.CreateSession();
             var browser = new CommandBrowser(context, category);
             var requests = 0;
+
             session.ExecuteCommand += (requestedCommand, requestedContext) =>
             {
                 requests++;
@@ -44,15 +39,27 @@ namespace BrokenMeta.UniPalette.Tests
         [Test]
         public void LeafWithoutExecutorKeepsConfirmedSelectionAndDoesNotDispatch()
         {
-            using var session = PaletteTestData.CreateSession(new[] { Assets() }, Build());
-            session.Select(0); session.OpenContextCommands();
+            using var session = PaletteTestData.CreateSession(new[] { Assets(), }, Build());
+            session.Select(0);
+            session.OpenContextCommands();
             var before = Selection.objects;
-            session.SetQuery("Assets/Open"); session.Select(0);
+            session.SetQuery("Assets/Open");
+            session.Select(0);
             Assert.That(session.BrowseSelected(), Is.False);
             Assert.That(session.Message, Is.Empty);
             Assert.That(session.OpenContextCommands(), Is.False);
             Assert.That(session.ActivateSelected(), Is.False);
-            Assert.That(session.Message, Does.Contain("Native execution is unavailable").And.Contain("nothing executed"));
+
+            Assert.That(
+                session.Message,
+                Does
+                    .Contain("Native execution is unavailable")
+                    .And
+                    .Contain(
+                        "nothing executed"
+                    )
+            );
+
             Assert.That(Selection.objects, Is.EqualTo(before));
         }
     }

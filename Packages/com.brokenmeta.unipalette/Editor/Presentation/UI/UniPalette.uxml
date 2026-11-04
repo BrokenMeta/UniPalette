@@ -1,22 +1,25 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:appui="Unity.AppUI.UI">
     <appui:Panel name="palette" class="unipalette">
         <ui:VisualElement name="header" class="unipalette__header">
-            <appui:ActionButton name="back" class="unipalette__back" icon="arrow-left" tooltip="Back · Escape / Alt+Left" />
-            <ui:Image name="context-icon" class="unipalette__context-icon" picking-mode="Ignore" />
+            <appui:ActionButton name="back" class="unipalette__back" icon="arrow-left"
+                                tooltip="Back · Escape / Alt+Left"/>
+            <ui:Image name="context-icon" class="unipalette__context-icon" picking-mode="Ignore"/>
             <ui:VisualElement class="unipalette__context-text">
-                <appui:Text name="context-title" class="unipalette__context-title" text="Choose a context" />
-                <appui:Text name="context" class="unipalette__context-path" text="Open scenes / Assets" />
+                <appui:Text name="context-title" class="unipalette__context-title" text="Choose a context"/>
+                <appui:Text name="context" class="unipalette__context-path" text="Open scenes / Assets"/>
             </ui:VisualElement>
-            <appui:Text name="mode" class="unipalette__mode" text="Context" />
+            <appui:Text name="mode" class="unipalette__mode" text="Context"/>
         </ui:VisualElement>
-        <appui:SearchBar name="search" class="unipalette__search" placeholder="Search contexts..." />
+        <appui:SearchBar name="search" class="unipalette__search" placeholder="Search contexts..."/>
         <ui:VisualElement name="results-heading" class="unipalette__results-heading">
-            <appui:Text name="results-title" class="unipalette__results-title" text="Contexts" />
-            <appui:Text name="results-count" class="unipalette__results-count" text="0" />
-            <appui:Text name="data-label" class="unipalette__mock-label" text="Unity Editor" />
+            <appui:Text name="results-title" class="unipalette__results-title" text="Contexts"/>
+            <appui:Text name="results-count" class="unipalette__results-count" text="0"/>
+            <appui:Text name="data-label" class="unipalette__mock-label" text="Unity Editor"/>
         </ui:VisualElement>
-        <ui:ListView name="results" class="unipalette__results" selection-type="Single" fixed-item-height="44" virtualization-method="FixedHeight" />
-        <appui:Text name="message" class="unipalette__message" />
-        <appui:Text name="hints" class="unipalette__hints" text="↑↓ Select   Enter Browse   Ctrl+Enter Commands   Esc Back" />
+        <ui:ListView name="results" class="unipalette__results" selection-type="Single" fixed-item-height="44"
+                     virtualization-method="FixedHeight"/>
+        <appui:Text name="message" class="unipalette__message"/>
+        <appui:Text name="hints" class="unipalette__hints"
+                    text="↑↓ Select   Enter Browse   Ctrl+Enter Commands   Esc Back"/>
     </appui:Panel>
 </ui:UXML>

@@ -1,4 +1,4 @@
-using NUnit.Framework;
+﻿using NUnit.Framework;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -6,9 +6,15 @@ namespace BrokenMeta.UniPalette.Tests
     public sealed class TestSceneSession
     {
         [OneTimeSetUp]
-        public void Begin() => SharedTestScene.Current = new SharedTestScene();
+        public void Begin()
+        {
+            SharedTestScene.Current = new SharedTestScene();
+        }
 
         [OneTimeTearDown]
-        public void End() => SharedTestScene.Current?.Dispose();
+        public void End()
+        {
+            SharedTestScene.Current?.Dispose();
+        }
     }
 }
