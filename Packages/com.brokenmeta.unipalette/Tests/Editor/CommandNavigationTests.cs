@@ -71,9 +71,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(
                 session._results.Select(item => item.Path),
-                Is.EqualTo(
-                    new[] { "Assets/Create/Folder", "Assets/Create/Material", }
-                )
+                Is.EqualTo(new[] { "Assets/Create/Folder", "Assets/Create/Material", })
             );
 
             session.SetQuery("Other");
@@ -88,9 +86,7 @@ namespace BrokenMeta.UniPalette.Tests
         [Test]
         public void RepeatedQueryAndDeepCategoryReturnHaveNoDuplicates()
         {
-            var root = Build(
-                new[] { "Assets/Create/Shapes/Cube", "Assets/Create/Shapes/Cube", "Assets/Open", }
-            );
+            var root = Build(new[] { "Assets/Create/Shapes/Cube", "Assets/Create/Shapes/Cube", "Assets/Open", });
 
             using var session = PaletteTestData.CreateSession(new[] { Assets(), }, root);
             session.Select(0);

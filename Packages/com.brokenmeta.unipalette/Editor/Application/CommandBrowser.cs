@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using BrokenMeta.UniPalette.Editor.Model;
 
 namespace BrokenMeta.UniPalette.Editor.Application
@@ -7,14 +8,8 @@ namespace BrokenMeta.UniPalette.Editor.Application
     internal sealed class CommandBrowser : PaletteBrowser
     {
         internal CommandBrowser(PaletteItem context, PaletteItem category)
-            : base(
-                context
-                ?? throw new ArgumentNullException(
-                    nameof(
-                        context
-                    )
-                )
-            ) => Category = category ?? throw new ArgumentNullException(nameof(category));
+            : base(context ?? throw new ArgumentNullException(nameof(context))) =>
+            Category = category ?? throw new ArgumentNullException(nameof(category));
 
         internal PaletteItem Category { get; }
 
@@ -25,23 +20,22 @@ namespace BrokenMeta.UniPalette.Editor.Application
             if (node.Path == path)
                 return node;
 
-            foreach (var child in node.Children)
-            {
-                if (child.CanBrowse
-                    && (path == child.Path
-                        || path.StartsWith(
-                            child.Path + "/",
-                            StringComparison.Ordinal
-                        )))
-                    return FindCategory(child, path);
-            }
+            return node
+                .Children
+                .Where(IsCategoryOnPath)
+                .Select(child => FindCategory(child, path))
+                .FirstOrDefault();
 
-            return null;
+            bool IsCategoryOnPath(PaletteItem child) =>
+                child.CanBrowse
+                && (path == child.Path || path.StartsWith(child.Path + "/", StringComparison.Ordinal));
         }
 
-        internal override TResult Accept<TResult>(IPaletteBrowserVisitor<TResult> visitor) => visitor.Visit(this);
+        internal override TResult Accept<TResult>(IPaletteBrowserVisitor<TResult> visitor) =>
+            visitor.Visit(this);
 
-        internal override IEnumerable<PaletteItem> GetItems(string query) => Filter(Category.Children, query, true);
+        internal override IEnumerable<PaletteItem> GetItems(string query) =>
+            Filter(Category.Children, query, true);
 
         internal override bool Activate(PaletteSession session, PaletteItem selected)
         {
@@ -65,8 +59,8 @@ namespace BrokenMeta.UniPalette.Editor.Application
         }
 
         // Alt+Right may open a category, but must never activate a command leaf.
-        internal override bool Browse(PaletteSession session, PaletteItem selected) => selected != null
-            && selected.CanBrowse
+        internal override bool Browse(PaletteSession session, PaletteItem selected) =>
+            selected is { CanBrowse: true, }
             && session.ActivateSelected();
 
         // Ctrl+Enter remains unassigned through the base implementation.
@@ -77,8 +71,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
             return new CommandBrowser(Context, FindCategory(root, Category.Path) ?? root);
         }
 
-        internal override PaletteBrowser OnCommandsChanged(Func<PaletteItem, PaletteItem> load) => RefreshCommands(
-            load
-        );
+        internal override PaletteBrowser OnCommandsChanged(Func<PaletteItem, PaletteItem> load) =>
+            RefreshCommands(load);
     }
 }

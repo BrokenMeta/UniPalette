@@ -75,7 +75,8 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         internal event Action<PaletteItem, PaletteItem> ExecuteCommand;
 
-        private PaletteItem LoadCommands(PaletteItem context) => _commandSource.ForContext(context);
+        private PaletteItem LoadCommands(PaletteItem context) =>
+            _commandSource.ForContext(context);
 
         private void OnCommandsChanged()
         {
@@ -138,7 +139,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
             try
             {
-                if (context is ContextItem confirmed && !_contextSelection.TryConfirm(confirmed, out string error))
+                if (context is ContextItem confirmed && !_contextSelection.TryConfirm(confirmed, out var error))
                 {
                     Message = error;
 
@@ -197,18 +198,9 @@ namespace BrokenMeta.UniPalette.Editor.Application
             if (_results.Count == 0)
                 return;
 
-            Select(
-                SelectedIndex < 0
-                    ? direction > 0 ? 0 : _results.Count - 1
-                    : Math.Max(
-                        0,
-                        Math.Min(
-                            _results.Count - 1,
-                            SelectedIndex
-                            + direction
-                        )
-                    )
-            );
+            Select(SelectedIndex < 0
+                ? direction > 0 ? 0 : _results.Count - 1
+                : Math.Max(0, Math.Min(_results.Count - 1, SelectedIndex + direction)));
         }
 
         internal bool ActivateSelected()
@@ -218,7 +210,8 @@ namespace BrokenMeta.UniPalette.Editor.Application
             return ValidateNavigationTarget(selected) && Browser.Activate(this, selected);
         }
 
-        internal bool BrowseSelected() => Browser.Browse(this, SelectedItem);
+        internal bool BrowseSelected() =>
+            Browser.Browse(this, SelectedItem);
 
         internal bool OpenContextCommands()
         {

@@ -55,7 +55,7 @@ namespace BrokenMeta.UniPalette.Tests
             {
                 Assert.That(target, Is.Not.Null);
                 Selection.activeObject = target;
-                double deadline = EditorApplication.timeSinceStartup + 1;
+                var deadline = EditorApplication.timeSinceStartup + 1;
 
                 while (session._results.SingleOrDefault(item => item.SelectionEntry)?.Target != target
                     && EditorApplication.timeSinceStartup < deadline)
@@ -98,7 +98,7 @@ namespace BrokenMeta.UniPalette.Tests
             }
 
             Selection.objects = Array.Empty<Object>();
-            double end = EditorApplication.timeSinceStartup + 1;
+            var end = EditorApplication.timeSinceStartup + 1;
 
             while (session._results.Any(item => item.SelectionEntry) && EditorApplication.timeSinceStartup < end)
                 yield return null;
@@ -133,7 +133,7 @@ namespace BrokenMeta.UniPalette.Tests
                     .GetField("_session", flags)
                     .GetValue(window);
 
-                double deadline = EditorApplication.timeSinceStartup + 1;
+                var deadline = EditorApplication.timeSinceStartup + 1;
 
                 while (!session._results.Any(item => item.SelectionEntry && item.Target == target)
                     && EditorApplication.timeSinceStartup < deadline)
@@ -141,9 +141,7 @@ namespace BrokenMeta.UniPalette.Tests
 
                 Assert.That(
                     session._results.SingleOrDefault(item => item.SelectionEntry)?.Target,
-                    Is.EqualTo(
-                        target
-                    ),
+                    Is.EqualTo(target),
                     "Selection notifications: "
                     + notifications
                     + "; actual Selection: "
@@ -217,7 +215,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             try
             {
-                double deadline = EditorApplication.timeSinceStartup + 2;
+                var deadline = EditorApplication.timeSinceStartup + 2;
 
                 while (!hierarchyReady && EditorApplication.timeSinceStartup < deadline)
                     yield return null;
@@ -243,8 +241,8 @@ namespace BrokenMeta.UniPalette.Tests
             window.Focus();
             // A delayed hierarchy notification from fixture creation is a separate signal:
             // it legitimately refreshes the list. Settle it before testing our Selection notification.
-            double quietUntil = EditorApplication.timeSinceStartup + 0.25;
-            double settleDeadline = EditorApplication.timeSinceStartup + 5;
+            var quietUntil = EditorApplication.timeSinceStartup + 0.25;
+            var settleDeadline = EditorApplication.timeSinceStartup + 5;
 
             void PostponeQuietPeriod()
             {

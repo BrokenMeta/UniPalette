@@ -18,7 +18,7 @@ namespace BrokenMeta.UniPalette.Tests
             var before = Selection.objects;
             using var commands = new MenuCommands(new UnityContextSelection());
             commands.Start();
-            double end = EditorApplication.timeSinceStartup + 5;
+            var end = EditorApplication.timeSinceStartup + 5;
 
             while (commands.IsLoading && EditorApplication.timeSinceStartup < end)
                 yield return null;
@@ -38,7 +38,7 @@ namespace BrokenMeta.UniPalette.Tests
             );
 
             Assert.That(commands.Paths.All(path => path.Contains('/')), Is.True);
-            int count = commands.Paths.Count;
+            var count = commands.Paths.Count;
             var root = commands.ForContext(Assets());
             Assert.That(root.Children.Select(item => item.Path), Is.EqualTo(new[] { "Assets", }));
             commands.ForContext(SceneRoot());

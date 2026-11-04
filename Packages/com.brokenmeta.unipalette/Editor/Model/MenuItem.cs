@@ -15,9 +15,11 @@ namespace BrokenMeta.UniPalette.Editor.Model
         internal override string Path { get; }
         internal override string AvailabilityNote { get; }
 
-        internal override bool SameIdentity(PaletteItem other) => other is MenuItem item && Path == item.Path;
+        internal override bool SameIdentity(PaletteItem other) =>
+            other is MenuItem item && Path == item.Path;
 
-        internal override bool ContainsDescendant(PaletteItem other) => CanBrowse
+        internal override bool ContainsDescendant(PaletteItem other) =>
+            CanBrowse
             && other is MenuItem item
             && item.Path.StartsWith(
                 Path

@@ -41,18 +41,14 @@ namespace BrokenMeta.UniPalette.Tests
                 Build(context: SceneRoot())
                     .Children
                     .Select(item => item.Path),
-                Is.EqualTo(
-                    new[] { "GameObject", }
-                )
+                Is.EqualTo(new[] { "GameObject", })
             );
 
             Assert.That(
                 Build(context: Go())
                     .Children
                     .Select(item => item.Path),
-                Is.EqualTo(
-                    new[] { "Component", "GameObject", }
-                )
+                Is.EqualTo(new[] { "Component", "GameObject", })
             );
 
             Assert.That(
@@ -64,9 +60,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(
                 Build().Children[0].Children.Single(item => item.Path == "Assets/Open").AvailabilityNote,
-                Does.Contain(
-                    "unverified"
-                )
+                Does.Contain("unverified")
             );
         }
 
@@ -87,9 +81,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(
                 mismatch.Children[0].Children.Single(item => item.Path == "Assets/Open").AvailabilityNote,
-                Does.Contain(
-                    "differs from Unity Selection"
-                )
+                Does.Contain("differs from Unity Selection")
             );
         }
 

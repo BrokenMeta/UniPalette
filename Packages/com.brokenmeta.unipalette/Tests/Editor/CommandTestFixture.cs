@@ -23,11 +23,14 @@ namespace BrokenMeta.UniPalette.Tests
 
         private protected Object[] _originalSelection;
 
-        private protected static PaletteItem Assets() => new AssetsRootContext();
+        private protected static PaletteItem Assets() =>
+            new AssetsRootContext();
 
-        private protected static PaletteItem SceneRoot() => new SceneRootContext();
+        private protected static PaletteItem SceneRoot() =>
+            new SceneRootContext();
 
-        private protected static PaletteItem Go() => new FixtureItem("Player", "Scene Root/Player");
+        private protected static PaletteItem Go() =>
+            new FixtureItem("Player", "Scene Root/Player");
 
         private protected static PaletteItem Build(string[] paths = null, PaletteItem context = null)
         {
@@ -43,7 +46,7 @@ namespace BrokenMeta.UniPalette.Tests
 
         private protected static void Choose(PaletteSession session, string path)
         {
-            int index = session._results.FindIndex(item => item.Path == path);
+            var index = session._results.FindIndex(item => item.Path == path);
             Assert.That(index, Is.GreaterThanOrEqualTo(0), path);
             session.Select(index);
         }

@@ -10,22 +10,29 @@ namespace BrokenMeta.UniPalette.Editor.Services
 {
     internal sealed class UnityContextSelection : IContextSelection, IContextVisitor<EditorContext>
     {
-        public bool TryConfirm(ContextItem context, out string error) => Bind(context)
-            .TryConfirm(out error);
+        public bool TryConfirm(ContextItem context, out string error) =>
+            Bind(context)
+                .TryConfirm(out error);
 
-        public bool MatchesSelection(PaletteItem context) => context is ContextItem item
+        public bool MatchesSelection(PaletteItem context) =>
+            context is ContextItem item
             && Bind(item)
                 .MatchesSelection();
 
-        public EditorContext Visit(SceneObjectContext context) => new SceneObjectBinding(context);
+        public EditorContext Visit(SceneObjectContext context) =>
+            new SceneObjectBinding(context);
 
-        public EditorContext Visit(AssetContext context) => new AssetBinding(context);
+        public EditorContext Visit(AssetContext context) =>
+            new AssetBinding(context);
 
-        public EditorContext Visit(SceneRootContext context) => new SceneRootBinding(context);
+        public EditorContext Visit(SceneRootContext context) =>
+            new SceneRootBinding(context);
 
-        public EditorContext Visit(AssetsRootContext context) => new AssetsRootBinding(context);
+        public EditorContext Visit(AssetsRootContext context) =>
+            new AssetsRootBinding(context);
 
-        internal EditorContext Bind(ContextItem context) => context.Accept(this);
+        internal EditorContext Bind(ContextItem context) =>
+            context.Accept(this);
 
         private sealed class SceneObjectBinding : EditorContext
         {
@@ -40,7 +47,8 @@ namespace BrokenMeta.UniPalette.Editor.Services
             private readonly AssetContext _asset;
 
             internal AssetBinding(AssetContext context)
-                : base(context) => _asset = context;
+                : base(context) =>
+                _asset = context;
 
             internal override bool UsesHierarchy => false;
 
@@ -49,7 +57,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
                 if (!base.MatchesSelection())
                     return false;
 
-                string[] guids = Selection.assetGUIDs;
+                var guids = Selection.assetGUIDs;
 
                 return guids.Length == 1 && guids[0] == _asset.AssetGuid;
             }
@@ -71,16 +79,16 @@ namespace BrokenMeta.UniPalette.Editor.Services
                     || EditorSceneManager.IsPreviewScene(active)
                     || !StageUtility
                         .GetCurrentStageHandle()
-                        .Equals(
-                            StageUtility.GetMainStageHandle()
-                        )
+                        .Equals(StageUtility.GetMainStageHandle())
                         ? "Scene Root requires a loaded active scene in the main stage."
                         : "";
             }
 
-            internal override bool MatchesSelection() => Selection.count == 0;
+            internal override bool MatchesSelection() =>
+                Selection.count == 0;
 
-            internal override Scene CaptureScene() => SceneManager.GetActiveScene();
+            internal override Scene CaptureScene() =>
+                SceneManager.GetActiveScene();
 
             internal override bool TryConfirm(out string error)
             {
@@ -102,7 +110,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
 
             internal override string ValidateExecution(Object target, Scene scene)
             {
-                string error = SceneError();
+                var error = SceneError();
 
                 if (error.Length != 0)
                     return error;
@@ -124,11 +132,10 @@ namespace BrokenMeta.UniPalette.Editor.Services
 
             internal override bool RequiresFocusedPreparation => true;
 
-            internal override bool MatchesSelection() => Selection.count == 1
+            internal override bool MatchesSelection() =>
+                Selection.count == 1
                 && Selection.activeObject
-                && AssetDatabase.IsValidFolder(
-                    "Assets"
-                )
+                && AssetDatabase.IsValidFolder("Assets")
                 && Selection.activeObject == Target;
 
             internal override bool TryConfirm(out string error)
@@ -154,15 +161,15 @@ namespace BrokenMeta.UniPalette.Editor.Services
                 return false;
             }
 
-            internal override string ValidateExecution(Object target, Scene scene) => !target
-                || !AssetDatabase.IsValidFolder(
-                    "Assets"
-                )
+            internal override string ValidateExecution(Object target, Scene scene) =>
+                !target
+                || !AssetDatabase.IsValidFolder("Assets")
                 || Target != target
                     ? "The confirmed Assets root no longer exists."
                     : "";
 
-            internal override bool PrepareFocusedWindow() => AssetDatabase.OpenAsset(Target);
+            internal override bool PrepareFocusedWindow() =>
+                AssetDatabase.OpenAsset(Target);
         }
     }
 }

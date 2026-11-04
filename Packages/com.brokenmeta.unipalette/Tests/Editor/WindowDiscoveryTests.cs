@@ -53,11 +53,11 @@ namespace BrokenMeta.UniPalette.Tests
                     target.SendEvent(evt);
                 }
 
-                int hierarchy = session._results.FindIndex(item => item is SceneRootContext);
+                var hierarchy = session._results.FindIndex(item => item is SceneRootContext);
                 session.Select(hierarchy);
                 results.SetSelectionWithoutNotify(new[] { hierarchy, });
                 Key(KeyCode.Return, EventModifiers.Control);
-                double deadline = EditorApplication.timeSinceStartup + 5;
+                var deadline = EditorApplication.timeSinceStartup + 5;
 
                 while (session.CommandsLoading && EditorApplication.timeSinceStartup < deadline)
                     yield return null;
@@ -70,7 +70,7 @@ namespace BrokenMeta.UniPalette.Tests
                 input.value = "Cube";
                 Assert.That(session.SelectedIndex, Is.EqualTo(-1));
                 Assert.That(session._results.Any(item => item.Path == "GameObject/3D Object/Cube"), Is.True);
-                int cube = session._results.FindIndex(item => item.Path == "GameObject/3D Object/Cube");
+                var cube = session._results.FindIndex(item => item.Path == "GameObject/3D Object/Cube");
                 session.Select(cube);
                 results.SetSelectionWithoutNotify(new[] { cube, });
 

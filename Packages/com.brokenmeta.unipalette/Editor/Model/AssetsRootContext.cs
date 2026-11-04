@@ -11,13 +11,16 @@ namespace BrokenMeta.UniPalette.Editor.Model
         internal override string ContextTitle => Path;
         internal override bool CanBrowse => true;
 
-        internal override T Accept<T>(IContextVisitor<T> visitor) => visitor.Visit(this);
+        internal override T Accept<T>(IContextVisitor<T> visitor) =>
+            visitor.Visit(this);
 
-        internal override bool SameIdentity(PaletteItem other) => other is AssetsRootContext;
+        internal override bool SameIdentity(PaletteItem other) =>
+            other is AssetsRootContext;
 
         internal override IEnumerable<PaletteItem> GetChildren(bool recursive) =>
             UnityContexts.AssetChildren("Assets", recursive);
 
-        internal override bool IsMenuRelevant(string path) => path.StartsWith("Assets/", StringComparison.Ordinal);
+        internal override bool IsMenuRelevant(string path) =>
+            path.StartsWith("Assets/", StringComparison.Ordinal);
     }
 }

@@ -88,7 +88,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             if (_disposed)
                 return;
 
-            bool enter = evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter;
+            var enter = evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter;
 
             if (evt.keyCode == KeyCode.Escape)
             {
@@ -147,7 +147,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             if (_disposed)
                 return;
 
-            bool changed = action();
+            var changed = action();
 
             // Native execution may synchronously close the host and dispose this presenter.
             if (_disposed)
@@ -179,7 +179,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             if ((pointer?.clickCount ?? mouse?.clickCount ?? 1) > 1)
                 return;
 
-            int index = _session._results.IndexOf(item);
+            var index = _session._results.IndexOf(item);
 
             if (index < 0)
                 return;

@@ -238,9 +238,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(
                 _session._results[_session.SelectedIndex].Title,
-                Is.EqualTo(
-                    "Create (experimental category)"
-                )
+                Is.EqualTo("Create (experimental category)")
             );
 
             yield return WaitForSearchFocus();

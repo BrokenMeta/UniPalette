@@ -55,9 +55,7 @@ namespace BrokenMeta.UniPalette.Tests
                 Does
                     .Contain("Native execution is unavailable")
                     .And
-                    .Contain(
-                        "nothing executed"
-                    )
+                    .Contain("nothing executed")
             );
 
             Assert.That(Selection.objects, Is.EqualTo(before));

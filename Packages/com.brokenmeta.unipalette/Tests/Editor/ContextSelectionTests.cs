@@ -19,9 +19,7 @@ namespace BrokenMeta.UniPalette.Tests
             using var session = new PaletteSession(
                 source,
                 selection,
-                new TestContextSource(
-                    new PaletteItem[] { context, }
-                )
+                new TestContextSource(new PaletteItem[] { context, })
             );
 
             var browser = session.Browser;
@@ -51,7 +49,8 @@ namespace BrokenMeta.UniPalette.Tests
 
             internal ContextItem _confirmed;
 
-            internal TestSelection(bool succeeds) => _succeeds = succeeds;
+            internal TestSelection(bool succeeds) =>
+                _succeeds = succeeds;
 
             public bool TryConfirm(ContextItem context, out string error)
             {
@@ -61,7 +60,8 @@ namespace BrokenMeta.UniPalette.Tests
                 return _succeeds;
             }
 
-            public bool MatchesSelection(PaletteItem context) => _succeeds && ReferenceEquals(context, _confirmed);
+            public bool MatchesSelection(PaletteItem context) =>
+                _succeeds && ReferenceEquals(context, _confirmed);
         }
     }
 }

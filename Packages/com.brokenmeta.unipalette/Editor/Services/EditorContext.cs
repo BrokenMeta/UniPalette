@@ -10,20 +10,25 @@ namespace BrokenMeta.UniPalette.Editor.Services
     {
         protected readonly ContextItem Context;
 
-        protected EditorContext(ContextItem context) => Context = context;
+        protected EditorContext(ContextItem context) =>
+            Context = context;
 
         internal virtual Object Target => Context.Target;
         internal abstract bool UsesHierarchy { get; }
         internal virtual bool RequiresFocusedPreparation => false;
-        internal virtual Scene CaptureScene() => default;
 
-        internal virtual string ValidateExecution(Object target, Scene scene) => !Context.IsValid
+        internal virtual Scene CaptureScene() =>
+            default;
+
+        internal virtual string ValidateExecution(Object target, Scene scene) =>
+            !Context.IsValid
             || !target
             || Context.Target != target
                 ? "Confirmed target no longer exists."
                 : "";
 
-        internal virtual bool PrepareFocusedWindow() => true;
+        internal virtual bool PrepareFocusedWindow() =>
+            true;
 
         internal virtual bool TryConfirm(out string error)
         {
@@ -43,7 +48,8 @@ namespace BrokenMeta.UniPalette.Editor.Services
             return true;
         }
 
-        internal virtual bool MatchesSelection() => Selection.objects.Length == 1
+        internal virtual bool MatchesSelection() =>
+            Selection.objects.Length == 1
             && Target
             && Selection.activeObject == Target;
     }

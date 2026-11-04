@@ -74,19 +74,13 @@ namespace BrokenMeta.UniPalette.Tests
 
             var item = target is GameObject go
                 ? (PaletteItem)new SceneObjectContext(go)
-                : new AssetContext(
-                    AssetDatabase.AssetPathToGUID(
-                        AssetDatabase.GetAssetPath(
-                            target
-                        )
-                    )
-                );
+                : new AssetContext(AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(target)));
 
             using var session = PaletteTestData.CreateSession(new[] { item, }, PaletteTestData.Commands());
             session.SetQuery(item.Title);
             session.Select(0);
             Assert.That(altRight ? session.BrowseSelected() : session.ActivateSelected(), Is.True);
-            bool container = kind == "Parent" || kind == "Folder";
+            var container = kind == "Parent" || kind == "Folder";
 
             Assert.That(
                 session.Browser.GetType(),
@@ -135,13 +129,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             var item = target is GameObject go
                 ? (PaletteItem)new SceneObjectContext(go)
-                : new AssetContext(
-                    AssetDatabase.AssetPathToGUID(
-                        AssetDatabase.GetAssetPath(
-                            target
-                        )
-                    )
-                );
+                : new AssetContext(AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(target)));
 
             Selection.activeObject = original;
             using var session = PaletteTestData.CreateSession(new[] { item, }, PaletteTestData.Commands());
@@ -173,7 +161,7 @@ namespace BrokenMeta.UniPalette.Tests
             Selection.activeObject = original;
             using var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
 
-            foreach (string title in new[] { "Hierarchy", "Project", }
+            foreach (var title in new[] { "Hierarchy", "Project", }
             )
             {
                 Selection.activeObject = original;
@@ -213,19 +201,12 @@ namespace BrokenMeta.UniPalette.Tests
                 SearchFlags.Synchronous
             );
 
-            var stale = results.Single(
-                item => item.id == "GameObject/Create Empty Parent"
-            );
+            var stale = results.Single(item => item.id == "GameObject/Create Empty Parent");
 
             Assert.That(stale.GetLabel(context), Does.Contain("disabled"));
 
             using var session = PaletteTestData.CreateSession(
-                new PaletteItem[]
-                {
-                    new SceneObjectContext(
-                        target
-                    ),
-                },
+                new PaletteItem[] { new SceneObjectContext(target), },
                 PaletteTestData.Commands()
             );
 
@@ -237,12 +218,8 @@ namespace BrokenMeta.UniPalette.Tests
             var tree = MenuCommands.Build(
                 new[] { stale.id, },
                 session.Context,
-                new UnityContextSelection().MatchesSelection(
-                    session.Context
-                ),
-                path => Menu.GetEnabled(
-                    path
-                )
+                new UnityContextSelection().MatchesSelection(session.Context),
+                path => Menu.GetEnabled(path)
             );
 
             Assert.That(tree.Children[0].Children.Single().Path, Is.EqualTo(stale.id));

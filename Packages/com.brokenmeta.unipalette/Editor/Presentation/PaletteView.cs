@@ -254,18 +254,18 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             indicator.tooltip = description._indicatorTooltip;
         }
 
-        private static Texture ItemIcon(PaletteItem item) => ItemIcon(item?.Target, item?.IconName ?? "Search Icon");
+        private static Texture ItemIcon(PaletteItem item) =>
+            ItemIcon(item?.Target, item?.IconName ?? "Search Icon");
 
-        private static Texture ItemIcon(Object target, string iconName) => target
-            ? EditorGUIUtility.ObjectContent(
-                    target,
-                    target.GetType()
-                )
-                .image
-            : EditorGUIUtility.IconContent(
-                    iconName
-                )
-                .image;
+        private static Texture ItemIcon(Object target, string iconName) =>
+            target
+                ? EditorGUIUtility.ObjectContent(
+                        target,
+                        target.GetType()
+                    )
+                    .image
+                : EditorGUIUtility.IconContent(iconName)
+                    .image;
 
         private void ReleaseRow(VisualElement row)
         {
@@ -330,7 +330,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 return;
 
             BindSession(session);
-            int selected = session.SelectedIndex;
+            var selected = session.SelectedIndex;
             _results.SetSelectionWithoutNotify(Array.Empty<int>());
             _results.RefreshItems();
             session.Select(selected);

@@ -23,7 +23,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
                 yield return new SceneObjectContext(t.gameObject);
 
                 if (recursive)
-                    for (int i = t.childCount - 1; i >= 0; --i)
+                    for (var i = t.childCount - 1; i >= 0; --i)
                         pending.Push(t.GetChild(i));
             }
         }
@@ -52,19 +52,18 @@ namespace BrokenMeta.UniPalette.Editor.Services
             if (target is GameObject go && !EditorUtility.IsPersistent(go) && IsSceneObject(go))
                 return new SceneObjectContext(go, true);
 
-            string path = AssetDatabase.GetAssetPath(target);
+            var path = AssetDatabase.GetAssetPath(target);
 
             return target && IsProjectPath(path) && AssetDatabase.IsMainAsset(target)
                 ? new AssetContext(
-                    AssetDatabase.AssetPathToGUID(
-                        path
-                    ),
+                    AssetDatabase.AssetPathToGUID(path),
                     true
                 )
                 : null;
         }
 
-        internal static bool IsProjectPath(string path) => !string.IsNullOrEmpty(path)
+        internal static bool IsProjectPath(string path) =>
+            !string.IsNullOrEmpty(path)
             && (path == "Assets"
                 || path.StartsWith(
                     "Assets/",
@@ -75,12 +74,11 @@ namespace BrokenMeta.UniPalette.Editor.Services
                     StringComparison.Ordinal
                 ));
 
-        internal static bool IsSceneObject(GameObject go) => go
+        internal static bool IsSceneObject(GameObject go) =>
+            go
             && go.scene.IsValid()
             && go.scene.isLoaded
-            && !EditorSceneManager.IsPreviewScene(
-                go.scene
-            );
+            && !EditorSceneManager.IsPreviewScene(go.scene);
 
         internal static IEnumerable<PaletteItem> AssetChildren(string folder, bool recursive)
         {
@@ -90,16 +88,14 @@ namespace BrokenMeta.UniPalette.Editor.Services
             // One scoped database query, rather than a recursive query for every nested folder.
             var paths = new List<string>();
 
-            foreach (string guid in AssetDatabase.FindAssets("", new[] { folder, }))
+            foreach (var guid in AssetDatabase.FindAssets("", new[] { folder, }))
             {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var path = AssetDatabase.GUIDToAssetPath(guid);
 
                 if (path.StartsWith(folder + "/", StringComparison.Ordinal)
                     && (recursive
                         || Path
-                            .GetDirectoryName(
-                                path
-                            )
+                            .GetDirectoryName(path)
                             ?.Replace(
                                 '\\',
                                 '/'
@@ -110,7 +106,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
 
             paths.Sort(StringComparer.OrdinalIgnoreCase);
 
-            foreach (string path in paths)
+            foreach (var path in paths)
                 yield return new AssetContext(AssetDatabase.AssetPathToGUID(path));
         }
 
@@ -118,7 +114,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
         {
             var pending = new Stack<Transform>();
 
-            for (int i = SceneManager.sceneCount - 1; i >= 0; --i)
+            for (var i = SceneManager.sceneCount - 1; i >= 0; --i)
             {
                 var scene = SceneManager.GetSceneAt(i);
 
@@ -127,7 +123,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
 
                 var roots = scene.GetRootGameObjects();
 
-                for (int j = roots.Length - 1; j >= 0; --j)
+                for (var j = roots.Length - 1; j >= 0; --j)
                     pending.Push(roots[j].transform);
             }
 
@@ -138,7 +134,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
         {
             var pending = new Stack<Transform>();
 
-            for (int i = parent.childCount - 1; i >= 0; --i)
+            for (var i = parent.childCount - 1; i >= 0; --i)
                 pending.Push(parent.GetChild(i));
 
             return Walk(pending, recursive);

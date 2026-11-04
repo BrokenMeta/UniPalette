@@ -70,8 +70,8 @@ namespace BrokenMeta.UniPalette.Tests
             _window.Focus();
             // Editor notifications from fixture/window setup must settle before testing input.
             // A real hierarchy/project change intentionally refreshes and clears row selection.
-            double quietUntil = EditorApplication.timeSinceStartup + 0.25;
-            double deadline = EditorApplication.timeSinceStartup + 5;
+            var quietUntil = EditorApplication.timeSinceStartup + 0.25;
+            var deadline = EditorApplication.timeSinceStartup + 5;
 
             void PostponeQuietPeriod()
             {
@@ -142,9 +142,7 @@ namespace BrokenMeta.UniPalette.Tests
             var input = search.Q<TextField>();
 
             var target = input?.Q<TextElement>() as VisualElement
-                ?? input?.Q<VisualElement>(
-                    "unity-text-input"
-                )
+                ?? input?.Q<VisualElement>("unity-text-input")
                 ?? search;
 
             using var evt = KeyDownEvent.GetPooled(
@@ -165,7 +163,7 @@ namespace BrokenMeta.UniPalette.Tests
 
         private protected IEnumerator WaitForSearchFocus()
         {
-            double deadline = EditorApplication.timeSinceStartup + 0.5;
+            var deadline = EditorApplication.timeSinceStartup + 0.5;
 
             while (!SearchHasFocus() && EditorApplication.timeSinceStartup < deadline)
                 yield return null;

@@ -103,7 +103,7 @@ namespace BrokenMeta.UniPalette.Editor
         [Shortcut("UniPalette/Open", KeyCode.U, ShortcutModifiers.Control | ShortcutModifiers.Alt)]
         private static void Open()
         {
-            bool isNewWindow = !HasOpenInstances<UniPaletteWindow>();
+            var isNewWindow = !HasOpenInstances<UniPaletteWindow>();
             var window = GetWindow<UniPaletteWindow>();
 
             if (isNewWindow)
@@ -158,7 +158,7 @@ namespace BrokenMeta.UniPalette.Editor
             if (_executing)
                 return;
 
-            if (!NativeExecution.TryPrepare(_contextSelection, command, context, out var execution, out string error))
+            if (!NativeExecution.TryPrepare(_contextSelection, command, context, out var execution, out var error))
             {
                 _session.ShowExecutionError(error);
 

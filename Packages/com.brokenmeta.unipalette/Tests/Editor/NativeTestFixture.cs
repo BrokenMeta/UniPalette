@@ -45,26 +45,27 @@ namespace BrokenMeta.UniPalette.Tests
 
         private protected UniPaletteWindow _window;
 
-        private protected static ContextItem CreateRoot(string kind) => kind == "SceneRoot"
-            ? new SceneRootContext()
-            : new AssetsRootContext();
+        private protected static ContextItem CreateRoot(string kind) =>
+            kind == "SceneRoot"
+                ? new SceneRootContext()
+                : new AssetsRootContext();
 
-        private protected PaletteItem Context(string kind) => kind == "GameObject"
-            ? new SceneObjectContext(
-                _target
-            )
-            : new AssetContext(
-                AssetDatabase.AssetPathToGUID(
-                    kind == "Folder"
-                        ? _folder
-                        : _folder
-                        + (kind == "OtherAsset"
-                            ? "/Source.bytes"
-                            : "/Source.txt")
-                )
-            );
+        private protected PaletteItem Context(string kind) =>
+            kind == "GameObject"
+                ? new SceneObjectContext(_target)
+                : new AssetContext(
+                    AssetDatabase.AssetPathToGUID(
+                        kind == "Folder"
+                            ? _folder
+                            : _folder
+                            + (kind == "OtherAsset"
+                                ? "/Source.bytes"
+                                : "/Source.txt")
+                    )
+                );
 
-        private protected static PaletteItem Command(string path) => new MenuCommandItem(path, path, "Test menu");
+        private protected static PaletteItem Command(string path) =>
+            new MenuCommandItem(path, path, "Test menu");
 
         private protected void Key(KeyCode key, EventModifiers modifiers = EventModifiers.None)
         {
@@ -114,9 +115,7 @@ namespace BrokenMeta.UniPalette.Tests
             _userScenes = Enumerable
                 .Range(0, SceneManager.sceneCount)
                 .Select(SceneManager.GetSceneAt)
-                .Where(
-                    s => s != _sharedScene.Scene
-                )
+                .Where(s => s != _sharedScene.Scene)
                 .ToArray();
 
             _dirty = _userScenes
@@ -150,9 +149,7 @@ namespace BrokenMeta.UniPalette.Tests
             {
                 EditorUtility.FocusProjectWindow();
 
-                EditorWindow.focusedWindow.SendEvent(
-                    new Event { type = EventType.KeyDown, keyCode = KeyCode.Escape, }
-                );
+                EditorWindow.focusedWindow.SendEvent(new Event { type = EventType.KeyDown, keyCode = KeyCode.Escape, });
 
                 if (!string.IsNullOrEmpty(_rootFolderGuid)
                     && AssetDatabase.AssetPathToGUID(_rootFolderPath) == _rootFolderGuid)

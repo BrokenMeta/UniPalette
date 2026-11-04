@@ -63,9 +63,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             var retiredView = (PaletteView)typeof(UniPaletteWindow)
                 .GetField("_view", PrivateInstance)
-                .GetValue(
-                    _window
-                );
+                .GetValue(_window);
 
             retiredView.ScheduleSearchFocus();
             retiredView.Dispose();
@@ -168,9 +166,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(
                 _window.rootVisualElement.Q<SearchBar>("search").placeholder,
-                Is.EqualTo(
-                    "Search contexts..."
-                )
+                Is.EqualTo("Search contexts...")
             );
 
             var category = new MenuCategoryItem(
@@ -205,23 +201,17 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(
                 _window.rootVisualElement.Q<Text>("data-label").text,
-                Is.EqualTo(
-                    "Unity menu"
-                )
+                Is.EqualTo("Unity menu")
             );
 
             Assert.That(
                 _window.rootVisualElement.Q<Text>("context").text,
-                Is.EqualTo(
-                    "Assets / Commands"
-                )
+                Is.EqualTo("Assets / Commands")
             );
 
             Assert.That(
                 _window.rootVisualElement.Q<SearchBar>("search").placeholder,
-                Is.EqualTo(
-                    "Search commands..."
-                )
+                Is.EqualTo("Search commands...")
             );
 
             yield return null;
@@ -251,7 +241,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(row.tooltip, Does.Contain("Current binding note"));
             Assert.That(row.Q<Text>("indicator").text, Is.EqualTo("\u2014"));
-            string location = _session.Location;
+            var location = _session.Location;
             Click(0);
 
             Assert.That(
@@ -279,16 +269,12 @@ namespace BrokenMeta.UniPalette.Tests
 
             Assert.That(
                 _window.rootVisualElement.Q<Text>("data-label").text,
-                Is.EqualTo(
-                    "Unity Editor"
-                )
+                Is.EqualTo("Unity Editor")
             );
 
             Assert.That(
                 _window.rootVisualElement.Q<SearchBar>("search").placeholder,
-                Is.EqualTo(
-                    "Search contexts..."
-                )
+                Is.EqualTo("Search contexts...")
             );
 
             row = (ListViewItem)_results.GetRootElementForIndex(0);

@@ -9,7 +9,8 @@ namespace BrokenMeta.UniPalette.Editor.Model
     internal sealed class SceneObjectContext : ContextItem
     {
         internal SceneObjectContext(GameObject sceneObject, bool selectionEntry = false)
-            : base(selectionEntry) => SceneObject = sceneObject;
+            : base(selectionEntry) =>
+            SceneObject = sceneObject;
 
         internal GameObject SceneObject { get; }
 
@@ -40,29 +41,32 @@ namespace BrokenMeta.UniPalette.Editor.Model
             }
         }
 
-        internal override T Accept<T>(IContextVisitor<T> visitor) => visitor.Visit(this);
+        internal override T Accept<T>(IContextVisitor<T> visitor) =>
+            visitor.Visit(this);
 
-        internal override bool SameIdentity(PaletteItem other) => other is SceneObjectContext context
+        internal override bool SameIdentity(PaletteItem other) =>
+            other is SceneObjectContext context
             && SelectionEntry == context.SelectionEntry
             && SceneObject == context.SceneObject;
 
-        internal override bool ContainsDescendant(PaletteItem other) => !SelectionEntry
+        internal override bool ContainsDescendant(PaletteItem other) =>
+            !SelectionEntry
             && other is SceneObjectContext context
             && !context.SelectionEntry
             && SceneObject
             && context.SceneObject
-            && context.SceneObject.transform.IsChildOf(
-                SceneObject.transform
-            );
+            && context.SceneObject.transform.IsChildOf(SceneObject.transform);
 
-        internal override IEnumerable<PaletteItem> GetChildren(bool recursive) => IsValid
-            ? UnityContexts.SceneChildren(
-                SceneObject.transform,
-                recursive
-            )
-            : Array.Empty<PaletteItem>();
+        internal override IEnumerable<PaletteItem> GetChildren(bool recursive) =>
+            IsValid
+                ? UnityContexts.SceneChildren(
+                    SceneObject.transform,
+                    recursive
+                )
+                : Array.Empty<PaletteItem>();
 
-        internal override bool IsMenuRelevant(string path) => path == "Edit/Duplicate"
+        internal override bool IsMenuRelevant(string path) =>
+            path == "Edit/Duplicate"
             || path.StartsWith(
                 "GameObject/",
                 StringComparison.Ordinal

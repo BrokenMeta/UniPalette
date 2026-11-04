@@ -10,7 +10,8 @@ namespace BrokenMeta.UniPalette.Tests
     [Category("Fast")]
     public class CommandSourceTests : CommandTestFixture
     {
-        private static PaletteItem Empty() => new MenuCategoryItem("Commands", "", Array.Empty<PaletteItem>());
+        private static PaletteItem Empty() =>
+            new MenuCategoryItem("Commands", "", Array.Empty<PaletteItem>());
 
         [Test]
         public void SynchronousCompletionReadsConfirmedSelectionAndPushesOneLevel()
@@ -20,9 +21,7 @@ namespace BrokenMeta.UniPalette.Tests
             using var session = new PaletteSession(
                 source,
                 new UnityContextSelection(),
-                new TestContextSource(
-                    new[] { Assets(), }
-                )
+                new TestContextSource(new[] { Assets(), })
             );
 
             source._requesting = context =>
@@ -56,9 +55,7 @@ namespace BrokenMeta.UniPalette.Tests
             using var session = new PaletteSession(
                 source,
                 new UnityContextSelection(),
-                new TestContextSource(
-                    new[] { Assets(), }
-                )
+                new TestContextSource(new[] { Assets(), })
             );
 
             var notifications = 0;
@@ -88,9 +85,7 @@ namespace BrokenMeta.UniPalette.Tests
             using var session = new PaletteSession(
                 source,
                 new UnityContextSelection(),
-                new TestContextSource(
-                    new[] { Assets(), }
-                )
+                new TestContextSource(new[] { Assets(), })
             );
 
             var browser = session.Browser;
@@ -101,7 +96,7 @@ namespace BrokenMeta.UniPalette.Tests
             session.GoBack();
             session.SetQuery("Project");
             session.Select(0);
-            int requests = source.Requests;
+            var requests = source.Requests;
             source.Complete(Build());
             Assert.That(session.Browser, Is.SameAs(browser));
             Assert.That(session.Query, Is.EqualTo("Project"));
@@ -119,9 +114,7 @@ namespace BrokenMeta.UniPalette.Tests
             using var session = new PaletteSession(
                 source,
                 new UnityContextSelection(),
-                new TestContextSource(
-                    new[] { Assets(), }
-                )
+                new TestContextSource(new[] { Assets(), })
             );
 
             session.Select(0);
@@ -143,9 +136,7 @@ namespace BrokenMeta.UniPalette.Tests
             using var session = new PaletteSession(
                 source,
                 new UnityContextSelection(),
-                new TestContextSource(
-                    new[] { Assets(), }
-                )
+                new TestContextSource(new[] { Assets(), })
             );
 
             session.Select(0);

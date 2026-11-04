@@ -17,8 +17,9 @@ namespace BrokenMeta.UniPalette.Editor.Services
         private SearchContext _request;
         private bool _started;
 
-        internal MenuCommands(IContextSelection contextSelection) => _contextSelection =
-            contextSelection ?? throw new ArgumentNullException(nameof(contextSelection));
+        internal MenuCommands(IContextSelection contextSelection) =>
+            _contextSelection =
+                contextSelection ?? throw new ArgumentNullException(nameof(contextSelection));
 
         internal IReadOnlyList<string> Paths => _paths;
 
@@ -54,12 +55,10 @@ namespace BrokenMeta.UniPalette.Editor.Services
             if (string.IsNullOrWhiteSpace(path)
                 || path != path.Trim()
                 || path.Any(char.IsControl)
-                || path.Contains(
-                    '\\'
-                ))
+                || path.Contains('\\'))
                 return false;
 
-            string[] segments = path.Split('/');
+            var segments = path.Split('/');
 
             return segments.Length > 1 && segments.All(IsValidSegment);
         }
@@ -69,9 +68,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
             return !string.IsNullOrWhiteSpace(segment)
                 && segment != "."
                 && segment != ".."
-                && segment.Any(
-                    c => c != '-'
-                );
+                && segment.Any(c => c != '-');
         }
 
         private static bool? ReadAvailability(string path, Func<string, bool?> getEnabled)
@@ -86,18 +83,19 @@ namespace BrokenMeta.UniPalette.Editor.Services
             }
         }
 
-        private static string DescribeAvailability(bool? enabled, bool selectionMatches) => enabled == null
-            ? "Availability unverified: menu state unavailable."
-            : !selectionMatches
-                ? "Availability unverified: palette context differs from Unity Selection."
-                : "Menu enabled for current Unity Selection; execution applicability is unverified.";
+        private static string DescribeAvailability(bool? enabled, bool selectionMatches) =>
+            enabled == null
+                ? "Availability unverified: menu state unavailable."
+                : !selectionMatches
+                    ? "Availability unverified: palette context differs from Unity Selection."
+                    : "Menu enabled for current Unity Selection; execution applicability is unverified.";
 
         private static void AddPath(Node root, string path, string note)
         {
             var node = root;
             var prefix = "";
 
-            foreach (string segment in path.Split('/'))
+            foreach (var segment in path.Split('/'))
             {
                 prefix = prefix.Length == 0 ? segment : prefix + "/" + segment;
 
@@ -142,9 +140,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
                             Normalize(
                                 items
                                     .Where(item => item?.provider?.id == "menu")
-                                    .Select(
-                                        item => item.id
-                                    )
+                                    .Select(item => item.id)
                             )
                         );
 
@@ -178,10 +174,9 @@ namespace BrokenMeta.UniPalette.Editor.Services
                 .ToArray();
         }
 
-        internal static bool InScope(string path, PaletteItem context) => context != null
-            && context.IsMenuRelevant(
-                path
-            );
+        internal static bool InScope(string path, PaletteItem context) =>
+            context != null
+            && context.IsMenuRelevant(path);
 
         internal static PaletteItem Build(
             IEnumerable<string> source,
@@ -191,12 +186,12 @@ namespace BrokenMeta.UniPalette.Editor.Services
         {
             var root = new Node("Commands", "");
 
-            foreach (string path in Normalize(source))
+            foreach (var path in Normalize(source))
             {
                 if (!InScope(path, context))
                     continue;
 
-                bool? enabled = ReadAvailability(path, getEnabled);
+                var enabled = ReadAvailability(path, getEnabled);
 
                 // A false flag is evidence only for the actual global menu/Selection snapshot.
                 if (selectionMatches && enabled == false)
@@ -210,9 +205,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
 
         private sealed class Node
         {
-            internal readonly SortedDictionary<string, Node> _children = new(
-                StringComparer.Ordinal
-            );
+            internal readonly SortedDictionary<string, Node> _children = new(StringComparer.Ordinal);
 
             internal readonly string _path;
             internal readonly string _title;
@@ -233,9 +226,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
                         _path,
                         _children
                             .Values
-                            .Select(
-                                child => child.Freeze()
-                            )
+                            .Select(child => child.Freeze())
                             .ToArray(),
                         _note
                         ?? "Menu category"

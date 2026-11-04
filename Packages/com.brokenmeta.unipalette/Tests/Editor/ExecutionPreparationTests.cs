@@ -32,7 +32,7 @@ namespace BrokenMeta.UniPalette.Tests
                     Command("Edit/Duplicate"),
                     context,
                     out _,
-                    out string error
+                    out var error
                 ),
                 Is.True,
                 error
@@ -85,12 +85,7 @@ namespace BrokenMeta.UniPalette.Tests
                 "Duplicate",
                 "Edit/Duplicate",
                 hasChildren
-                    ? new[]
-                    {
-                        Command(
-                            "Edit/Duplicate/Child"
-                        ),
-                    }
+                    ? new[] { Command("Edit/Duplicate/Child"), }
                     : Array.Empty<PaletteItem>()
             );
 
@@ -116,7 +111,7 @@ namespace BrokenMeta.UniPalette.Tests
                     Command("Edit/Duplicate"),
                     context,
                     out _,
-                    out string error
+                    out var error
                 ),
                 Is.False
             );
@@ -153,7 +148,7 @@ namespace BrokenMeta.UniPalette.Tests
         {
             Selection.activeObject = _target;
 
-            foreach (string kind in new[] { "SceneRoot", "AssetsRoot", }
+            foreach (var kind in new[] { "SceneRoot", "AssetsRoot", }
             )
             {
                 Assert.That(
@@ -164,9 +159,7 @@ namespace BrokenMeta.UniPalette.Tests
                                 ? "GameObject/Create Empty"
                                 : "Assets/Copy Path"
                         ),
-                        CreateRoot(
-                            kind
-                        ),
+                        CreateRoot(kind),
                         out _,
                         out _
                     ),
@@ -191,7 +184,7 @@ namespace BrokenMeta.UniPalette.Tests
                     Command(path),
                     context,
                     out var request,
-                    out string error
+                    out var error
                 ),
                 Is.True,
                 error
@@ -229,9 +222,7 @@ namespace BrokenMeta.UniPalette.Tests
                 NativeExecution.TryPrepare(
                     new UnityContextSelection(),
                     Command("Edit/Duplicate"),
-                    Context(
-                        "GameObject"
-                    ),
+                    Context("GameObject"),
                     out var request,
                     out _
                 ),
@@ -293,7 +284,7 @@ namespace BrokenMeta.UniPalette.Tests
                     staleCommand,
                     context,
                     out _,
-                    out string error
+                    out var error
                 ),
                 Is.False
             );
@@ -307,10 +298,10 @@ namespace BrokenMeta.UniPalette.Tests
         [TestCase("AssetsRoot", "Assets/Copy Path")]
         public void RootRequestRejectsChangedSelectionAndNeverRepairsIt(string kindName, string path)
         {
-            string kind = kindName;
+            var kind = kindName;
             var context = CreateRoot(kind);
             Selection.activeObject = _target;
-            Assert.That(new UnityContextSelection().TryConfirm(context, out string error), Is.True, error);
+            Assert.That(new UnityContextSelection().TryConfirm(context, out var error), Is.True, error);
 
             Assert.That(
                 NativeExecution.TryPrepare(
@@ -359,7 +350,7 @@ namespace BrokenMeta.UniPalette.Tests
                 openedAlternate = true;
             }
 
-            bool alternateWasDirty = alternate.isDirty;
+            var alternateWasDirty = alternate.isDirty;
             // Closing the captured scene must never close the shared session scene.
             SceneManager.SetActiveScene(closeScene ? alternate : _testScene);
 
@@ -371,9 +362,7 @@ namespace BrokenMeta.UniPalette.Tests
                 Assert.That(
                     NativeExecution.TryPrepare(
                         new UnityContextSelection(),
-                        Command(
-                            "GameObject/Create Empty"
-                        ),
+                        Command("GameObject/Create Empty"),
                         context,
                         out var request,
                         out _
@@ -424,7 +413,7 @@ namespace BrokenMeta.UniPalette.Tests
         [TestCase("AssetsRoot", "Assets/UniPalette Missing Command 004.5")]
         public void VirtualRootRejectsDisabledMenu(string kindName, string path)
         {
-            string kind = kindName;
+            var kind = kindName;
             var context = CreateRoot(kind);
             Assert.That(new UnityContextSelection().TryConfirm(context, out _), Is.True);
             Assert.That(Menu.GetEnabled(path), Is.False);
@@ -435,7 +424,7 @@ namespace BrokenMeta.UniPalette.Tests
                     Command(path),
                     context,
                     out _,
-                    out string error
+                    out var error
                 ),
                 Is.False
             );

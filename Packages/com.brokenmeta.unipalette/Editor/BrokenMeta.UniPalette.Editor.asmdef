@@ -1,19 +1,19 @@
 {
-    "name": "BrokenMeta.UniPalette.Editor",
-    "rootNamespace": "BrokenMeta.UniPalette.Editor",
-    "references": [
-        "Unity.AppUI",
-        "UnityEditor.QuickSearchModule"
-    ],
-    "includePlatforms": [
-        "Editor"
-    ],
-    "excludePlatforms": [],
-    "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
-    "autoReferenced": true,
-    "defineConstraints": [],
-    "versionDefines": [],
-    "noEngineReferences": false
+  "name": "BrokenMeta.UniPalette.Editor",
+  "rootNamespace": "BrokenMeta.UniPalette.Editor",
+  "references": [
+    "Unity.AppUI",
+    "UnityEditor.QuickSearchModule"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
 }

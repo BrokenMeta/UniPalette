@@ -31,7 +31,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
             if (!Supports(_path, _context))
                 return "Command is outside the confirmed context's menu families.";
 
-            string contextError = _editorContext.ValidateExecution(_target, _scene);
+            var contextError = _editorContext.ValidateExecution(_target, _scene);
 
             if (contextError.Length != 0)
                 return contextError;
@@ -65,11 +65,10 @@ namespace BrokenMeta.UniPalette.Editor.Services
             );
         }
 
-        internal static bool Supports(string path, PaletteItem context) => !string.IsNullOrEmpty(path)
+        internal static bool Supports(string path, PaletteItem context) =>
+            !string.IsNullOrEmpty(path)
             && context is ContextItem
-            && context.IsMenuRelevant(
-                path
-            );
+            && context.IsMenuRelevant(path);
 
         internal static bool TryPrepare(
             UnityContextSelection contextSelection,
@@ -115,7 +114,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
 
             try
             {
-                string error = Validate();
+                var error = Validate();
 
                 if (error.Length != 0)
                 {
@@ -126,7 +125,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
 
                 // These are the standard recipients for object/asset context. Commands needing
                 // a specific Scene View, Inspector or other UI state may still have no effect.
-                bool hierarchy = _editorContext.UsesHierarchy;
+                var hierarchy = _editorContext.UsesHierarchy;
 
                 if (hierarchy)
                 {
@@ -165,7 +164,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
                 var window = EditorWindow.focusedWindow;
 
                 // Read the actual focused window's runtime identity, without resolving or invoking internal APIs.
-                string expected = hierarchy
+                var expected = hierarchy
                     ? "Unity.Hierarchy.Editor.HierarchyWindow"
                     : "UnityEditor.ProjectBrowser";
 

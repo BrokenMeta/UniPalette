@@ -4,7 +4,8 @@
     {
         private readonly bool _selectionEntry;
 
-        protected ContextItem(bool selectionEntry = false) => _selectionEntry = selectionEntry;
+        protected ContextItem(bool selectionEntry = false) =>
+            _selectionEntry = selectionEntry;
 
         internal override bool SelectionEntry => _selectionEntry;
 

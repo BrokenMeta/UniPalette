@@ -12,7 +12,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
         internal abstract string DataTooltip { get; }
         internal abstract string ResultsTitle { get; }
         internal abstract string Hints { get; }
-        
+
         internal abstract string GetBreadcrumb(PaletteBrowser browser);
 
         internal abstract string GetNotice(PaletteSession session);

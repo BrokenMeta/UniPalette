@@ -66,7 +66,7 @@ namespace BrokenMeta.UniPalette.Tests
 
         private Scene OpenCopy(string name)
         {
-            string path = _folder + "/" + name + ".unity";
+            var path = _folder + "/" + name + ".unity";
 
             Assert.That(
                 AssetDatabase.CopyAsset(Template, path),
@@ -123,7 +123,8 @@ namespace BrokenMeta.UniPalette.Tests
         }
 
         // Only the regression that deliberately closes its captured scene needs a second copy.
-        internal Scene OpenDisposableScene() => OpenCopy("ClosedScene");
+        internal Scene OpenDisposableScene() =>
+            OpenCopy("ClosedScene");
 
         internal void ClearObjects()
         {

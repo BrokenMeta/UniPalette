@@ -8,12 +8,12 @@ namespace BrokenMeta.UniPalette.Tests
     {
         private readonly PaletteItem[] _roots;
 
-        internal TestContextSource(PaletteItem[] roots) => _roots = roots;
+        internal TestContextSource(PaletteItem[] roots) =>
+            _roots = roots;
 
-        public IEnumerable<PaletteItem> GetItems(PaletteItem context, bool recursive) => context != null
-            ? context.GetChildren(
-                recursive
-            )
-            : _roots;
+        public IEnumerable<PaletteItem> GetItems(PaletteItem context, bool recursive) =>
+            context != null
+                ? context.GetChildren(recursive)
+                : _roots;
     }
 }

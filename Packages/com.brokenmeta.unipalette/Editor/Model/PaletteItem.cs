@@ -18,11 +18,14 @@ namespace BrokenMeta.UniPalette.Editor.Model
         internal virtual string ContextTitle => Title;
         internal virtual string IconName => "Folder Icon";
 
-        internal virtual bool SameIdentity(PaletteItem other) => ReferenceEquals(this, other);
+        internal virtual bool SameIdentity(PaletteItem other) =>
+            ReferenceEquals(this, other);
 
-        internal virtual bool ContainsDescendant(PaletteItem other) => false;
+        internal virtual bool ContainsDescendant(PaletteItem other) =>
+            false;
 
-        internal virtual bool IsMenuRelevant(string path) => false;
+        internal virtual bool IsMenuRelevant(string path) =>
+            false;
 
         internal virtual IEnumerable<PaletteItem> GetChildren(bool recursive)
         {

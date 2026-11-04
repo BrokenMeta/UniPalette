@@ -10,7 +10,8 @@ namespace BrokenMeta.UniPalette.Editor.Model
     internal sealed class AssetContext : ContextItem
     {
         internal AssetContext(string guid, bool selectionEntry = false)
-            : base(selectionEntry) => AssetGuid = guid;
+            : base(selectionEntry) =>
+            AssetGuid = guid;
 
         internal string AssetGuid { get; }
         internal string AssetPath => AssetDatabase.GUIDToAssetPath(AssetGuid ?? "");
@@ -27,13 +28,16 @@ namespace BrokenMeta.UniPalette.Editor.Model
 
         internal override bool HasBrowseChildren => CanBrowse && GetChildren(false).Any();
 
-        internal override T Accept<T>(IContextVisitor<T> visitor) => visitor.Visit(this);
+        internal override T Accept<T>(IContextVisitor<T> visitor) =>
+            visitor.Visit(this);
 
-        internal override bool SameIdentity(PaletteItem other) => other is AssetContext context
+        internal override bool SameIdentity(PaletteItem other) =>
+            other is AssetContext context
             && SelectionEntry == context.SelectionEntry
             && AssetGuid == context.AssetGuid;
 
-        internal override bool ContainsDescendant(PaletteItem other) => !SelectionEntry
+        internal override bool ContainsDescendant(PaletteItem other) =>
+            !SelectionEntry
             && CanBrowse
             && other is AssetContext { SelectionEntry: false, } context
             && context.AssetPath.StartsWith(
@@ -42,9 +46,10 @@ namespace BrokenMeta.UniPalette.Editor.Model
                 StringComparison.Ordinal
             );
 
-        internal override IEnumerable<PaletteItem> GetChildren(bool recursive) => IsValid
-            ? UnityContexts.AssetChildren(AssetPath, recursive)
-            : Array.Empty<PaletteItem>();
+        internal override IEnumerable<PaletteItem> GetChildren(bool recursive) =>
+            IsValid
+                ? UnityContexts.AssetChildren(AssetPath, recursive)
+                : Array.Empty<PaletteItem>();
 
         internal override bool IsMenuRelevant(string path) =>
             path == "Edit/Duplicate" || path.StartsWith("Assets/", StringComparison.Ordinal);

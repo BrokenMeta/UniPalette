@@ -10,7 +10,8 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         private readonly PaletteBrowser _root;
 
-        internal PaletteHistory(PaletteBrowser root) => _root = root;
+        internal PaletteHistory(PaletteBrowser root) =>
+            _root = root;
 
         internal bool CanGoBack => _entries.Count > 0;
 
@@ -51,7 +52,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
                 if (entry == null || !entry.IsValid)
                     return -1;
 
-                int index = results.FindIndex(candidate => candidate.SameIdentity(entry));
+                var index = results.FindIndex(candidate => candidate.SameIdentity(entry));
 
                 // With an empty query, restore the visible containing branch if the entry is deeper.
                 return index >= 0 ? index : results.FindIndex(candidate => candidate.ContainsDescendant(entry));

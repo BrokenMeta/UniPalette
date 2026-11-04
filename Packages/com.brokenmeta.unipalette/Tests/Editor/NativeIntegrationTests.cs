@@ -29,21 +29,15 @@ namespace BrokenMeta.UniPalette.Tests
             }
 
             var context = Context(kind);
-            bool copyPath = path == "Assets/Copy Path";
+            var copyPath = path == "Assets/Copy Path";
 
-            string[] filesBefore = Directory
+            var filesBefore = Directory
                 .GetFiles(_temporaryRoot, "*", SearchOption.AllDirectories)
-                .OrderBy(
-                    f => f
-                )
+                .OrderBy(f => f)
                 .Select(
                     f => f
                         + ":"
-                        + Convert.ToBase64String(
-                            File.ReadAllBytes(
-                                f
-                            )
-                        )
+                        + Convert.ToBase64String(File.ReadAllBytes(f))
                 )
                 .ToArray();
 
@@ -67,7 +61,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             session.Select(session._results.FindIndex(i => i.SelectionEntry));
             Key(KeyCode.Return);
-            double deadline = EditorApplication.timeSinceStartup + 5;
+            var deadline = EditorApplication.timeSinceStartup + 5;
 
             while (session.CommandsLoading && EditorApplication.timeSinceStartup < deadline)
                 yield return null;
@@ -78,7 +72,7 @@ namespace BrokenMeta.UniPalette.Tests
                 .Q<TextField>()
                 .value = path;
 
-            int index = session._results.FindIndex(i => i.Path == path);
+            var index = session._results.FindIndex(i => i.Path == path);
             Assert.That(index, Is.GreaterThanOrEqualTo(0), "Supported command must be discoverable");
             session.Select(index);
             var list = _window.rootVisualElement.Q<ListView>("results");
@@ -126,7 +120,7 @@ namespace BrokenMeta.UniPalette.Tests
             // A stale UI callback cannot dispatch a second time after OnDisable.
             activate();
 
-            string expected = kind == "GameObject"
+            var expected = kind == "GameObject"
                 ? "Unity.Hierarchy.Editor.HierarchyWindow"
                 : "UnityEditor.ProjectBrowser";
 
@@ -198,27 +192,19 @@ namespace BrokenMeta.UniPalette.Tests
             {
                 Assert.That(
                     EditorGUIUtility.systemCopyBuffer,
-                    Is.EqualTo(
-                        AssetDatabase.GetAssetPath(context.Target)
-                    )
+                    Is.EqualTo(AssetDatabase.GetAssetPath(context.Target))
                 );
 
                 Assert.That(Selection.activeObject, Is.EqualTo(context.Target));
                 Assert.That(_testScene.rootCount, Is.EqualTo(1));
 
-                string[] filesAfter = Directory
+                var filesAfter = Directory
                     .GetFiles(_temporaryRoot, "*", SearchOption.AllDirectories)
-                    .OrderBy(
-                        f => f
-                    )
+                    .OrderBy(f => f)
                     .Select(
                         f => f
                             + ":"
-                            + Convert.ToBase64String(
-                                File.ReadAllBytes(
-                                    f
-                                )
-                            )
+                            + Convert.ToBase64String(File.ReadAllBytes(f))
                     )
                     .ToArray();
 
@@ -230,13 +216,13 @@ namespace BrokenMeta.UniPalette.Tests
             }
             else if (kind == "Asset")
             {
-                string[] files = Directory.GetFiles(_folder, "*.txt");
+                var files = Directory.GetFiles(_folder, "*.txt");
                 Assert.That(files.Length, Is.EqualTo(2), "Exactly one asset duplicate");
                 Assert.That(files.All(f => File.ReadAllText(f) == "Native execution fixture"), Is.True);
             }
             else
             {
-                string copy = _folder + " 1";
+                var copy = _folder + " 1";
 
                 try
                 {
@@ -265,9 +251,9 @@ namespace BrokenMeta.UniPalette.Tests
 
         private IEnumerator RunRoot(string kind, string path, bool click)
         {
-            bool sceneRoot = kind == "SceneRoot";
-            bool createFolder = path == "Assets/Create/Folder";
-            string[] foldersBefore = AssetDatabase.GetSubFolders("Assets");
+            var sceneRoot = kind == "SceneRoot";
+            var createFolder = path == "Assets/Create/Folder";
+            var foldersBefore = AssetDatabase.GetSubFolders("Assets");
 
             if (!sceneRoot)
             {
@@ -293,7 +279,7 @@ namespace BrokenMeta.UniPalette.Tests
                 .GetField("_session", Private)
                 .GetValue(_window);
 
-            int rootIndex = session._results.FindIndex(
+            var rootIndex = session._results.FindIndex(
                 i => i.GetType()
                     == CreateRoot(kind)
                         .GetType()
@@ -320,7 +306,7 @@ namespace BrokenMeta.UniPalette.Tests
             else
                 Assert.That(AssetDatabase.GetAssetPath(Selection.activeObject), Is.EqualTo("Assets"));
 
-            double deadline = EditorApplication.timeSinceStartup + 5;
+            var deadline = EditorApplication.timeSinceStartup + 5;
 
             while (session.CommandsLoading && EditorApplication.timeSinceStartup < deadline)
                 yield return null;
@@ -331,7 +317,7 @@ namespace BrokenMeta.UniPalette.Tests
                 .Q<TextField>()
                 .value = path;
 
-            int index = session._results.FindIndex(i => i.Path == path);
+            var index = session._results.FindIndex(i => i.Path == path);
             Assert.That(index, Is.GreaterThanOrEqualTo(0), "Root command must be discovered");
             session.Select(index);
             var list = _window.rootVisualElement.Q<ListView>("results");
@@ -374,7 +360,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             yield return null;
 
-            string expectedWindow = sceneRoot
+            var expectedWindow = sceneRoot
                 ? "Unity.Hierarchy.Editor.HierarchyWindow"
                 : "UnityEditor.ProjectBrowser";
 
@@ -426,9 +412,7 @@ namespace BrokenMeta.UniPalette.Tests
                     AssetDatabase
                         .GetSubFolders("Assets")
                         .Except(foldersBefore),
-                    Is.EqualTo(
-                        new[] { _rootFolderPath, }
-                    ),
+                    Is.EqualTo(new[] { _rootFolderPath, }),
                     "Exactly one folder in Assets, not the previous Project folder"
                 );
 
@@ -446,48 +430,61 @@ namespace BrokenMeta.UniPalette.Tests
         }
 
         [UnityTest]
-        public IEnumerator DuplicateGameObjectEnter() => Run("GameObject", "Edit/Duplicate", false);
+        public IEnumerator DuplicateGameObjectEnter() =>
+            Run("GameObject", "Edit/Duplicate", false);
 
         [UnityTest]
-        public IEnumerator DuplicateGameObjectClick() => Run("GameObject", "Edit/Duplicate", true);
+        public IEnumerator DuplicateGameObjectClick() =>
+            Run("GameObject", "Edit/Duplicate", true);
 
         [UnityTest]
-        public IEnumerator ParentGameObjectEnter() => Run("GameObject", "GameObject/Create Empty Parent", false);
+        public IEnumerator ParentGameObjectEnter() =>
+            Run("GameObject", "GameObject/Create Empty Parent", false);
 
         [UnityTest]
-        public IEnumerator DuplicateAssetEnter() => Run("Asset", "Edit/Duplicate", false);
+        public IEnumerator DuplicateAssetEnter() =>
+            Run("Asset", "Edit/Duplicate", false);
 
         [UnityTest]
-        public IEnumerator DuplicateFolderEnter() => Run("Folder", "Edit/Duplicate", false);
+        public IEnumerator DuplicateFolderEnter() =>
+            Run("Folder", "Edit/Duplicate", false);
 
         [UnityTest]
-        public IEnumerator ChildGameObjectEnter() => Run("GameObject", "GameObject/Create Empty Child", false);
+        public IEnumerator ChildGameObjectEnter() =>
+            Run("GameObject", "GameObject/Create Empty Child", false);
 
         [UnityTest]
-        public IEnumerator BoxColliderEnter() => Run("GameObject", "Component/Physics/Box Collider", false);
+        public IEnumerator BoxColliderEnter() =>
+            Run("GameObject", "Component/Physics/Box Collider", false);
 
         [UnityTest]
-        public IEnumerator CopyAssetPathEnter() => Run("Asset", "Assets/Copy Path", false);
+        public IEnumerator CopyAssetPathEnter() =>
+            Run("Asset", "Assets/Copy Path", false);
 
         [UnityTest]
-        public IEnumerator CopyAssetPathClick() => Run("Asset", "Assets/Copy Path", true);
+        public IEnumerator CopyAssetPathClick() =>
+            Run("Asset", "Assets/Copy Path", true);
 
         [UnityTest]
-        public IEnumerator CopyFolderPathEnter() => Run("Folder", "Assets/Copy Path", false);
+        public IEnumerator CopyFolderPathEnter() =>
+            Run("Folder", "Assets/Copy Path", false);
 
         [UnityTest]
-        public IEnumerator CreateEmptyEnter() => Run("GameObject", "GameObject/Create Empty", false);
+        public IEnumerator CreateEmptyEnter() =>
+            Run("GameObject", "GameObject/Create Empty", false);
 
         [UnityTest]
-        public IEnumerator CopyNonTxtAssetPathEnter() => Run("OtherAsset", "Assets/Copy Path", false);
+        public IEnumerator CopyNonTxtAssetPathEnter() =>
+            Run("OtherAsset", "Assets/Copy Path", false);
 
         [UnityTest]
-        public IEnumerator BoxColliderWithRigidbodyEnter() => Run(
-            "GameObject",
-            "Component/Physics/Box Collider",
-            false,
-            true
-        );
+        public IEnumerator BoxColliderWithRigidbodyEnter() =>
+            Run(
+                "GameObject",
+                "Component/Physics/Box Collider",
+                false,
+                true
+            );
 
         [UnityTest]
         public IEnumerator PreCloseFailureKeepsPaletteAndSelection()
@@ -508,7 +505,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             session.Select(session._results.FindIndex(i => i.SelectionEntry));
             Key(KeyCode.Return);
-            double deadline = EditorApplication.timeSinceStartup + 5;
+            var deadline = EditorApplication.timeSinceStartup + 5;
 
             while (session.CommandsLoading && EditorApplication.timeSinceStartup < deadline)
                 yield return null;
@@ -525,21 +522,27 @@ namespace BrokenMeta.UniPalette.Tests
         }
 
         [UnityTest]
-        public IEnumerator SceneRootEmptyEnter() => RunRoot("SceneRoot", "GameObject/Create Empty", false);
+        public IEnumerator SceneRootEmptyEnter() =>
+            RunRoot("SceneRoot", "GameObject/Create Empty", false);
 
         [UnityTest]
-        public IEnumerator SceneRootEmptyClick() => RunRoot("SceneRoot", "GameObject/Create Empty", true);
+        public IEnumerator SceneRootEmptyClick() =>
+            RunRoot("SceneRoot", "GameObject/Create Empty", true);
 
         [UnityTest]
-        public IEnumerator SceneRootCubeEnter() => RunRoot("SceneRoot", "GameObject/3D Object/Cube", false);
+        public IEnumerator SceneRootCubeEnter() =>
+            RunRoot("SceneRoot", "GameObject/3D Object/Cube", false);
 
         [UnityTest]
-        public IEnumerator AssetsRootCopyPathEnter() => RunRoot("AssetsRoot", "Assets/Copy Path", false);
+        public IEnumerator AssetsRootCopyPathEnter() =>
+            RunRoot("AssetsRoot", "Assets/Copy Path", false);
 
         [UnityTest]
-        public IEnumerator AssetsRootCopyPathClick() => RunRoot("AssetsRoot", "Assets/Copy Path", true);
+        public IEnumerator AssetsRootCopyPathClick() =>
+            RunRoot("AssetsRoot", "Assets/Copy Path", true);
 
         [UnityTest]
-        public IEnumerator AssetsRootCreateFolderEnter() => RunRoot("AssetsRoot", "Assets/Create/Folder", false);
+        public IEnumerator AssetsRootCreateFolderEnter() =>
+            RunRoot("AssetsRoot", "Assets/Create/Folder", false);
     }
 }

@@ -16,52 +16,50 @@ namespace BrokenMeta.UniPalette.Tests
                     BindingFlags.Instance
                     | BindingFlags.NonPublic
                 )
-                .GetValue(
-                    window
-                );
+                .GetValue(window);
 
         internal static PaletteSession CreateSession(
             PaletteItem[] fixtureRoots = null,
-            PaletteItem commandRoot = null) => new(
-            new TestCommandSource(
-                commandRoot
-                ?? Commands()
-            ),
-            new UnityContextSelection(),
-            fixtureRoots == null
-                ? new UnityContextSource()
-                : new TestContextSource(
-                    fixtureRoots
-                )
-        );
+            PaletteItem commandRoot = null) =>
+            new(
+                new TestCommandSource(
+                    commandRoot
+                    ?? Commands()
+                ),
+                new UnityContextSelection(),
+                fixtureRoots == null
+                    ? new UnityContextSource()
+                    : new TestContextSource(fixtureRoots)
+            );
 
-        internal static PaletteItem Commands() => new FixtureItem(
-            "Commands",
-            "Mock commands",
-            false,
+        internal static PaletteItem Commands() =>
             new FixtureItem(
-                "Inspect (mock)",
-                "Mock commands/Inspect"
-            ),
-            new FixtureItem(
-                "Create (experimental category)",
-                "Mock commands/Create",
+                "Commands",
+                "Mock commands",
                 false,
                 new FixtureItem(
-                    "Empty Object (mock)",
-                    "Mock commands/Create/Empty Object"
+                    "Inspect (mock)",
+                    "Mock commands/Inspect"
                 ),
                 new FixtureItem(
-                    "Shapes (experimental category)",
-                    "Mock commands/Create/Shapes",
+                    "Create (experimental category)",
+                    "Mock commands/Create",
                     false,
                     new FixtureItem(
-                        "Cube (mock)",
-                        "Mock commands/Create/Shapes/Cube"
+                        "Empty Object (mock)",
+                        "Mock commands/Create/Empty Object"
+                    ),
+                    new FixtureItem(
+                        "Shapes (experimental category)",
+                        "Mock commands/Create/Shapes",
+                        false,
+                        new FixtureItem(
+                            "Cube (mock)",
+                            "Mock commands/Create/Shapes/Cube"
+                        )
                     )
                 )
-            )
-        );
+            );
 
         internal static void Install(
             UniPaletteWindow window,

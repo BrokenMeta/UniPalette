@@ -7,7 +7,8 @@
             string path,
             PaletteItem[] children,
             string availabilityNote = "Menu category")
-            : base(title, path, availabilityNote) => Children = children;
+            : base(title, path, availabilityNote) =>
+            Children = children;
 
         internal override PaletteItem[] Children { get; }
     }
