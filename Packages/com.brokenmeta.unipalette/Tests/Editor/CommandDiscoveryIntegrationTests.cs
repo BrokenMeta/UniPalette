@@ -20,7 +20,7 @@ namespace BrokenMeta.UniPalette.Tests
         public IEnumerator LiveDiscoveryUsesMenuIdsAndKeepsSelectionUntouched()
         {
             var before = Selection.objects;
-            using var commands = new MenuCommands();
+            using var commands = new MenuCommands(new UnityContextSelection());
             commands.Start();
             var end = EditorApplication.timeSinceStartup + 5;
             while (commands.IsLoading && EditorApplication.timeSinceStartup < end) yield return null;

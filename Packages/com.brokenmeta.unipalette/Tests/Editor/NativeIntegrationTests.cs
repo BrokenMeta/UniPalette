@@ -52,7 +52,7 @@ namespace BrokenMeta.UniPalette.Tests
             var list = window.rootVisualElement.Q<ListView>("results");
             list.SetSelectionWithoutNotify(new[] { index });
             yield return null;
-            Assert.That(MenuCommands.MatchesSelection(context), Is.True);
+            Assert.That(new UnityContextSelection().MatchesSelection(context), Is.True);
             var renderedRow = list.GetRootElementForIndex(index);
             Assert.That(renderedRow, Is.Not.Null);
             Assert.That(renderedRow.tooltip, Does.Contain("Native execution").And.Not.Contain("Unsupported"));
@@ -224,7 +224,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(session.Context.GetType(), Is.EqualTo(CreateRoot(kind).GetType()));
             Assert.That(session.Context.Target, Is.Null);
-            Assert.That(MenuCommands.MatchesSelection(session.Context), Is.True);
+            Assert.That(new UnityContextSelection().MatchesSelection(session.Context), Is.True);
             if (sceneRoot) Assert.That(Selection.count, Is.Zero);
             else Assert.That(AssetDatabase.GetAssetPath(Selection.activeObject), Is.EqualTo("Assets"));
             var deadline = EditorApplication.timeSinceStartup + 5;
@@ -242,7 +242,7 @@ namespace BrokenMeta.UniPalette.Tests
             Key(KeyCode.RightArrow, EventModifiers.Alt);
             Key(KeyCode.Return, EventModifiers.Control);
             Assert.That(window, Is.Not.Null, "Alt+Right and Ctrl+Enter do not dispatch a leaf");
-            Assert.That(MenuCommands.MatchesSelection(session.Context), Is.True);
+            Assert.That(new UnityContextSelection().MatchesSelection(session.Context), Is.True);
             if (createFolder)
             {
                 rootFolderPath = AssetDatabase.GenerateUniqueAssetPath("Assets/New Folder");

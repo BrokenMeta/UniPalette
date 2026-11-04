@@ -16,11 +16,11 @@ namespace BrokenMeta.UniPalette.Tests
         public void SynchronousCompletionReadsConfirmedSelectionAndPushesOneLevel()
         {
             using var source = new TestCommandSource(Empty(), loading: true);
-            using var session = new PaletteSession(source, new[] { Assets() });
+            using var session = new PaletteSession(source, new UnityContextSelection(), new[] { Assets() });
             source.Requesting = context =>
             {
                 Assert.That(session.ConfirmingContext, Is.True);
-                Assert.That(MenuCommands.MatchesSelection(context), Is.True, "Confirm before requesting a command tree");
+                Assert.That(new UnityContextSelection().MatchesSelection(context), Is.True, "Confirm before requesting a command tree");
                 source.Complete(Build());
             };
             session.Select(0);
@@ -37,7 +37,7 @@ namespace BrokenMeta.UniPalette.Tests
         public void DelayedCompletionUpdatesResultsAndRespectsTypedQuery(bool typeQuery)
         {
             using var source = new TestCommandSource(Empty(), loading: true);
-            using var session = new PaletteSession(source, new[] { Assets() });
+            using var session = new PaletteSession(source, new UnityContextSelection(), new[] { Assets() });
             var notifications = 0;
             session.CommandResultsChanged += () => notifications++;
             session.Select(0);
@@ -60,7 +60,7 @@ namespace BrokenMeta.UniPalette.Tests
         public void CompletionAfterBackDoesNotReplaceContextResults()
         {
             using var source = new TestCommandSource(Empty(), loading: true);
-            using var session = new PaletteSession(source, new[] { Assets() });
+            using var session = new PaletteSession(source, new UnityContextSelection(), new[] { Assets() });
             var browser = session.Browser;
             var notifications = 0;
             session.CommandResultsChanged += () => notifications++;
@@ -85,7 +85,7 @@ namespace BrokenMeta.UniPalette.Tests
         public void DisposingSessionUnsubscribesAndLeavesSourceToItsOwner()
         {
             using var source = new TestCommandSource(Empty(), loading: true);
-            using var session = new PaletteSession(source, new[] { Assets() });
+            using var session = new PaletteSession(source, new UnityContextSelection(), new[] { Assets() });
             session.Select(0);
             session.OpenContextCommands();
             Assert.That(source.Subscribers, Is.EqualTo(1));
@@ -102,7 +102,7 @@ namespace BrokenMeta.UniPalette.Tests
         public void LoadingErrorIsExposedWithoutInventingResults()
         {
             using var source = new TestCommandSource(Empty(), loading: true);
-            using var session = new PaletteSession(source, new[] { Assets() });
+            using var session = new PaletteSession(source, new UnityContextSelection(), new[] { Assets() });
             session.Select(0);
             session.OpenContextCommands();
             source.Complete(Empty(), "Test source unavailable");

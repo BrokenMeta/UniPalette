@@ -28,13 +28,13 @@ namespace BrokenMeta.UniPalette.Tests
         {
             var context = Context(kind);
             Selection.activeObject = context.Target;
-            Assert.That(MenuCommands.MatchesSelection(context), Is.True);
-            Assert.That(NativeExecution.TryPrepare(Command("Edit/Duplicate"), context, out _, out var error), Is.True, error);
+            Assert.That(new UnityContextSelection().MatchesSelection(context), Is.True);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command("Edit/Duplicate"), context, out _, out var error), Is.True, error);
             Selection.activeObject = kind == "GameObject" ? AssetDatabase.LoadMainAssetAtPath(folder + "/Source.txt") : target;
-            Assert.That(NativeExecution.TryPrepare(Command("Edit/Duplicate"), context, out _, out error), Is.False);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command("Edit/Duplicate"), context, out _, out error), Is.False);
             Assert.That(error, Does.Contain("Selection"));
             Selection.objects = new UnityEngine.Object[] { target, AssetDatabase.LoadMainAssetAtPath(folder + "/Source.txt") };
-            Assert.That(NativeExecution.TryPrepare(Command("Edit/Duplicate"), context, out _, out error), Is.False);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command("Edit/Duplicate"), context, out _, out error), Is.False);
             Assert.That(error, Does.Contain("Selection"));
         }
 
@@ -46,7 +46,7 @@ namespace BrokenMeta.UniPalette.Tests
             Selection.activeObject = target;
             Assert.That(Menu.GetEnabled("Edit/Duplicate"), Is.True);
             var category = new MenuCategoryItem("Duplicate", "Edit/Duplicate", hasChildren ? new[] { Command("Edit/Duplicate/Child") } : Array.Empty<PaletteItem>());
-            Assert.That(NativeExecution.TryPrepare(category, context, out _, out _), Is.False);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), category, context, out _, out _), Is.False);
             Assert.That(Selection.activeGameObject, Is.EqualTo(target));
             Assert.That(testScene.rootCount, Is.EqualTo(1));
         }
@@ -57,7 +57,7 @@ namespace BrokenMeta.UniPalette.Tests
             var context = Context("GameObject");
             Selection.activeObject = target;
             UnityEngine.Object.DestroyImmediate(target);
-            Assert.That(NativeExecution.TryPrepare(Command("Edit/Duplicate"), context, out _, out var error), Is.False);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command("Edit/Duplicate"), context, out _, out var error), Is.False);
             Assert.That(error, Does.Contain("no longer exists"));
         }
 
@@ -66,7 +66,7 @@ namespace BrokenMeta.UniPalette.Tests
         {
             var context = Context("GameObject");
             Selection.activeObject = target;
-            Assert.That(NativeExecution.TryPrepare(Command("Edit/Duplicate"), context, out var request, out _), Is.True);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command("Edit/Duplicate"), context, out var request, out _), Is.True);
             Selection.activeObject = null;
             LogAssert.Expect(LogType.Warning, new Regex("UniPalette: could not dispatch Edit/Duplicate.*Selection"));
             request.ExecuteAfterClose();
@@ -79,7 +79,7 @@ namespace BrokenMeta.UniPalette.Tests
         {
             Selection.activeObject = target;
             foreach (var kind in new[] { "SceneRoot", "AssetsRoot" })
-                Assert.That(NativeExecution.TryPrepare(Command(kind == "SceneRoot"
+                Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command(kind == "SceneRoot"
                     ? "GameObject/Create Empty" : "Assets/Copy Path"), CreateRoot(kind), out _, out _), Is.False);
             Assert.That(Selection.activeGameObject, Is.EqualTo(target));
             Assert.That(testScene.rootCount, Is.EqualTo(1));
@@ -91,9 +91,9 @@ namespace BrokenMeta.UniPalette.Tests
         {
             var context = Context(kind);
             Selection.activeObject = context.Target;
-            Assert.That(NativeExecution.TryPrepare(Command(path), context, out var request, out var error), Is.True, error);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command(path), context, out var request, out var error), Is.True, error);
             Selection.objects = new UnityEngine.Object[] { target, Context("Asset").Target };
-            Assert.That(NativeExecution.TryPrepare(Command(path), context, out _, out error), Is.False);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command(path), context, out _, out error), Is.False);
             Assert.That(error, Does.Contain("Selection"));
             LogAssert.Expect(LogType.Warning, new Regex("UniPalette: could not dispatch .*Selection"));
             request.ExecuteAfterClose();
@@ -108,7 +108,7 @@ namespace BrokenMeta.UniPalette.Tests
         public void DeletedTargetAfterPreparationAbortsOnce()
         {
             Selection.activeObject = target;
-            Assert.That(NativeExecution.TryPrepare(Command("Edit/Duplicate"), Context("GameObject"), out var request, out _), Is.True);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command("Edit/Duplicate"), Context("GameObject"), out var request, out _), Is.True);
             UnityEngine.Object.DestroyImmediate(target);
             LogAssert.Expect(LogType.Warning, new Regex("UniPalette: could not dispatch .*no longer exists"));
             request.ExecuteAfterClose();
@@ -121,7 +121,7 @@ namespace BrokenMeta.UniPalette.Tests
         {
             var context = Context("Asset");
             Selection.activeObject = context.Target;
-            Assert.That(NativeExecution.TryPrepare(Command("Assets/Copy Path"), context, out var request, out _), Is.True);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command("Assets/Copy Path"), context, out var request, out _), Is.True);
             AssetDatabase.DeleteAsset(AssetDatabase.GetAssetPath(context.Target)); // Only this test's disposable asset.
             LogAssert.Expect(LogType.Warning, new Regex("UniPalette: could not dispatch .*no longer exists"));
             request.ExecuteAfterClose();
@@ -140,7 +140,7 @@ namespace BrokenMeta.UniPalette.Tests
             var staleCommand = staleTree.Children.Single().Children.Single();
             Assert.That(staleCommand.AvailabilityNote, Does.Contain("Menu enabled"));
             Assert.That(Menu.GetEnabled(path), Is.False);
-            Assert.That(NativeExecution.TryPrepare(staleCommand, context, out _, out var error), Is.False);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), staleCommand, context, out _, out var error), Is.False);
             Assert.That(error, Does.Contain("disabled"));
             Assert.That(Selection.activeGameObject, Is.EqualTo(target));
             Assert.That(testScene.rootCount, Is.EqualTo(1));
@@ -153,10 +153,10 @@ namespace BrokenMeta.UniPalette.Tests
             var kind = kindName;
             var context = CreateRoot(kind);
             Selection.activeObject = target;
-            Assert.That(context.TryConfirm(out var error), Is.True, error);
-            Assert.That(NativeExecution.TryPrepare(Command(path), context, out var request, out error), Is.True, error);
+            Assert.That(new UnityContextSelection().TryConfirm(context, out var error), Is.True, error);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command(path), context, out var request, out error), Is.True, error);
             Selection.activeObject = target;
-            Assert.That(NativeExecution.TryPrepare(Command(path), context, out _, out error), Is.False);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command(path), context, out _, out error), Is.False);
             Assert.That(error, Does.Contain("Selection"));
             LogAssert.Expect(LogType.Warning, new Regex("UniPalette: could not dispatch .*Selection"));
             request.ExecuteAfterClose();
@@ -183,8 +183,8 @@ namespace BrokenMeta.UniPalette.Tests
             try
             {
                 var context = new SceneRootContext();
-                Assert.That(context.TryConfirm(out _), Is.True);
-                Assert.That(NativeExecution.TryPrepare(Command("GameObject/Create Empty"), context, out var request, out _), Is.True);
+                Assert.That(new UnityContextSelection().TryConfirm(context, out _), Is.True);
+                Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command("GameObject/Create Empty"), context, out var request, out _), Is.True);
                 if (closeScene)
                 {
                     SceneManager.SetActiveScene(testScene);
@@ -214,9 +214,9 @@ namespace BrokenMeta.UniPalette.Tests
         {
             var kind = kindName;
             var context = CreateRoot(kind);
-            Assert.That(context.TryConfirm(out _), Is.True);
+            Assert.That(new UnityContextSelection().TryConfirm(context, out _), Is.True);
             Assert.That(Menu.GetEnabled(path), Is.False);
-            Assert.That(NativeExecution.TryPrepare(Command(path), context, out _, out var error), Is.False);
+            Assert.That(NativeExecution.TryPrepare(new UnityContextSelection(), Command(path), context, out _, out var error), Is.False);
             Assert.That(error, Does.Contain("disabled"));
         }
     }

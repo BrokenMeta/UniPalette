@@ -126,7 +126,7 @@ namespace BrokenMeta.UniPalette.Tests
                 session.GoBack();
                 Choose(session, title); session.OpenContextCommands();
                 Assert.That(session.Context.Target, Is.Null, "A virtual root does not adopt the previous object");
-                Assert.That(MenuCommands.MatchesSelection(session.Context), Is.True);
+                Assert.That(new UnityContextSelection().MatchesSelection(session.Context), Is.True);
                 if (title == "Hierarchy") Assert.That(Selection.count, Is.Zero);
                 else Assert.That(AssetDatabase.GetAssetPath(Selection.activeObject), Is.EqualTo("Assets"));
                 var prepared = Selection.objects;
@@ -145,9 +145,9 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(stale.GetLabel(context), Does.Contain("disabled"));
             using var session = PaletteTestData.CreateSession(new PaletteItem[] { new SceneObjectContext(target) }, PaletteTestData.Commands());
             session.Select(0); session.OpenContextCommands();
-            Assert.That(MenuCommands.MatchesSelection(session.Context), Is.True);
+            Assert.That(new UnityContextSelection().MatchesSelection(session.Context), Is.True);
             Assert.That(Menu.GetEnabled(stale.id), Is.True);
-            var tree = MenuCommands.Build(new[] { stale.id }, session.Context, MenuCommands.MatchesSelection(session.Context), path => Menu.GetEnabled(path));
+            var tree = MenuCommands.Build(new[] { stale.id }, session.Context, new UnityContextSelection().MatchesSelection(session.Context), path => Menu.GetEnabled(path));
             Assert.That(tree.Children[0].Children.Single().Path, Is.EqualTo(stale.id));
             Assert.That(stale.GetLabel(context), Does.Contain("disabled"), "Stale label is deliberately not the availability source");
         }

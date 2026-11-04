@@ -7,6 +7,8 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -14,6 +16,30 @@ namespace BrokenMeta.UniPalette.Tests
     [Category("Fast")]
     public class CommandActivationTests : CommandTestFixture
     {
+        [Test]
+        public void BrowserForwardsMenuLeafWithoutDecidingNativeEligibility()
+        {
+            var context = Assets();
+            var command = new MenuCommandItem("Create Empty", "GameObject/Create Empty");
+            var category = new MenuCategoryItem("Commands", "", new PaletteItem[] { command });
+            using var session = PaletteTestData.CreateSession();
+            var browser = new CommandBrowser(context, category);
+            var requests = 0;
+            session.ExecuteCommand += (requestedCommand, requestedContext) =>
+            {
+                requests++;
+                Assert.That(requestedCommand, Is.SameAs(command));
+                Assert.That(requestedContext, Is.SameAs(context));
+            };
+
+            Assert.That(browser.Activate(session, command), Is.False);
+            Assert.That(requests, Is.EqualTo(1), "The executor owns relevance and preparation checks");
+            Assert.That(session.Message, Is.Empty);
+            Assert.That(browser.Activate(session, category), Is.True);
+            var emptyCategory = new MenuCategoryItem("Empty", "Assets/Empty", Array.Empty<PaletteItem>());
+            Assert.That(browser.Activate(session, emptyCategory), Is.False);
+            Assert.That(requests, Is.EqualTo(1), "Categories must never be dispatched");
+        }
 
         [Test]
         public void LeafWithoutExecutorKeepsConfirmedSelectionAndDoesNotDispatch()

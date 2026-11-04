@@ -12,6 +12,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
     {
         private readonly PaletteHistory history;
         private readonly ICommandSource commandSource;
+        private readonly IContextSelection contextSelection;
         private bool selectFirstWhenLoaded;
         private bool openingCommands;
         private bool disposed;
@@ -31,9 +32,10 @@ namespace BrokenMeta.UniPalette.Editor.Application
         internal string Message { get; private set; } = "";
         internal readonly List<PaletteItem> Results = new List<PaletteItem>();
 
-        internal PaletteSession(ICommandSource commandSource, PaletteItem[] fixtureRoots = null)
+        internal PaletteSession(ICommandSource commandSource, IContextSelection contextSelection, PaletteItem[] fixtureRoots = null)
         {
             this.commandSource = commandSource ?? throw new ArgumentNullException(nameof(commandSource));
+            this.contextSelection = contextSelection ?? throw new ArgumentNullException(nameof(contextSelection));
             Browser = new ContextBrowser(roots: fixtureRoots);
             history = new PaletteHistory(Browser);
             Rebuild();
@@ -48,7 +50,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
             openingCommands = true;
             try
             {
-                if (context is ContextItem confirmed && !confirmed.TryConfirm(out var error))
+                if (context is ContextItem confirmed && !contextSelection.TryConfirm(confirmed, out var error))
                 { Message = error; return false; }
                 // Availability is read after Selection changes, never from cached search labels.
                 commands = LoadCommands(context);

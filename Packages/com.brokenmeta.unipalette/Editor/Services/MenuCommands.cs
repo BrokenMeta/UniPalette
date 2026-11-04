@@ -11,6 +11,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
     // A menu snapshot for this palette instance. Query edits only search the resulting local tree.
     internal sealed class MenuCommands : ICommandSource
     {
+        private readonly IContextSelection contextSelection;
         private SearchContext request;
         private bool disposed;
         private bool started;
@@ -20,10 +21,13 @@ namespace BrokenMeta.UniPalette.Editor.Services
         public string Error { get; private set; } = "";
         internal IReadOnlyList<string> Paths => paths;
 
+        internal MenuCommands(IContextSelection contextSelection)
+        { this.contextSelection = contextSelection ?? throw new ArgumentNullException(nameof(contextSelection)); }
+
         public PaletteItem ForContext(PaletteItem context)
         {
             if (!started) Start();
-            return Build(paths, context, MatchesSelection(context), path => Menu.GetEnabled(path));
+            return Build(paths, context, contextSelection.MatchesSelection(context), path => Menu.GetEnabled(path));
         }
 
         internal void Start()
@@ -78,7 +82,6 @@ namespace BrokenMeta.UniPalette.Editor.Services
         private static bool IsValidSegment(string segment) => !string.IsNullOrWhiteSpace(segment)
             && segment != "." && segment != ".." && segment.Any(c => c != '-');
 
-        internal static bool MatchesSelection(PaletteItem context) => context is ContextItem item && item.MatchesSelection();
         internal static bool InScope(string path, PaletteItem context) => context != null && context.IsMenuRelevant(path);
 
         private sealed class Node

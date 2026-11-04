@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using BrokenMeta.UniPalette.Editor.Model;
-using BrokenMeta.UniPalette.Editor.Services;
 
 namespace BrokenMeta.UniPalette.Editor.Application
 {
@@ -21,7 +20,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
         {
             if (selected == null) return false;
             if (selected.Children.Length > 0) return session.Push(new CommandBrowser(Context, selected));
-            if (selected is MenuCommandItem && NativeExecution.Supports(selected.Path, Context))
+            if (selected is MenuCommandItem)
                 session.DispatchCommand(selected, Context);
             else session.ShowExecutionError(selected.Path
                 + " · Execution requires a confirmed context and relevant menu leaf; nothing executed. " + selected.AvailabilityNote);

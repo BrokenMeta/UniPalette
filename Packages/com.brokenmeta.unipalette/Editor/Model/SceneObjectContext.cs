@@ -8,6 +8,7 @@ namespace BrokenMeta.UniPalette.Editor.Model
 {
     internal sealed class SceneObjectContext : ContextItem
     {
+        internal override T Accept<T>(IContextVisitor<T> visitor) => visitor.Visit(this);
         internal GameObject SceneObject { get; }
         internal SceneObjectContext(GameObject sceneObject, bool selectionEntry = false) : base(selectionEntry)
         { SceneObject = sceneObject; }
@@ -15,7 +16,6 @@ namespace BrokenMeta.UniPalette.Editor.Model
         internal override string Title => SceneObject ? SceneObject.name : "Missing object";
         internal override bool IsValid => UnityContexts.IsSceneObject(SceneObject);
         internal override bool CanBrowse => IsValid && SceneObject.transform.childCount > 0;
-        internal override bool UsesHierarchy => true;
         internal override string Path
         {
             get

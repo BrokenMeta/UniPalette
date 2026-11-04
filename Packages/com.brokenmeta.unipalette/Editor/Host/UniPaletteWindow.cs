@@ -14,6 +14,7 @@ namespace BrokenMeta.UniPalette.Editor
         private PaletteView view;
         private PaletteSession session;
         private ICommandSource commandSource;
+        private UnityContextSelection contextSelection;
         private UnityEngine.Object observedSelection;
         private int observedSelectionCount;
         private double nextContextCheck;
@@ -93,8 +94,9 @@ namespace BrokenMeta.UniPalette.Editor
             titleContent = new GUIContent("UniPalette");
             minSize = new Vector2(360, 240);
             view = new PaletteView(rootVisualElement);
-            commandSource = new MenuCommands();
-            session = new PaletteSession(commandSource);
+            contextSelection = new UnityContextSelection();
+            commandSource = new MenuCommands(contextSelection);
+            session = new PaletteSession(commandSource, contextSelection);
             AttachPresenter();
             presenter.Render();
         }
@@ -126,7 +128,7 @@ namespace BrokenMeta.UniPalette.Editor
         private void ExecuteCommand(PaletteItem command, PaletteItem context)
         {
             if (executing) return;
-            if (!NativeExecution.TryPrepare(command, context, out var execution, out var error))
+            if (!NativeExecution.TryPrepare(contextSelection, command, context, out var execution, out var error))
             {
                 session.ShowExecutionError(error);
                 return;

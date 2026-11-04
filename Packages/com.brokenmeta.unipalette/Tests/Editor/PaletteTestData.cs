@@ -1,3 +1,4 @@
+using BrokenMeta.UniPalette.Editor.Services;
 using System.Reflection;
 using UnityEngine.UIElements;
 using BrokenMeta.UniPalette.Editor.Application;
@@ -13,7 +14,7 @@ namespace BrokenMeta.UniPalette.Tests
             (PalettePresenter)typeof(UniPaletteWindow).GetField("presenter", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(window);
 
         internal static PaletteSession CreateSession(PaletteItem[] fixtureRoots = null, PaletteItem commandRoot = null) =>
-            new PaletteSession(new TestCommandSource(commandRoot ?? Commands()), fixtureRoots);
+            new PaletteSession(new TestCommandSource(commandRoot ?? Commands()), new UnityContextSelection(), fixtureRoots);
 
         internal static PaletteItem Commands() => new FixtureItem("Commands", "Mock commands", false,
             new FixtureItem("Inspect (mock)", "Mock commands/Inspect"),
