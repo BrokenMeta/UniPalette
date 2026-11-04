@@ -1,17 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using BrokenMeta.UniPalette.Editor.Model;
 
 [assembly: InternalsVisibleTo("BrokenMeta.UniPalette.Tests")]
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Application
 {
     // Owns navigation history and transient state; each browser owns its level's behavior.
-    internal sealed class PaletteState : IDisposable
+    internal sealed class PaletteSession : IDisposable
     {
         private readonly PaletteHistory history;
-        private readonly PaletteItem fixtureCommands;
-        private readonly MenuCommands menuCommands;
+        private readonly ICommandSource commandSource;
         private bool selectFirstWhenLoaded;
         private bool openingCommands;
         private bool disposed;
@@ -19,8 +19,8 @@ namespace BrokenMeta.UniPalette.Editor
         internal event Action CommandResultsChanged;
         internal event Action<PaletteItem, PaletteItem> ExecuteCommand;
         internal void ShowExecutionError(string error) => Message = error;
-        internal bool CommandsLoading => menuCommands?.IsLoading == true;
-        internal string CommandNotice => menuCommands?.Error.Length > 0 ? menuCommands.Error
+        internal bool CommandsLoading => commandSource.IsLoading;
+        internal string CommandNotice => commandSource.Error.Length > 0 ? commandSource.Error
             : CommandsLoading ? "Loading Unity menu commands…" : "Native execution · Confirmed context required · Unity determines applicability and result";
         internal PaletteBrowser Browser { get; private set; }
         internal PaletteItem Context => Browser.Context;
@@ -31,21 +31,16 @@ namespace BrokenMeta.UniPalette.Editor
         internal string Message { get; private set; } = "";
         internal readonly List<PaletteItem> Results = new List<PaletteItem>();
 
-        internal PaletteState(PaletteItem[] fixtureRoots = null, PaletteItem commandRoot = null)
+        internal PaletteSession(ICommandSource commandSource, PaletteItem[] fixtureRoots = null)
         {
+            this.commandSource = commandSource ?? throw new ArgumentNullException(nameof(commandSource));
             Browser = new ContextBrowser(roots: fixtureRoots);
             history = new PaletteHistory(Browser);
-            fixtureCommands = commandRoot;
-            if (commandRoot == null)
-            {
-                menuCommands = new MenuCommands();
-                menuCommands.Changed += OnCommandsChanged;
-            }
             Rebuild();
+            commandSource.Changed += OnCommandsChanged;
         }
 
-        private PaletteItem LoadCommands(PaletteItem context) => menuCommands != null
-            ? menuCommands.ForContext(context) : fixtureCommands;
+        private PaletteItem LoadCommands(PaletteItem context) => commandSource.ForContext(context);
 
         internal bool OpenCommands(PaletteItem context)
         {
@@ -77,10 +72,11 @@ namespace BrokenMeta.UniPalette.Editor
 
         public void Dispose()
         {
+            if (disposed) return;
             disposed = true;
+            commandSource.Changed -= OnCommandsChanged;
             CommandResultsChanged = null;
             ExecuteCommand = null;
-            menuCommands?.Dispose();
         }
 
         // Editor notifications rebuild the current area without restoring an old query/selection.

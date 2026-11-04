@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using BrokenMeta.UniPalette.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -12,6 +11,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
+using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor;
 
 namespace BrokenMeta.UniPalette.Tests
 {

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
+using BrokenMeta.UniPalette.Editor.Model;
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Application
 {
     // Browser snapshots and entry identity only; no query, loading, Selection or UI mutations.
     internal sealed class PaletteHistory

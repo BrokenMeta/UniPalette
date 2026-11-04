@@ -1,5 +1,5 @@
 using System;
-using BrokenMeta.UniPalette.Editor;
+using BrokenMeta.UniPalette.Editor.Model;
 namespace BrokenMeta.UniPalette.Tests
 {
     // Synthetic trees belong to tests, not the Editor's context model.

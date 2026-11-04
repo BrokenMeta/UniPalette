@@ -2,12 +2,12 @@ using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
-using BrokenMeta.UniPalette.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
+using BrokenMeta.UniPalette.Editor.Services;
 
 namespace BrokenMeta.UniPalette.Tests
 {

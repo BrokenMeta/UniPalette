@@ -1,12 +1,12 @@
 using NUnit.Framework;
-using BrokenMeta.UniPalette.Editor;
+using BrokenMeta.UniPalette.Editor.Application;
 
 namespace BrokenMeta.UniPalette.Tests
 {
     public abstract class NavigationTestFixture
     {
 
-        private protected static PaletteState CreateState(bool hasMockSelection = true)
+        private protected static PaletteSession CreateSession(bool hasMockSelection = true)
         {
             var player = new FixtureItem("Player", "Scene Root/Player", false,
                 new FixtureItem("Weapon", "Scene Root/Player/Weapon", false,
@@ -23,20 +23,20 @@ namespace BrokenMeta.UniPalette.Tests
             var roots = hasMockSelection
                 ? new[] { new FixtureItem("Current Selection (mock: Player)", player.Path, true), hierarchy, project }
                 : new[] { hierarchy, project };
-            return new PaletteState(roots, PaletteTestData.Commands());
+            return PaletteTestData.CreateSession(roots, PaletteTestData.Commands());
         }
 
-        private protected static void Choose(PaletteState state, string title)
+        private protected static void Choose(PaletteSession session, string title)
         {
-            var index = state.Results.FindIndex(item => item.Title == title);
+            var index = session.Results.FindIndex(item => item.Title == title);
             Assert.That(index, Is.GreaterThanOrEqualTo(0), title);
-            state.Select(index);
+            session.Select(index);
         }
 
-        private protected static void AssertForward(PaletteState state)
+        private protected static void AssertForward(PaletteSession session)
         {
-            Assert.That(state.Query, Is.Empty);
-            Assert.That(state.SelectedIndex, Is.EqualTo(state.Results.Count > 0 ? 0 : -1));
+            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.SelectedIndex, Is.EqualTo(session.Results.Count > 0 ? 0 : -1));
         }
     }
 }

@@ -1,5 +1,6 @@
-using BrokenMeta.UniPalette.Editor;
 using NUnit.Framework;
+using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor.Services;
 
 namespace BrokenMeta.UniPalette.Tests
 {

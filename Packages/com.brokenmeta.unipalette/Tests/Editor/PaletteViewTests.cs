@@ -2,13 +2,16 @@ using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
-using BrokenMeta.UniPalette.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.ShortcutManagement;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor.Presentation;
+using BrokenMeta.UniPalette.Editor;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -18,6 +21,27 @@ namespace BrokenMeta.UniPalette.Tests
     {
 
         [UnityTest]
+        public IEnumerator RecreatingAndClosingWindowReleaseOwnedCommandSources()
+        {
+            yield return SetUpWindow();
+            var first = new TestCommandSource(PaletteTestData.Commands());
+            var firstSession = new PaletteSession(first);
+            PaletteTestData.Install(window, firstSession, first);
+            typeof(UniPaletteWindow).GetMethod("CreateGUI", PrivateInstance).Invoke(window, null);
+            Assert.That(first.Subscribers, Is.Zero);
+            Assert.That(first.DisposeCalls, Is.EqualTo(1));
+
+            var second = new TestCommandSource(PaletteTestData.Commands());
+            var secondSession = new PaletteSession(second);
+            PaletteTestData.Install(window, secondSession, second);
+            window.Close();
+            yield return null;
+            Assert.That(second.Subscribers, Is.Zero);
+            Assert.That(second.DisposeCalls, Is.EqualTo(1));
+            Assert.That(first.DisposeCalls, Is.EqualTo(1));
+        }
+
+        [UnityTest]
         public IEnumerator DisposedViewAndRecreatedGuiDoNotRetainInputCallbacks()
         {
             yield return SetUpWindow();
@@ -25,12 +49,12 @@ namespace BrokenMeta.UniPalette.Tests
             Key(KeyCode.DownArrow);
             Key(KeyCode.DownArrow);
             Key(KeyCode.Return);
-            Assert.That(state.Context.Path, Is.EqualTo("Assets"));
+            Assert.That(session.Context.Path, Is.EqualTo("Assets"));
             var oldSearch = window.rootVisualElement.Q<VisualElement>("search");
             var oldInput = oldSearch.Q<TextField>();
             oldInput.value = "Folder";
             yield return null;
-            var retiredState = state;
+            var retiredSession = session;
             var oldResults = results;
             var oldBack = window.rootVisualElement.Q<Unity.AppUI.UI.ActionButton>("back");
             var retiredView = (PaletteView)typeof(UniPaletteWindow).GetField("view", PrivateInstance).GetValue(window);
@@ -38,7 +62,7 @@ namespace BrokenMeta.UniPalette.Tests
             retiredView.Dispose();
             retiredView.Dispose(); // Disposal is safe when the window subsequently releases it again.
             oldInput.value = "stale query";
-            oldResults.itemsSource = retiredState.Results;
+            oldResults.itemsSource = retiredSession.Results;
             oldResults.SetSelection(0);
             ClickElement(oldBack);
             using (var staleKey = KeyDownEvent.GetPooled(new Event { type = EventType.KeyDown, keyCode = KeyCode.Escape }))
@@ -46,30 +70,30 @@ namespace BrokenMeta.UniPalette.Tests
                 staleKey.target = oldSearch;
                 oldSearch.SendEvent(staleKey);
             }
-            Assert.That(retiredState.Query, Is.EqualTo("Folder"));
-            Assert.That(retiredState.SelectedIndex, Is.EqualTo(-1));
-            Assert.That(retiredState.Context.Path, Is.EqualTo("Assets"));
+            Assert.That(retiredSession.Query, Is.EqualTo("Folder"));
+            Assert.That(retiredSession.SelectedIndex, Is.EqualTo(-1));
+            Assert.That(retiredSession.Context.Path, Is.EqualTo("Assets"));
 
             typeof(UniPaletteWindow).GetMethod("CreateGUI", PrivateInstance).Invoke(window, null);
-            state = new PaletteState(new[] {
+            session = PaletteTestData.CreateSession(new[] {
                 new FixtureItem("Project", "Assets", false,
                     new FixtureItem("Folder", "Assets/Folder", false,
                         new FixtureItem("Leaf", "Assets/Folder/Leaf")))
             }, PaletteTestData.Commands());
-            PaletteTestData.Install(window, state);
+            PaletteTestData.Install(window, session);
             results = window.rootVisualElement.Q<ListView>("results");
             var input = window.rootVisualElement.Q<VisualElement>("search").Q<TextField>();
             input.value = "Project";
             oldInput.value = "late retired input";
             oldResults.SetSelection(0);
-            Assert.That(state.Query, Is.EqualTo("Project"));
-            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
+            Assert.That(session.Query, Is.EqualTo("Project"));
+            Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             Key(KeyCode.DownArrow);
             Key(KeyCode.Return);
-            Assert.That(state.Context.Path, Is.EqualTo("Assets"), "One key press must cause exactly one transition");
+            Assert.That(session.Context.Path, Is.EqualTo("Assets"), "One key press must cause exactly one transition");
             Key(KeyCode.Escape);
-            Assert.That(state.Context, Is.Null);
-            Assert.That(state.CanGoBack, Is.False);
+            Assert.That(session.Context, Is.Null);
+            Assert.That(session.CanGoBack, Is.False);
             yield return WaitForSearchFocus();
         }
 
@@ -82,12 +106,12 @@ namespace BrokenMeta.UniPalette.Tests
                 new MenuCommandItem("Folder", "Assets/Create/Folder")
             });
             var command = new MenuCommandItem("Copy Path", "Assets/Copy Path", "Current binding note");
-            state = new PaletteState(new[] { new FixtureItem("Project", "Assets") },
+            session = PaletteTestData.CreateSession(new[] { new FixtureItem("Project", "Assets") },
                 new MenuCategoryItem("Commands", "", new PaletteItem[] { category, command }));
-            state.Select(0);
-            state.OpenContextCommands();
-            PaletteTestData.Install(window, state);
-            Assert.That(state.SelectedIndex, Is.Zero, "Rendering a new model must preserve its selection");
+            session.Select(0);
+            session.OpenContextCommands();
+            PaletteTestData.Install(window, session);
+            Assert.That(session.SelectedIndex, Is.Zero, "Rendering a new model must preserve its selection");
             Assert.That(results.selectedIndex, Is.Zero);
             yield return null;
             var row = (Unity.AppUI.UI.ListViewItem)results.GetRootElementForIndex(0);
@@ -102,10 +126,10 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(row.subtitle, Does.Contain("Assets/Copy Path").And.Contain("Execution unavailable"));
             Assert.That(row.tooltip, Does.Contain("Current binding note"));
             Assert.That(row.Q<Unity.AppUI.UI.Text>("indicator").text, Is.EqualTo("—"));
-            var location = state.Location;
+            var location = session.Location;
             Click(0);
-            Assert.That(state.Location, Is.EqualTo(location), "Rebound leaf must not activate the former category");
-            Assert.That(state.Message, Does.Contain("Assets/Copy Path").And.Contain("nothing executed"));
+            Assert.That(session.Location, Is.EqualTo(location), "Rebound leaf must not activate the former category");
+            Assert.That(session.Message, Does.Contain("Assets/Copy Path").And.Contain("nothing executed"));
             yield return WaitForSearchFocus();
         }
     }

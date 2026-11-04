@@ -2,8 +2,9 @@ using System;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using BrokenMeta.UniPalette.Editor.Model;
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Services
 {
     // Discovery supplies commands; Unity owns applicability and the actual result.
     internal sealed class NativeExecution

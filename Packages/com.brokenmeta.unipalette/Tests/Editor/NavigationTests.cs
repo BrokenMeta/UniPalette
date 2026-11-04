@@ -1,5 +1,5 @@
 using NUnit.Framework;
-using BrokenMeta.UniPalette.Editor;
+using BrokenMeta.UniPalette.Editor.Application;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -16,124 +16,124 @@ namespace BrokenMeta.UniPalette.Tests
         [TestCase(2, true, typeof(CommandBrowser), "Assets")]
         public void RootEntries(int index, bool control, System.Type browserType, string path)
         {
-            var state = CreateState();
-            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
-            state.Select(index);
-            Assert.That((control ? state.OpenContextCommands() : state.ActivateSelected()), Is.True);
-            Assert.That(state.Browser.GetType(), Is.EqualTo(browserType));
-            Assert.That(state.Context.Path, Is.EqualTo(path));
-            AssertForward(state);
-            Assert.That(state.GoBack(), Is.True);
-            Assert.That(state.Context, Is.Null);
-            Assert.That(state.Query, Is.Empty);
-            Assert.That(state.SelectedIndex, Is.EqualTo(index));
+            var session = CreateSession();
+            Assert.That(session.SelectedIndex, Is.EqualTo(-1));
+            session.Select(index);
+            Assert.That((control ? session.OpenContextCommands() : session.ActivateSelected()), Is.True);
+            Assert.That(session.Browser.GetType(), Is.EqualTo(browserType));
+            Assert.That(session.Context.Path, Is.EqualTo(path));
+            AssertForward(session);
+            Assert.That(session.GoBack(), Is.True);
+            Assert.That(session.Context, Is.Null);
+            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.SelectedIndex, Is.EqualTo(index));
         }
 
         [Test]
         public void MockSelectionCanBeAbsentAndRootHasNoImplicitContext()
         {
-            var state = CreateState(false);
-            Assert.That(state.Results.Count, Is.EqualTo(2));
-            Assert.That(state.ActivateSelected(), Is.False);
-            Assert.That(state.OpenContextCommands(), Is.False);
-            Assert.That(state.GoBack(), Is.False);
+            var session = CreateSession(false);
+            Assert.That(session.Results.Count, Is.EqualTo(2));
+            Assert.That(session.ActivateSelected(), Is.False);
+            Assert.That(session.OpenContextCommands(), Is.False);
+            Assert.That(session.GoBack(), Is.False);
         }
 
         [Test]
         public void NestedContextSearchLeafAndCurrentContextCommands()
         {
-            var state = CreateState();
-            Choose(state, "Hierarchy");
-            state.ActivateSelected();
-            state.SetQuery("Muzzle");
-            Assert.That(state.Results.Count, Is.EqualTo(1));
-            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
-            state.MoveSelection(1);
-            Assert.That(state.ActivateSelected(), Is.True, "Smart Enter opens leaf commands");
-            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Player/Weapon/Muzzle"));
-            AssertForward(state);
-            state.GoBack();
-            Assert.That(state.Query, Is.Empty);
-            Assert.That(state.Results[state.SelectedIndex].Title, Is.EqualTo("Player"));
-            Choose(state, "Player");
-            state.ActivateSelected();
-            Choose(state, "Weapon");
-            state.ActivateSelected();
-            state.SetQuery("Light");
-            Assert.That(state.Results, Is.Empty, "Sibling subtree excluded");
-            Assert.That(state.OpenContextCommands(), Is.True, "No selection uses Weapon context");
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Player/Weapon"));
-            state.GoBack();
-            state.GoBack();
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Player"));
-            Assert.That(state.Query, Is.Empty);
-            Assert.That(state.Results[state.SelectedIndex].Title, Is.EqualTo("Weapon"));
+            var session = CreateSession();
+            Choose(session, "Hierarchy");
+            session.ActivateSelected();
+            session.SetQuery("Muzzle");
+            Assert.That(session.Results.Count, Is.EqualTo(1));
+            Assert.That(session.SelectedIndex, Is.EqualTo(-1));
+            session.MoveSelection(1);
+            Assert.That(session.ActivateSelected(), Is.True, "Smart Enter opens leaf commands");
+            Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Player/Weapon/Muzzle"));
+            AssertForward(session);
+            session.GoBack();
+            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Player"));
+            Choose(session, "Player");
+            session.ActivateSelected();
+            Choose(session, "Weapon");
+            session.ActivateSelected();
+            session.SetQuery("Light");
+            Assert.That(session.Results, Is.Empty, "Sibling subtree excluded");
+            Assert.That(session.OpenContextCommands(), Is.True, "No selection uses Weapon context");
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Player/Weapon"));
+            session.GoBack();
+            session.GoBack();
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Player"));
+            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Weapon"));
         }
 
         [Test]
         public void CategoriesAreNavigableAndMockCommandsNeverExecuteOrNavigate()
         {
-            var state = CreateState();
-            Choose(state, "Project");
-            state.OpenContextCommands();
-            Choose(state, "Create (experimental category)");
-            state.ActivateSelected();
-            Choose(state, "Shapes (experimental category)");
-            state.ActivateSelected();
-            AssertForward(state);
-            state.SetQuery("Cube");
-            state.MoveSelection(1);
-            Assert.That(state.OpenContextCommands(), Is.False);
-            Assert.That(state.Message, Is.Empty);
-            Assert.That(state.ActivateSelected(), Is.False);
-            Assert.That(state.Message, Does.Contain("nothing executed"));
-            state.GoBack();
-            Assert.That(state.Location, Is.EqualTo("Mock commands/Create"));
-            Assert.That(state.Query, Is.Empty);
-            Assert.That(state.Results[state.SelectedIndex].Title, Is.EqualTo("Shapes (experimental category)"));
-            state.GoBack();
-            state.SetQuery("Shapes/Cube");
-            Assert.That(state.Results.Count, Is.EqualTo(1));
+            var session = CreateSession();
+            Choose(session, "Project");
+            session.OpenContextCommands();
+            Choose(session, "Create (experimental category)");
+            session.ActivateSelected();
+            Choose(session, "Shapes (experimental category)");
+            session.ActivateSelected();
+            AssertForward(session);
+            session.SetQuery("Cube");
+            session.MoveSelection(1);
+            Assert.That(session.OpenContextCommands(), Is.False);
+            Assert.That(session.Message, Is.Empty);
+            Assert.That(session.ActivateSelected(), Is.False);
+            Assert.That(session.Message, Does.Contain("nothing executed"));
+            session.GoBack();
+            Assert.That(session.Location, Is.EqualTo("Mock commands/Create"));
+            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Shapes (experimental category)"));
+            session.GoBack();
+            session.SetQuery("Shapes/Cube");
+            Assert.That(session.Results.Count, Is.EqualTo(1));
         }
 
         [Test]
         public void CommandCategoryOpensThroughActivateOrBrowseButNotContextConfirmation()
         {
-            using var state = CreateState();
-            Choose(state, "Project");
-            state.OpenContextCommands();
-            Choose(state, "Create (experimental category)");
-            var selected = state.SelectedIndex;
-            var location = state.Location;
-            Assert.That(state.OpenContextCommands(), Is.False);
-            Assert.That(state.Location, Is.EqualTo(location));
-            Assert.That(state.SelectedIndex, Is.EqualTo(selected));
-            Assert.That(state.Message, Is.Empty);
-            Assert.That(state.BrowseSelected(), Is.True);
-            var categoryLocation = state.Location;
-            Assert.That(state.GoBack(), Is.True);
-            Assert.That(state.Results[state.SelectedIndex].Title, Is.EqualTo("Create (experimental category)"));
-            Assert.That(state.ActivateSelected(), Is.True);
-            Assert.That(state.Location, Is.EqualTo(categoryLocation));
+            using var session = CreateSession();
+            Choose(session, "Project");
+            session.OpenContextCommands();
+            Choose(session, "Create (experimental category)");
+            var selected = session.SelectedIndex;
+            var location = session.Location;
+            Assert.That(session.OpenContextCommands(), Is.False);
+            Assert.That(session.Location, Is.EqualTo(location));
+            Assert.That(session.SelectedIndex, Is.EqualTo(selected));
+            Assert.That(session.Message, Is.Empty);
+            Assert.That(session.BrowseSelected(), Is.True);
+            var categoryLocation = session.Location;
+            Assert.That(session.GoBack(), Is.True);
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Create (experimental category)"));
+            Assert.That(session.ActivateSelected(), Is.True);
+            Assert.That(session.Location, Is.EqualTo(categoryLocation));
         }
 
         [Test]
         public void BrowsingCommandLeafPreservesExistingMessageAndNavigation()
         {
-            using var state = CreateState();
-            Choose(state, "Project");
-            state.OpenContextCommands();
-            Choose(state, "Inspect (mock)");
-            Assert.That(state.ActivateSelected(), Is.False);
-            var message = state.Message;
-            var location = state.Location;
-            var selected = state.SelectedIndex;
+            using var session = CreateSession();
+            Choose(session, "Project");
+            session.OpenContextCommands();
+            Choose(session, "Inspect (mock)");
+            Assert.That(session.ActivateSelected(), Is.False);
+            var message = session.Message;
+            var location = session.Location;
+            var selected = session.SelectedIndex;
             Assert.That(message, Does.Contain("nothing executed"));
-            Assert.That(state.BrowseSelected(), Is.False);
-            Assert.That(state.Message, Is.EqualTo(message));
-            Assert.That(state.Location, Is.EqualTo(location));
-            Assert.That(state.SelectedIndex, Is.EqualTo(selected));
+            Assert.That(session.BrowseSelected(), Is.False);
+            Assert.That(session.Message, Is.EqualTo(message));
+            Assert.That(session.Location, Is.EqualTo(location));
+            Assert.That(session.SelectedIndex, Is.EqualTo(selected));
         }
 
         [TestCase(false)]
@@ -141,33 +141,33 @@ namespace BrokenMeta.UniPalette.Tests
         public void SmartEnterWithEmptyCommandsKeepsSelectionEmptyAndRestoresLeaf(bool altRight)
         {
             var leaf = new FixtureItem("Leaf", "Leaf");
-            using var state = new PaletteState(new[] { leaf }, new FixtureItem("Commands", ""));
-            state.Select(0);
-            Assert.That((altRight ? state.BrowseSelected() : state.ActivateSelected()), Is.True);
-            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
-            Assert.That(state.Results, Is.Empty);
-            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
-            state.GoBack();
-            Assert.That(state.SelectedIndex, Is.Zero);
-            Assert.That(state.Results[0], Is.SameAs(leaf));
-            state.SetQuery("Leaf");
-            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
+            using var session = PaletteTestData.CreateSession(new[] { leaf }, new FixtureItem("Commands", ""));
+            session.Select(0);
+            Assert.That((altRight ? session.BrowseSelected() : session.ActivateSelected()), Is.True);
+            Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
+            Assert.That(session.Results, Is.Empty);
+            Assert.That(session.SelectedIndex, Is.EqualTo(-1));
+            session.GoBack();
+            Assert.That(session.SelectedIndex, Is.Zero);
+            Assert.That(session.Results[0], Is.SameAs(leaf));
+            session.SetQuery("Leaf");
+            Assert.That(session.SelectedIndex, Is.EqualTo(-1));
         }
 
         [Test]
         public void EmptyResultsAndExplicitArrowSelection()
         {
-            var state = CreateState();
-            state.MoveSelection(-1);
-            Assert.That(state.SelectedIndex, Is.EqualTo(2));
-            state.SetQuery("not found");
-            state.MoveSelection(1);
-            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
-            Assert.That(state.ActivateSelected(), Is.False);
-            state.SetQuery("");
-            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
-            state.MoveSelection(1);
-            Assert.That(state.SelectedIndex, Is.Zero);
+            var session = CreateSession();
+            session.MoveSelection(-1);
+            Assert.That(session.SelectedIndex, Is.EqualTo(2));
+            session.SetQuery("not found");
+            session.MoveSelection(1);
+            Assert.That(session.SelectedIndex, Is.EqualTo(-1));
+            Assert.That(session.ActivateSelected(), Is.False);
+            session.SetQuery("");
+            Assert.That(session.SelectedIndex, Is.EqualTo(-1));
+            session.MoveSelection(1);
+            Assert.That(session.SelectedIndex, Is.Zero);
         }
     }
 }

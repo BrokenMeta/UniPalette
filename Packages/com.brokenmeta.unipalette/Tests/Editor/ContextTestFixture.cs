@@ -3,7 +3,6 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using BrokenMeta.UniPalette.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -12,6 +11,8 @@ using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -62,11 +63,11 @@ namespace BrokenMeta.UniPalette.Tests
             return go;
         }
 
-        private protected static void Choose(PaletteState state, string title)
+        private protected static void Choose(PaletteSession session, string title)
         {
-            var index = state.Results.FindIndex(item => item.Title == title);
+            var index = session.Results.FindIndex(item => item.Title == title);
             Assert.That(index, Is.GreaterThanOrEqualTo(0), title);
-            state.Select(index);
+            session.Select(index);
         }
 
         private protected void CreateAssets()

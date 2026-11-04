@@ -2,13 +2,14 @@ using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
-using BrokenMeta.UniPalette.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.ShortcutManagement;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -31,23 +32,23 @@ namespace BrokenMeta.UniPalette.Tests
             yield return null;
             Assert.That(results.selectedIndex, Is.EqualTo(-1), "Opening root never selects automatically");
             Key(KeyCode.DownArrow, EventModifiers.Alt);
-            Assert.That(state.SelectedIndex, Is.Zero);
+            Assert.That(session.SelectedIndex, Is.Zero);
             Key(KeyCode.DownArrow, EventModifiers.Alt);
-            Assert.That(state.SelectedIndex, Is.EqualTo(1), "Exactly one step through the inner text field");
+            Assert.That(session.SelectedIndex, Is.EqualTo(1), "Exactly one step through the inner text field");
             Key(KeyCode.UpArrow, EventModifiers.Alt);
-            Assert.That(state.SelectedIndex, Is.Zero);
+            Assert.That(session.SelectedIndex, Is.Zero);
             Key(KeyCode.RightArrow, EventModifiers.Alt);
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root"));
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root"));
             Assert.That(results.selectedIndex, Is.Zero, "Forward selection reaches ListView");
             yield return null;
             for (var i = 0; i < 45; ++i) Key(KeyCode.DownArrow, EventModifiers.Alt);
-            Assert.That(state.SelectedIndex, Is.EqualTo(45));
+            Assert.That(session.SelectedIndex, Is.EqualTo(45));
             Assert.That(results.selectedIndex, Is.EqualTo(45));
             yield return null;
             var scroll = results.Q<ScrollView>();
             Assert.That(scroll.scrollOffset.y, Is.GreaterThan(0), "Selected row is scrolled into view");
             Key(KeyCode.RightArrow, EventModifiers.Alt);
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Group 45"));
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Group 45"));
             Assert.That(results.selectedIndex, Is.Zero);
             yield return null;
             yield return WaitForSearchFocus();
@@ -77,7 +78,7 @@ namespace BrokenMeta.UniPalette.Tests
             try { Key(KeyCode.RightArrow); Key(KeyCode.LeftArrow); }
             finally { search.UnregisterCallback(observe, TrickleDown.TrickleDown); }
             Assert.That(caretEvents, Is.EqualTo(2), "Plain Left/Right reach the text input instead of being consumed as navigation");
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root"));
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root"));
         }
 
         [UnityTest]
@@ -89,16 +90,16 @@ namespace BrokenMeta.UniPalette.Tests
             yield return null;
             Click(0);
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
-            Assert.That(state.Context.Path, Is.EqualTo("Assets"));
-            Assert.That(state.Results[state.SelectedIndex].Title, Is.EqualTo("Folder"));
-            Assert.That(results.selectedIndex, Is.EqualTo(state.SelectedIndex));
+            Assert.That(session.Context.Path, Is.EqualTo("Assets"));
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Folder"));
+            Assert.That(results.selectedIndex, Is.EqualTo(session.SelectedIndex));
             yield return WaitForSearchFocus();
             Key(KeyCode.Escape);
-            Assert.That(state.Results[state.SelectedIndex].Title, Is.EqualTo("Project"));
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Project"));
             Assert.That(results.selectedIndex, Is.EqualTo(1));
             var input = window.rootVisualElement.Q<VisualElement>("search").Q<TextField>();
             input.value = "Hierarchy";
-            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
+            Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             Assert.That(results.selectedIndex, Is.EqualTo(-1));
             yield return WaitForSearchFocus();
         }
@@ -109,48 +110,48 @@ namespace BrokenMeta.UniPalette.Tests
             yield return SetUpWindow();
             yield return null;
             Key(KeyCode.RightArrow, EventModifiers.Alt);
-            Assert.That(state.Context, Is.Null, "No implicit selection");
+            Assert.That(session.Context, Is.Null, "No implicit selection");
             Key(KeyCode.DownArrow);
             Key(KeyCode.RightArrow, EventModifiers.Alt);
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root"));
-            Assert.That(state.SelectedIndex, Is.Zero);
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root"));
+            Assert.That(session.SelectedIndex, Is.Zero);
             yield return WaitForSearchFocus();
             // Query changes flow through the native text field inside the App UI SearchBar.
             var input = window.rootVisualElement.Q<VisualElement>("search").Q<TextField>();
             input.value = "Parent";
             Key(KeyCode.DownArrow);
             Key(KeyCode.RightArrow, EventModifiers.Alt);
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent"));
-            Assert.That(state.Query, Is.Empty);
-            Assert.That(state.SelectedIndex, Is.Zero);
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Parent"));
+            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.SelectedIndex, Is.Zero);
             Key(KeyCode.DownArrow);
             Key(KeyCode.RightArrow, EventModifiers.Alt);
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
-            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
+            Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
-            Assert.That(state.Results[state.SelectedIndex].Title, Is.EqualTo("Leaf"));
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Leaf"));
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
-            Assert.That(state.Context, Is.Null, "One back per transition");
+            Assert.That(session.Context, Is.Null, "One back per transition");
             Key(KeyCode.DownArrow); Key(KeyCode.DownArrow);
             Key(KeyCode.RightArrow, EventModifiers.Alt);
-            Assert.That(state.Context.Path, Is.EqualTo("Assets"));
+            Assert.That(session.Context.Path, Is.EqualTo("Assets"));
             Key(KeyCode.DownArrow); Key(KeyCode.RightArrow, EventModifiers.Alt);
-            Assert.That(state.Context.Path, Is.EqualTo("Assets/Folder"));
+            Assert.That(session.Context.Path, Is.EqualTo("Assets/Folder"));
             var searchInput = window.rootVisualElement.Q<VisualElement>("search").Q<TextField>();
             searchInput.value = "not found"; // Clear the automatic selection to target the current folder.
             Key(KeyCode.Return, EventModifiers.Control);
-            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
-            Assert.That(state.SelectedIndex, Is.Zero); // Inspect is selected on entry.
+            Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
+            Assert.That(session.SelectedIndex, Is.Zero); // Inspect is selected on entry.
             Key(KeyCode.RightArrow, EventModifiers.Alt);
-            Assert.That(state.Message, Is.Empty, "Alt Right must not preview or execute a command");
+            Assert.That(session.Message, Is.Empty, "Alt Right must not preview or execute a command");
             Key(KeyCode.DownArrow); // Create category.
             Key(KeyCode.RightArrow, EventModifiers.Alt);
-            Assert.That(state.Location, Is.EqualTo("Mock commands/Create"));
+            Assert.That(session.Location, Is.EqualTo("Mock commands/Create"));
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
-            Assert.That(state.Location, Is.EqualTo("Mock commands"));
-            Assert.That(state.Query, Is.Empty);
-            Assert.That(state.Results[state.SelectedIndex].Title, Is.EqualTo("Create (experimental category)"));
+            Assert.That(session.Location, Is.EqualTo("Mock commands"));
+            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Results[session.SelectedIndex].Title, Is.EqualTo("Create (experimental category)"));
             yield return WaitForSearchFocus();
         }
 
@@ -160,27 +161,27 @@ namespace BrokenMeta.UniPalette.Tests
             yield return SetUpWindow();
             yield return null;
             Click(0);
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root"));
-            Assert.That(state.SelectedIndex, Is.Zero);
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root"));
+            Assert.That(session.SelectedIndex, Is.Zero);
             yield return null;
             yield return WaitForSearchFocus();
             Click(0);
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent"));
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Parent"));
             yield return null;
             Click(0);
-            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
-            Assert.That(state.SelectedIndex, Is.Zero);
+            Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
+            Assert.That(session.SelectedIndex, Is.Zero);
             yield return null;
             yield return WaitForSearchFocus();
             Key(KeyCode.Escape);
             Assert.That(results.selectedIndex, Is.Zero, "Return restores the leaf row");
             yield return null;
             Click(0, control: true);
-            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
+            Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
             Key(KeyCode.Escape);
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root/Parent"), "Exactly one command level was pushed");
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root/Parent"), "Exactly one command level was pushed");
         }
 
         [UnityTest]
@@ -189,18 +190,18 @@ namespace BrokenMeta.UniPalette.Tests
             yield return SetUpWindow();
             yield return null;
             Click(1, control: true);
-            Assert.That(state.Context.Path, Is.EqualTo("Assets"));
-            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
+            Assert.That(session.Context.Path, Is.EqualTo("Assets"));
+            Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
             Key(KeyCode.Escape);
-            Assert.That(state.Context, Is.Null);
+            Assert.That(session.Context, Is.Null);
             yield return null;
             Click(1);
-            Assert.That(state.Context.Path, Is.EqualTo("Assets"));
+            Assert.That(session.Context.Path, Is.EqualTo("Assets"));
             yield return null;
             Click(0, count: 2);
-            Assert.That(state.Context.Path, Is.EqualTo("Assets"), "Second click must not enter a rebound row");
+            Assert.That(session.Context.Path, Is.EqualTo("Assets"), "Second click must not enter a rebound row");
             Click(0);
-            Assert.That(state.Context.Path, Is.EqualTo("Assets/Folder"));
+            Assert.That(session.Context.Path, Is.EqualTo("Assets/Folder"));
             yield return null;
             yield return WaitForSearchFocus();
         }
@@ -211,9 +212,9 @@ namespace BrokenMeta.UniPalette.Tests
             yield return SetUpWindow();
             yield return null;
             Key(KeyCode.DownArrow);
-            Assert.That(state.SelectedIndex, Is.Zero);
+            Assert.That(session.SelectedIndex, Is.Zero);
             Key(KeyCode.Return);
-            Assert.That(state.Context.Path, Is.EqualTo("Scene Root"));
+            Assert.That(session.Context.Path, Is.EqualTo("Scene Root"));
             var method = typeof(UniPaletteWindow).GetMethod("Open", BindingFlags.Static | BindingFlags.NonPublic);
             Assert.That(method.GetCustomAttributes(typeof(ShortcutAttribute), false).Length, Is.EqualTo(1));
             Assert.That(ShortcutManager.instance.GetAvailableShortcutIds(), Does.Contain("UniPalette/Open"));
@@ -223,7 +224,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(Resources.FindObjectsOfTypeAll<UniPaletteWindow>().Length, Is.EqualTo(1));
             yield return WaitForSearchFocus();
             Key(KeyCode.DownArrow);
-            Assert.That(state.SelectedIndex, Is.Zero, "One arrow step after repeated activation");
+            Assert.That(session.SelectedIndex, Is.Zero, "One arrow step after repeated activation");
         }
     }
 }

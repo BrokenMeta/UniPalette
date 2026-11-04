@@ -2,12 +2,14 @@ using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
-using BrokenMeta.UniPalette.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor.Services;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -34,11 +36,11 @@ namespace BrokenMeta.UniPalette.Tests
         private protected static PaletteItem Build(string[] paths = null, PaletteItem context = null) =>
             MenuCommands.Build(paths ?? Paths, context ?? Assets(), false, _ => true);
 
-        private protected static void Choose(PaletteState state, string path)
+        private protected static void Choose(PaletteSession session, string path)
         {
-            var index = state.Results.FindIndex(item => item.Path == path);
+            var index = session.Results.FindIndex(item => item.Path == path);
             Assert.That(index, Is.GreaterThanOrEqualTo(0), path);
-            state.Select(index);
+            session.Select(index);
         }
     }
 }

@@ -4,8 +4,9 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using BrokenMeta.UniPalette.Editor.Model;
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Services
 {
     internal static class UnityContexts
     {

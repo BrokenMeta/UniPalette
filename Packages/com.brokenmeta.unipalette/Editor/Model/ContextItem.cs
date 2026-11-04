@@ -2,7 +2,7 @@ using UnityEditor;
 using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Model
 {
     internal abstract class ContextItem : PaletteItem
     {

@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor.Services;
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Application
 {
     internal sealed class ContextBrowser : PaletteBrowser
     {
@@ -28,22 +30,22 @@ namespace BrokenMeta.UniPalette.Editor
                     yield return item;
         }
 
-        internal override bool Activate(PaletteState state, PaletteItem selected)
+        internal override bool Activate(PaletteSession session, PaletteItem selected)
         {
             if (selected == null) return false;
-            if (selected.SelectionEntry) return state.OpenCommands(selected);
+            if (selected.SelectionEntry) return session.OpenCommands(selected);
             // Source entries open their area even when empty; empty folders open commands.
             return selected.HasBrowseChildren
-                ? state.Push(new ContextBrowser(selected)) : state.OpenCommands(selected);
+                ? session.Push(new ContextBrowser(selected)) : session.OpenCommands(selected);
         }
 
-        internal override bool OpenContextCommands(PaletteState state, PaletteItem selected)
+        internal override bool OpenContextCommands(PaletteSession session, PaletteItem selected)
         {
             var context = selected ?? Context;
-            return context != null && state.OpenCommands(context);
+            return context != null && session.OpenCommands(context);
         }
 
-        internal override string GetNotice(PaletteState state) => state.Results.Count == 0 ? "No results" : "";
+        internal override string GetNotice(PaletteSession session) => session.Results.Count == 0 ? "No results" : "";
 
         internal override PaletteRow Describe(PaletteItem item) => new PaletteRow(item,
             item.SelectionEntry ? item.Title + " · " + item.Path : item.Path, item.Target, item.IconName,

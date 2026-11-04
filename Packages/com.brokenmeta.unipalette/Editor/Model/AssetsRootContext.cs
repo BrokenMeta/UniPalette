@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
+using BrokenMeta.UniPalette.Editor.Services;
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Model
 {
     internal sealed class AssetsRootContext : ContextItem
     {

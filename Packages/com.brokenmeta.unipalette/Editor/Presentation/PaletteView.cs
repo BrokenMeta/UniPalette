@@ -6,13 +6,15 @@ using UnityEngine.UIElements;
 using Unity.AppUI.UI;
 using ListView = UnityEngine.UIElements.ListView;
 using Text = Unity.AppUI.UI.Text;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Presentation
 {
-    // Owns the visual tree and its callbacks; navigation and execution stay in the window/state.
+    // Owns the visual tree and its callbacks; navigation belongs to the session.
     internal sealed class PaletteView : IDisposable
     {
-        private const string UIPath = "Packages/com.brokenmeta.unipalette/Editor/UI/";
+        private const string UIPath = "Packages/com.brokenmeta.unipalette/Editor/Presentation/UI/";
         private SearchBar searchBar;
         private ListView results;
         private ActionButton back;
@@ -25,7 +27,7 @@ namespace BrokenMeta.UniPalette.Editor
         private Text hints;
         private Text messageLabel;
         private Text dataLabel;
-        private PaletteState state;
+        private PaletteSession session;
 
         private readonly VisualElement root;
         private Panel panel;
@@ -92,13 +94,13 @@ namespace BrokenMeta.UniPalette.Editor
             results.destroyItem = ReleaseRow;
         }
 
-        private void BindState(PaletteState next)
+        private void BindSession(PaletteSession next)
         {
-            if (ReferenceEquals(state, next)) return;
-            state = next;
+            if (ReferenceEquals(session, next)) return;
+            session = next;
             // Rebinding is a render operation, not a user selection change.
             results.selectionChanged -= OnRowSelectionChanged;
-            try { results.itemsSource = state.Results; }
+            try { results.itemsSource = session.Results; }
             finally { results.selectionChanged += OnRowSelectionChanged; }
         }
 
@@ -142,47 +144,47 @@ namespace BrokenMeta.UniPalette.Editor
             if (index >= 0) results.ScrollToItem(index);
         }
 
-        internal void Render(PaletteState state, bool focusSearch = true)
+        internal void Render(PaletteSession session, bool focusSearch = true)
         {
             if (disposed) return;
-            BindState(state);
-            searchBar.SetValueWithoutNotify(state.Query);
-            var browser = state.Browser;
+            BindSession(session);
+            searchBar.SetValueWithoutNotify(session.Query);
+            var browser = session.Browser;
             searchBar.placeholder = browser.SearchPlaceholder;
             modeLabel.text = browser.Label;
-            contextTitle.text = state.Context?.ContextTitle ?? "Choose a context";
+            contextTitle.text = session.Context?.ContextTitle ?? "Choose a context";
             contextLabel.text = browser.Breadcrumb;
             contextLabel.tooltip = contextLabel.text;
-            contextIcon.image = ItemIcon(state.Context);
+            contextIcon.image = ItemIcon(session.Context);
             dataLabel.text = browser.DataLabel;
             dataLabel.tooltip = browser.DataTooltip;
             resultsTitle.text = browser.ResultsTitle;
             hints.text = browser.Hints;
-            back.SetEnabled(state.CanGoBack);
-            back.tooltip = state.CanGoBack ? "Back · Escape / Alt+Left" : "Already at the root";
-            RefreshResults(state);
+            back.SetEnabled(session.CanGoBack);
+            back.tooltip = session.CanGoBack ? "Back · Escape / Alt+Left" : "Already at the root";
+            RefreshResults(session);
             if (focusSearch) ScheduleSearchFocus();
         }
 
-        internal void RefreshResults(PaletteState state)
+        internal void RefreshResults(PaletteSession session)
         {
             if (disposed) return;
-            BindState(state);
-            var selected = state.SelectedIndex;
+            BindSession(session);
+            var selected = session.SelectedIndex;
             results.SetSelectionWithoutNotify(System.Array.Empty<int>());
             results.RefreshItems();
-            state.Select(selected);
-            results.SetSelectionWithoutNotify(state.SelectedIndex < 0 ? System.Array.Empty<int>() : new[] { state.SelectedIndex });
-            if (state.SelectedIndex >= 0) results.ScrollToItem(state.SelectedIndex);
-            resultsCount.text = state.Results.Count.ToString();
-            UpdateMessage(state);
+            session.Select(selected);
+            results.SetSelectionWithoutNotify(session.SelectedIndex < 0 ? System.Array.Empty<int>() : new[] { session.SelectedIndex });
+            if (session.SelectedIndex >= 0) results.ScrollToItem(session.SelectedIndex);
+            resultsCount.text = session.Results.Count.ToString();
+            UpdateMessage(session);
         }
 
-        internal void UpdateMessage(PaletteState state)
+        internal void UpdateMessage(PaletteSession session)
         {
             if (disposed) return;
-            messageLabel.text = state.Message.Length > 0 ? state.Message
-                : state.Browser.GetNotice(state);
+            messageLabel.text = session.Message.Length > 0 ? session.Message
+                : session.Browser.GetNotice(session);
             messageLabel.style.display = messageLabel.text.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
@@ -205,11 +207,11 @@ namespace BrokenMeta.UniPalette.Editor
 
         private void BindRow(VisualElement element, int index)
         {
-            if (disposed || state == null) return;
-            var item = state.Results[index];
+            if (disposed || session == null) return;
+            var item = session.Results[index];
             var row = (ListViewItem)element;
             row.userData = item;
-            var description = state.Browser.Describe(item);
+            var description = session.Browser.Describe(item);
             row.title = description.Title;
             row.subtitle = description.Subtitle;
             row.tooltip = description.Tooltip;
@@ -272,7 +274,7 @@ namespace BrokenMeta.UniPalette.Editor
             RowSelectionChanged = null;
             RowActivated = null;
             KeyPressed = null;
-            state = null;
+            session = null;
         }
     }
 }

@@ -2,13 +2,15 @@ using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
-using BrokenMeta.UniPalette.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.ShortcutManagement;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -16,7 +18,7 @@ namespace BrokenMeta.UniPalette.Tests
     {
         private protected const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
         private protected UniPaletteWindow window;
-        private protected PaletteState state;
+        private protected PaletteSession session;
         private protected ListView results;
 
 
@@ -24,7 +26,7 @@ namespace BrokenMeta.UniPalette.Tests
         {
             window = EditorWindow.GetWindow<UniPaletteWindow>();
             typeof(UniPaletteWindow).GetMethod("CreateGUI", PrivateInstance).Invoke(window, null);
-            state = new PaletteState(roots ?? new[] {
+            session = PaletteTestData.CreateSession(roots ?? new[] {
                 new FixtureItem("Hierarchy", "Scene Root", false,
                     new FixtureItem("Parent", "Scene Root/Parent", false,
                         new FixtureItem("Leaf", "Scene Root/Parent/Leaf"))),
@@ -32,7 +34,7 @@ namespace BrokenMeta.UniPalette.Tests
                     new FixtureItem("Folder", "Assets/Folder", false,
                         new FixtureItem("Asset", "Assets/Folder/Asset")))
             }, PaletteTestData.Commands());
-            PaletteTestData.Install(window, state);
+            PaletteTestData.Install(window, session);
             results = window.rootVisualElement.Q<ListView>("results");
             window.Show();
             window.Focus();

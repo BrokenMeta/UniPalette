@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using Object = UnityEngine.Object;
+using BrokenMeta.UniPalette.Editor.Services;
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Model
 {
     internal sealed class AssetContext : ContextItem
     {

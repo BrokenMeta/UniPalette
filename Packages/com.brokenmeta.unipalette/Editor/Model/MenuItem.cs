@@ -1,6 +1,6 @@
 using System;
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Model
 {
     internal abstract class MenuItem : PaletteItem
     {

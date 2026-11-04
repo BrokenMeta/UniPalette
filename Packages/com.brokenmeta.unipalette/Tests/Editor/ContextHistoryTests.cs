@@ -3,7 +3,6 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using BrokenMeta.UniPalette.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -12,6 +11,8 @@ using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -26,20 +27,20 @@ namespace BrokenMeta.UniPalette.Tests
             var parent = Go("Parent");
             var otherParent = Go("Parent");
             var leaf = Go("Needle", Go("Branch", parent));
-            var state = new PaletteState(commandRoot: PaletteTestData.Commands());
-            Choose(state, "Hierarchy"); state.ActivateSelected();
-            state.SetQuery("Needle"); state.MoveSelection(1); state.OpenContextCommands();
+            var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
+            Choose(session, "Hierarchy"); session.ActivateSelected();
+            session.SetQuery("Needle"); session.MoveSelection(1); session.OpenContextCommands();
             leaf.transform.SetParent(otherParent.transform);
             leaf.name = "Renamed";
-            state.GoBack();
-            Assert.That(state.Query, Is.Empty);
-            Assert.That(state.Results[state.SelectedIndex].Target, Is.EqualTo(otherParent), "Current ancestry, not an old path or duplicate name");
-            state.ActivateSelected();
-            Assert.That(state.SelectedIndex, Is.Zero);
-            state.Select(0); state.OpenContextCommands();
+            session.GoBack();
+            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Results[session.SelectedIndex].Target, Is.EqualTo(otherParent), "Current ancestry, not an old path or duplicate name");
+            session.ActivateSelected();
+            Assert.That(session.SelectedIndex, Is.Zero);
+            session.Select(0); session.OpenContextCommands();
             leaf.name = "RenamedAgain";
-            state.GoBack();
-            Assert.That(state.Results[state.SelectedIndex].Target, Is.EqualTo(leaf), "Visible object restored by identity after rename");
+            session.GoBack();
+            Assert.That(session.Results[session.SelectedIndex].Target, Is.EqualTo(leaf), "Visible object restored by identity after rename");
         }
 
         [Test]
@@ -47,34 +48,34 @@ namespace BrokenMeta.UniPalette.Tests
         {
             var parent = Go("Parent");
             var leaf = Go("Needle", parent);
-            var state = new PaletteState(commandRoot: PaletteTestData.Commands());
-            Choose(state, "Hierarchy"); state.ActivateSelected();
-            state.SetQuery("Needle"); state.MoveSelection(1); state.OpenContextCommands();
+            var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
+            Choose(session, "Hierarchy"); session.ActivateSelected();
+            session.SetQuery("Needle"); session.MoveSelection(1); session.OpenContextCommands();
             Object.DestroyImmediate(leaf);
-            state.GoBack();
-            Assert.That(state.Query, Is.Empty);
-            Assert.That(state.Results.Any(item => item.Target == parent), Is.True);
-            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
+            session.GoBack();
+            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Results.Any(item => item.Target == parent), Is.True);
+            Assert.That(session.SelectedIndex, Is.EqualTo(-1));
         }
 
         [Test]
         public void BackRestoresAssetByGuidAndVisibleAncestorAfterMove()
         {
             CreateAssets();
-            var state = new PaletteState(commandRoot: PaletteTestData.Commands());
-            Choose(state, "Project"); state.ActivateSelected();
-            state.SetQuery(folder);
-            Choose(state, "Data"); state.ActivateSelected();
-            state.SetQuery(folder + "/A/Nested/Needle.txt"); state.MoveSelection(1); state.OpenContextCommands();
+            var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
+            Choose(session, "Project"); session.ActivateSelected();
+            session.SetQuery(folder);
+            Choose(session, "Data"); session.ActivateSelected();
+            session.SetQuery(folder + "/A/Nested/Needle.txt"); session.MoveSelection(1); session.OpenContextCommands();
             Assert.That(AssetDatabase.MoveAsset(folder + "/A/Nested/Needle.txt", folder + "/AB/Moved.txt"), Is.Empty);
-            state.GoBack();
-            Assert.That(state.Query, Is.Empty);
-            Assert.That(state.Results[state.SelectedIndex].Path, Is.EqualTo(folder + "/AB"));
-            state.ActivateSelected();
-            Choose(state, "Moved.txt"); state.OpenContextCommands();
+            session.GoBack();
+            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.Results[session.SelectedIndex].Path, Is.EqualTo(folder + "/AB"));
+            session.ActivateSelected();
+            Choose(session, "Moved.txt"); session.OpenContextCommands();
             Assert.That(AssetDatabase.MoveAsset(folder + "/AB/Moved.txt", folder + "/AB/Renamed.txt"), Is.Empty);
-            state.GoBack();
-            Assert.That(state.Results[state.SelectedIndex].Path, Is.EqualTo(folder + "/AB/Renamed.txt"));
+            session.GoBack();
+            Assert.That(session.Results[session.SelectedIndex].Path, Is.EqualTo(folder + "/AB/Renamed.txt"));
         }
 
         [Test]
@@ -83,14 +84,14 @@ namespace BrokenMeta.UniPalette.Tests
             var first = Go("First");
             var second = Go("Second");
             Selection.activeObject = first;
-            var state = new PaletteState(commandRoot: PaletteTestData.Commands());
-            state.Select(0); state.ActivateSelected(); state.GoBack();
-            Assert.That(state.SelectedIndex, Is.Zero, "Previously explicit first row is restored");
-            state.ActivateSelected();
+            var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
+            session.Select(0); session.ActivateSelected(); session.GoBack();
+            Assert.That(session.SelectedIndex, Is.Zero, "Previously explicit first row is restored");
+            session.ActivateSelected();
             Selection.activeObject = second;
-            state.GoBack();
-            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
-            Assert.That(state.Results.Single(item => item.SelectionEntry).Target, Is.EqualTo(second));
+            session.GoBack();
+            Assert.That(session.SelectedIndex, Is.EqualTo(-1));
+            Assert.That(session.Results.Single(item => item.SelectionEntry).Target, Is.EqualTo(second));
         }
 
         [Test]
@@ -99,26 +100,26 @@ namespace BrokenMeta.UniPalette.Tests
             var parent = Go("Parent");
             var branch = Go("Branch", parent);
             Go("Leaf", branch);
-            var state = new PaletteState(commandRoot: PaletteTestData.Commands());
-            Choose(state, "Hierarchy"); state.ActivateSelected();
-            Choose(state, "Parent"); state.ActivateSelected();
-            Choose(state, "Branch"); state.ActivateSelected();
-            state.OpenContextCommands();
-            state.Select(1); state.ActivateSelected(); // Experimental category.
-            state.SetQuery("Cube");
+            var session = PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands());
+            Choose(session, "Hierarchy"); session.ActivateSelected();
+            Choose(session, "Parent"); session.ActivateSelected();
+            Choose(session, "Branch"); session.ActivateSelected();
+            session.OpenContextCommands();
+            session.Select(1); session.ActivateSelected(); // Experimental category.
+            session.SetQuery("Cube");
             Object.DestroyImmediate(branch);
-            state.Refresh();
-            Assert.That(state.Browser, Is.TypeOf<ContextBrowser>());
-            Assert.That(state.Context.Target, Is.EqualTo(parent));
-            Assert.That(state.Query, Is.Empty);
-            Assert.That(state.SelectedIndex, Is.EqualTo(-1));
+            session.Refresh();
+            Assert.That(session.Browser, Is.TypeOf<ContextBrowser>());
+            Assert.That(session.Context.Target, Is.EqualTo(parent));
+            Assert.That(session.Query, Is.Empty);
+            Assert.That(session.SelectedIndex, Is.EqualTo(-1));
             parent.name = "Renamed";
-            state.Refresh();
-            Assert.That(state.Context.Title, Is.EqualTo("Renamed"));
-            Assert.That(state.Context.Path, Does.Contain("Renamed"));
+            session.Refresh();
+            Assert.That(session.Context.Title, Is.EqualTo("Renamed"));
+            Assert.That(session.Context.Path, Does.Contain("Renamed"));
             Object.DestroyImmediate(parent);
-            state.GoBack();
-            Assert.That(state.Context, Is.TypeOf<SceneRootContext>());
+            session.GoBack();
+            Assert.That(session.Context, Is.TypeOf<SceneRootContext>());
         }
     }
 }

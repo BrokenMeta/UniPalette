@@ -2,13 +2,18 @@ using UnityEditor;
 using UnityEditor.ShortcutManagement;
 using UnityEngine;
 using UnityEngine.UIElements;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor.Presentation;
+using BrokenMeta.UniPalette.Editor.Services;
 
 namespace BrokenMeta.UniPalette.Editor
 {
     public class UniPaletteWindow : EditorWindow
     {
         private PaletteView view;
-        private PaletteState state;
+        private PaletteSession session;
+        private ICommandSource commandSource;
         private UnityEngine.Object observedSelection;
         private int observedSelectionCount;
         private double nextContextCheck;
@@ -31,7 +36,7 @@ namespace BrokenMeta.UniPalette.Editor
             EditorApplication.projectChanged -= RefreshContexts;
             EditorApplication.update -= CheckContextChanges;
             DisposeView();
-            DisposeState();
+            DisposeSession();
         }
 
         private void OnFocus() => RefreshContexts();
@@ -45,21 +50,21 @@ namespace BrokenMeta.UniPalette.Editor
 
         private void CheckContextChanges()
         {
-            if (state == null || EditorApplication.timeSinceStartup < nextContextCheck) return;
+            if (session == null || EditorApplication.timeSinceStartup < nextContextCheck) return;
             nextContextCheck = EditorApplication.timeSinceStartup + 0.1;
             // Unity 6.6 can change Selection through API without delivering selectionChanged.
             // Compare only the active object/count and current target, never search every tick.
             if (!ReferenceEquals(observedSelection, Selection.activeObject) || observedSelectionCount != Selection.count
-                || (state.Context != null && !state.Context.IsValid)) RefreshContexts();
+                || (session.Context != null && !session.Context.IsValid)) RefreshContexts();
         }
 
         private void RefreshContexts()
         {
-            if (!this || state == null || view?.IsAttached != true) return;
+            if (!this || session == null || view?.IsAttached != true) return;
             observedSelection = Selection.activeObject;
             observedSelectionCount = Selection.count;
-            if (state.ConfirmingContext) return;
-            state.Refresh();
+            if (session.ConfirmingContext) return;
+            session.Refresh();
             Render(false);
         }
 
@@ -85,13 +90,14 @@ namespace BrokenMeta.UniPalette.Editor
         private void CreateGUI()
         {
             DisposeView();
-            DisposeState();
+            DisposeSession();
             titleContent = new GUIContent("UniPalette");
             minSize = new Vector2(360, 240);
             view = new PaletteView(rootVisualElement);
-            state = new PaletteState();
-            state.CommandResultsChanged += OnCommandResultsChanged;
-            state.ExecuteCommand += ExecuteCommand;
+            commandSource = new MenuCommands();
+            session = new PaletteSession(commandSource);
+            session.CommandResultsChanged += OnCommandResultsChanged;
+            session.ExecuteCommand += ExecuteCommand;
             AttachView();
             Render();
         }
@@ -117,23 +123,27 @@ namespace BrokenMeta.UniPalette.Editor
             view = null;
         }
 
-        private void DisposeState()
+        private void DisposeSession()
         {
-            if (state == null) return;
-            state.CommandResultsChanged -= OnCommandResultsChanged;
-            state.ExecuteCommand -= ExecuteCommand;
-            state.Dispose();
+            if (session != null)
+            {
+                session.CommandResultsChanged -= OnCommandResultsChanged;
+                session.ExecuteCommand -= ExecuteCommand;
+                session.Dispose();
+            }
+            commandSource?.Dispose();
+            commandSource = null;
         }
 
-        private void SelectRow(int index) => state.Select(index);
+        private void SelectRow(int index) => session.Select(index);
 
         private void OnCommandResultsChanged() => Render(false);
 
         private void UpdateQuery(string query)
         {
-            if (query == state.Query) return;
-            state.SetQuery(query);
-            view.RefreshResults(state);
+            if (query == session.Query) return;
+            session.SetQuery(query);
+            view.RefreshResults(session);
         }
 
         private void OnKeyDown(KeyDownEvent evt)
@@ -142,7 +152,7 @@ namespace BrokenMeta.UniPalette.Editor
             if (evt.keyCode == KeyCode.Escape)
             {
                 Consume(evt);
-                if (state.CanGoBack) GoBack(); else Close();
+                if (session.CanGoBack) GoBack(); else Close();
             }
             else if (evt.altKey && evt.keyCode == KeyCode.LeftArrow)
             {
@@ -158,8 +168,8 @@ namespace BrokenMeta.UniPalette.Editor
                      (evt.keyCode == KeyCode.UpArrow || evt.keyCode == KeyCode.DownArrow))
             {
                 Consume(evt);
-                state.MoveSelection(evt.keyCode == KeyCode.DownArrow ? 1 : -1);
-                view.RevealSelection(state.SelectedIndex);
+                session.MoveSelection(evt.keyCode == KeyCode.DownArrow ? 1 : -1);
+                view.RevealSelection(session.SelectedIndex);
                 view.FocusSearch();
             }
             else if (enter)
@@ -176,9 +186,9 @@ namespace BrokenMeta.UniPalette.Editor
             evt.StopImmediatePropagation();
         }
 
-        private void ActivateSelected() => ApplyNavigation(state.ActivateSelected);
-        private void BrowseSelected() => ApplyNavigation(state.BrowseSelected);
-        private void OpenContextCommands() => ApplyNavigation(state.OpenContextCommands);
+        private void ActivateSelected() => ApplyNavigation(session.ActivateSelected);
+        private void BrowseSelected() => ApplyNavigation(session.BrowseSelected);
+        private void OpenContextCommands() => ApplyNavigation(session.OpenContextCommands);
 
         private void ApplyNavigation(System.Func<bool> action)
         {
@@ -187,7 +197,7 @@ namespace BrokenMeta.UniPalette.Editor
             else
             {
                 if (executing || !this) return;
-                view.UpdateMessage(state);
+                view.UpdateMessage(session);
                 ScheduleSearchFocus();
             }
             view.FocusSearch();
@@ -198,7 +208,7 @@ namespace BrokenMeta.UniPalette.Editor
             if (executing) return;
             if (!NativeExecution.TryPrepare(command, context, out var execution, out var error))
             {
-                state.ShowExecutionError(error);
+                session.ShowExecutionError(error);
                 return;
             }
             executing = true;
@@ -212,9 +222,9 @@ namespace BrokenMeta.UniPalette.Editor
             var mouse = evt as IMouseEvent;
             // A second click must not activate the row rebound beneath the first click.
             if ((pointer?.clickCount ?? mouse?.clickCount ?? 1) > 1) return;
-            var index = state.Results.IndexOf(item);
+            var index = session.Results.IndexOf(item);
             if (index < 0) return;
-            state.Select(index);
+            session.Select(index);
             view.SelectRow(index);
             if (pointer?.ctrlKey ?? mouse?.ctrlKey ?? false) OpenContextCommands();
             else ActivateSelected();
@@ -222,7 +232,7 @@ namespace BrokenMeta.UniPalette.Editor
 
         private void GoBack()
         {
-            if (state.GoBack()) Render();
+            if (session.GoBack()) Render();
             else ScheduleSearchFocus();
         }
 
@@ -231,7 +241,7 @@ namespace BrokenMeta.UniPalette.Editor
             // Acknowledge API changes even when Unity omits selectionChanged.
             observedSelection = Selection.activeObject;
             observedSelectionCount = Selection.count;
-            view.Render(state, focusSearch);
+            view.Render(session, focusSearch);
         }
 
         private void ScheduleSearchFocus() => view?.ScheduleSearchFocus();

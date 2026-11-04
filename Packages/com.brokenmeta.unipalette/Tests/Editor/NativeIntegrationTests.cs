@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using BrokenMeta.UniPalette.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -12,6 +11,9 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Services;
+using BrokenMeta.UniPalette.Editor;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -38,15 +40,15 @@ namespace BrokenMeta.UniPalette.Tests
             window = EditorWindow.GetWindow<UniPaletteWindow>();
             typeof(UniPaletteWindow).GetMethod("CreateGUI", Private).Invoke(window, null);
             window.Show(); window.Focus();
-            var state = (PaletteState)typeof(UniPaletteWindow).GetField("state", Private).GetValue(window);
-            state.Select(state.Results.FindIndex(i => i.SelectionEntry));
+            var session = (PaletteSession)typeof(UniPaletteWindow).GetField("session", Private).GetValue(window);
+            session.Select(session.Results.FindIndex(i => i.SelectionEntry));
             Key(KeyCode.Return);
             var deadline = EditorApplication.timeSinceStartup + 5;
-            while (state.CommandsLoading && EditorApplication.timeSinceStartup < deadline) yield return null;
+            while (session.CommandsLoading && EditorApplication.timeSinceStartup < deadline) yield return null;
             window.rootVisualElement.Q<VisualElement>("search").Q<TextField>().value = path;
-            var index = state.Results.FindIndex(i => i.Path == path);
+            var index = session.Results.FindIndex(i => i.Path == path);
             Assert.That(index, Is.GreaterThanOrEqualTo(0), "Supported command must be discoverable");
-            state.Select(index);
+            session.Select(index);
             var list = window.rootVisualElement.Q<ListView>("results");
             list.SetSelectionWithoutNotify(new[] { index });
             yield return null;
@@ -64,7 +66,8 @@ namespace BrokenMeta.UniPalette.Tests
                 Click(row, 1);
             }
             else Key(KeyCode.Return);
-            Assert.That(!window, Is.True, "Native dispatch closes the palette");
+            Assert.That(!window, Is.True, "Native dispatch closes the palette; message=" + session.Message
+                + "; selected=" + session.SelectedIndex + "; query=" + session.Query);
             // A stale UI callback cannot dispatch a second time after OnDisable.
             activate.Invoke(window, null);
             var expected = kind == "GameObject" ? "Unity.Hierarchy.Editor.HierarchyWindow" : "UnityEditor.ProjectBrowser";
@@ -143,7 +146,7 @@ namespace BrokenMeta.UniPalette.Tests
             EditorApplication.ExecuteMenuItem("Window/UniPalette");
             window = EditorWindow.GetWindow<UniPaletteWindow>();
             yield return null;
-            var reopened = (PaletteState)typeof(UniPaletteWindow).GetField("state", Private).GetValue(window);
+            var reopened = (PaletteSession)typeof(UniPaletteWindow).GetField("session", Private).GetValue(window);
             Assert.That(reopened.Browser, Is.TypeOf<ContextBrowser>());
             Assert.That(reopened.Context, Is.Null, "Reopened window has a new navigation lifecycle");
         }
@@ -181,18 +184,18 @@ namespace BrokenMeta.UniPalette.Tests
             window = EditorWindow.GetWindow<UniPaletteWindow>();
             typeof(UniPaletteWindow).GetMethod("CreateGUI", Private).Invoke(window, null);
             window.Show(); window.Focus();
-            var state = (PaletteState)typeof(UniPaletteWindow).GetField("state", Private).GetValue(window);
-            state.Select(state.Results.FindIndex(i => i.SelectionEntry));
+            var session = (PaletteSession)typeof(UniPaletteWindow).GetField("session", Private).GetValue(window);
+            session.Select(session.Results.FindIndex(i => i.SelectionEntry));
             Key(KeyCode.Return);
             var deadline = EditorApplication.timeSinceStartup + 5;
-            while (state.CommandsLoading && EditorApplication.timeSinceStartup < deadline) yield return null;
-            state.SetQuery("Edit/Duplicate");
-            state.Select(state.Results.FindIndex(i => i.Path == "Edit/Duplicate"));
+            while (session.CommandsLoading && EditorApplication.timeSinceStartup < deadline) yield return null;
+            session.SetQuery("Edit/Duplicate");
+            session.Select(session.Results.FindIndex(i => i.Path == "Edit/Duplicate"));
             Selection.activeObject = AssetDatabase.LoadMainAssetAtPath(folder + "/Source.txt");
             // Direct state activation preserves the stale row to exercise the final preflight check.
-            state.ActivateSelected();
+            session.ActivateSelected();
             Assert.That(window, Is.Not.Null);
-            Assert.That(state.Message, Does.Contain("Selection"));
+            Assert.That(session.Message, Does.Contain("Selection"));
             Assert.That(testScene.rootCount, Is.EqualTo(1));
             Assert.That(AssetDatabase.GetAssetPath(Selection.activeObject), Is.EqualTo(folder + "/Source.txt"));
         }
@@ -213,23 +216,23 @@ namespace BrokenMeta.UniPalette.Tests
             window = EditorWindow.GetWindow<UniPaletteWindow>();
             typeof(UniPaletteWindow).GetMethod("CreateGUI", Private).Invoke(window, null);
             window.Show(); window.Focus();
-            var state = (PaletteState)typeof(UniPaletteWindow).GetField("state", Private).GetValue(window);
-            var rootIndex = state.Results.FindIndex(i => i.GetType() == CreateRoot(kind).GetType());
+            var session = (PaletteSession)typeof(UniPaletteWindow).GetField("session", Private).GetValue(window);
+            var rootIndex = session.Results.FindIndex(i => i.GetType() == CreateRoot(kind).GetType());
             Assert.That(rootIndex, Is.GreaterThanOrEqualTo(0));
-            state.Select(rootIndex);
+            session.Select(rootIndex);
             Key(KeyCode.Return, EventModifiers.Control);
-            Assert.That(state.Browser, Is.TypeOf<CommandBrowser>());
-            Assert.That(state.Context.GetType(), Is.EqualTo(CreateRoot(kind).GetType()));
-            Assert.That(state.Context.Target, Is.Null);
-            Assert.That(MenuCommands.MatchesSelection(state.Context), Is.True);
+            Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
+            Assert.That(session.Context.GetType(), Is.EqualTo(CreateRoot(kind).GetType()));
+            Assert.That(session.Context.Target, Is.Null);
+            Assert.That(MenuCommands.MatchesSelection(session.Context), Is.True);
             if (sceneRoot) Assert.That(Selection.count, Is.Zero);
             else Assert.That(AssetDatabase.GetAssetPath(Selection.activeObject), Is.EqualTo("Assets"));
             var deadline = EditorApplication.timeSinceStartup + 5;
-            while (state.CommandsLoading && EditorApplication.timeSinceStartup < deadline) yield return null;
+            while (session.CommandsLoading && EditorApplication.timeSinceStartup < deadline) yield return null;
             window.rootVisualElement.Q<VisualElement>("search").Q<TextField>().value = path;
-            var index = state.Results.FindIndex(i => i.Path == path);
+            var index = session.Results.FindIndex(i => i.Path == path);
             Assert.That(index, Is.GreaterThanOrEqualTo(0), "Root command must be discovered");
-            state.Select(index);
+            session.Select(index);
             var list = window.rootVisualElement.Q<ListView>("results");
             list.SetSelectionWithoutNotify(new[] { index });
             yield return null;
@@ -239,7 +242,7 @@ namespace BrokenMeta.UniPalette.Tests
             Key(KeyCode.RightArrow, EventModifiers.Alt);
             Key(KeyCode.Return, EventModifiers.Control);
             Assert.That(window, Is.Not.Null, "Alt+Right and Ctrl+Enter do not dispatch a leaf");
-            Assert.That(MenuCommands.MatchesSelection(state.Context), Is.True);
+            Assert.That(MenuCommands.MatchesSelection(session.Context), Is.True);
             if (createFolder)
             {
                 rootFolderPath = AssetDatabase.GenerateUniqueAssetPath("Assets/New Folder");

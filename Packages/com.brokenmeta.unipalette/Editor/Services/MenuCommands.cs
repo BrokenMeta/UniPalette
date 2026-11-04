@@ -3,22 +3,24 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Search;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Services
 {
     // A menu snapshot for this palette instance. Query edits only search the resulting local tree.
-    internal sealed class MenuCommands : IDisposable
+    internal sealed class MenuCommands : ICommandSource
     {
         private SearchContext request;
         private bool disposed;
         private bool started;
         private readonly List<string> paths = new List<string>();
-        internal event Action Changed;
-        internal bool IsLoading { get; private set; }
-        internal string Error { get; private set; } = "";
+        public event Action Changed;
+        public bool IsLoading { get; private set; }
+        public string Error { get; private set; } = "";
         internal IReadOnlyList<string> Paths => paths;
 
-        internal PaletteItem ForContext(PaletteItem context)
+        public PaletteItem ForContext(PaletteItem context)
         {
             if (!started) Start();
             return Build(paths, context, MatchesSelection(context), path => Menu.GetEnabled(path));

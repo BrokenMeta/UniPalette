@@ -1,11 +1,16 @@
 using System.Reflection;
-using BrokenMeta.UniPalette.Editor;
 using UnityEngine.UIElements;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor;
 
 namespace BrokenMeta.UniPalette.Tests
 {
     internal static class PaletteTestData
     {
+        internal static PaletteSession CreateSession(PaletteItem[] fixtureRoots = null, PaletteItem commandRoot = null) =>
+            new PaletteSession(new TestCommandSource(commandRoot ?? Commands()), fixtureRoots);
+
         internal static PaletteItem Commands() => new FixtureItem("Commands", "Mock commands", false,
             new FixtureItem("Inspect (mock)", "Mock commands/Inspect"),
             new FixtureItem("Create (experimental category)", "Mock commands/Create", false,
@@ -13,12 +18,13 @@ namespace BrokenMeta.UniPalette.Tests
                 new FixtureItem("Shapes (experimental category)", "Mock commands/Create/Shapes", false,
                     new FixtureItem("Cube (mock)", "Mock commands/Create/Shapes/Cube"))));
 
-        internal static void Install(UniPaletteWindow window, PaletteState state)
+        internal static void Install(UniPaletteWindow window, PaletteSession session, ICommandSource ownedSource = null)
         {
             var flags = BindingFlags.Instance | BindingFlags.NonPublic;
-            var field = typeof(UniPaletteWindow).GetField("state", flags);
-            ((PaletteState)field.GetValue(window))?.Dispose();
-            field.SetValue(window, state);
+            var field = typeof(UniPaletteWindow).GetField("session", flags);
+            typeof(UniPaletteWindow).GetMethod("DisposeSession", flags).Invoke(window, null);
+            field.SetValue(window, session);
+            typeof(UniPaletteWindow).GetField("commandSource", flags).SetValue(window, ownedSource);
             typeof(UniPaletteWindow).GetMethod("Render", flags).Invoke(window, new object[] { true });
         }
     }

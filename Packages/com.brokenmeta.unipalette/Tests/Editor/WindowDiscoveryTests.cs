@@ -2,12 +2,14 @@ using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
-using BrokenMeta.UniPalette.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
+using BrokenMeta.UniPalette.Editor.Application;
+using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor;
 
 namespace BrokenMeta.UniPalette.Tests
 {
@@ -27,7 +29,7 @@ namespace BrokenMeta.UniPalette.Tests
             window.Show(); window.Focus();
             try
             {
-                var state = (PaletteState)typeof(UniPaletteWindow).GetField("state", flags).GetValue(window);
+                var session = (PaletteSession)typeof(UniPaletteWindow).GetField("session", flags).GetValue(window);
                 var results = window.rootVisualElement.Q<ListView>("results");
                 var search = window.rootVisualElement.Q<VisualElement>("search");
                 var input = search.Q<TextField>();
@@ -37,27 +39,27 @@ namespace BrokenMeta.UniPalette.Tests
                     using var evt = KeyDownEvent.GetPooled(new Event { type = EventType.KeyDown, keyCode = key, modifiers = modifiers });
                     evt.target = target; target.SendEvent(evt);
                 }
-                var hierarchy = state.Results.FindIndex(item => item is SceneRootContext);
-                state.Select(hierarchy); results.SetSelectionWithoutNotify(new[] { hierarchy });
+                var hierarchy = session.Results.FindIndex(item => item is SceneRootContext);
+                session.Select(hierarchy); results.SetSelectionWithoutNotify(new[] { hierarchy });
                 Key(KeyCode.Return, EventModifiers.Control);
                 var deadline = EditorApplication.timeSinceStartup + 5;
-                while (state.CommandsLoading && EditorApplication.timeSinceStartup < deadline) yield return null;
-                Assert.That(state.Results.Any(item => item.Path == "GameObject"), Is.True);
-                Assert.That(state.SelectedIndex, Is.Zero);
-                Assert.That(results.selectedIndex, Is.EqualTo(state.SelectedIndex));
+                while (session.CommandsLoading && EditorApplication.timeSinceStartup < deadline) yield return null;
+                Assert.That(session.Results.Any(item => item.Path == "GameObject"), Is.True);
+                Assert.That(session.SelectedIndex, Is.Zero);
+                Assert.That(results.selectedIndex, Is.EqualTo(session.SelectedIndex));
                 Key(KeyCode.RightArrow, EventModifiers.Alt);
-                Assert.That(state.Location, Is.EqualTo("GameObject"));
+                Assert.That(session.Location, Is.EqualTo("GameObject"));
                 input.value = "Cube";
-                Assert.That(state.SelectedIndex, Is.EqualTo(-1));
-                Assert.That(state.Results.Any(item => item.Path == "GameObject/3D Object/Cube"), Is.True);
-                var cube = state.Results.FindIndex(item => item.Path == "GameObject/3D Object/Cube");
-                state.Select(cube); results.SetSelectionWithoutNotify(new[] { cube });
+                Assert.That(session.SelectedIndex, Is.EqualTo(-1));
+                Assert.That(session.Results.Any(item => item.Path == "GameObject/3D Object/Cube"), Is.True);
+                var cube = session.Results.FindIndex(item => item.Path == "GameObject/3D Object/Cube");
+                session.Select(cube); results.SetSelectionWithoutNotify(new[] { cube });
                 Key(KeyCode.RightArrow, EventModifiers.Alt); // A root leaf is now executable; navigation must not run it.
-                Assert.That(state.Message, Is.Empty);
+                Assert.That(session.Message, Is.Empty);
                 Assert.That(Selection.count, Is.Zero);
                 Key(KeyCode.LeftArrow, EventModifiers.Alt);
-                Assert.That(state.Query, Is.Empty);
-                Assert.That(state.Results[state.SelectedIndex].Path, Is.EqualTo("GameObject"));
+                Assert.That(session.Query, Is.Empty);
+                Assert.That(session.Results[session.SelectedIndex].Path, Is.EqualTo("GameObject"));
                 yield return null;
                 var focused = window.rootVisualElement.panel.focusController.focusedElement;
                 Assert.That(focused == search || search.Contains(focused as VisualElement), Is.True);

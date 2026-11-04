@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor.Services;
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Application
 {
     internal sealed class CommandBrowser : PaletteBrowser
     {
@@ -20,20 +22,20 @@ namespace BrokenMeta.UniPalette.Editor
 
         internal override IEnumerable<PaletteItem> GetItems(string query) => Filter(Category.Children, query, true);
 
-        internal override bool Activate(PaletteState state, PaletteItem selected)
+        internal override bool Activate(PaletteSession session, PaletteItem selected)
         {
             if (selected == null) return false;
-            if (selected.Children.Length > 0) return state.Push(new CommandBrowser(Context, selected));
+            if (selected.Children.Length > 0) return session.Push(new CommandBrowser(Context, selected));
             if (selected is MenuCommandItem && NativeExecution.Supports(selected.Path, Context))
-                state.DispatchCommand(selected, Context);
-            else state.ShowExecutionError(selected.Path
+                session.DispatchCommand(selected, Context);
+            else session.ShowExecutionError(selected.Path
                 + " · Execution requires a confirmed context and relevant menu leaf; nothing executed. " + selected.AvailabilityNote);
             return false;
         }
 
         // Alt+Right may open a category, but must never activate a command leaf.
-        internal override bool Browse(PaletteState state, PaletteItem selected) =>
-            selected != null && selected.CanBrowse && state.ActivateSelected();
+        internal override bool Browse(PaletteSession session, PaletteItem selected) =>
+            selected != null && selected.CanBrowse && session.ActivateSelected();
 
         // Ctrl+Enter remains unassigned through the base implementation.
         internal override PaletteBrowser RefreshCommands(Func<PaletteItem, PaletteItem> load)
@@ -53,8 +55,8 @@ namespace BrokenMeta.UniPalette.Editor
             return null;
         }
 
-        internal override string GetNotice(PaletteState state) => state.CommandsLoading ? state.CommandNotice
-            : state.Results.Count == 0 ? "No menu commands found. " + state.CommandNotice : state.CommandNotice;
+        internal override string GetNotice(PaletteSession session) => session.CommandsLoading ? session.CommandNotice
+            : session.Results.Count == 0 ? "No menu commands found. " + session.CommandNotice : session.CommandNotice;
 
         internal override PaletteRow Describe(PaletteItem item)
         {

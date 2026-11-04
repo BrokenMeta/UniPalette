@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using BrokenMeta.UniPalette.Editor.Model;
 
-namespace BrokenMeta.UniPalette.Editor
+namespace BrokenMeta.UniPalette.Editor.Application
 {
-    // An immutable navigation level. The state owns history/query/selection; the view owns UI elements.
+    // An immutable navigation level. The session owns history/query/selection; the view owns UI elements.
     internal abstract class PaletteBrowser
     {
         internal PaletteItem Context { get; }
@@ -17,12 +18,12 @@ namespace BrokenMeta.UniPalette.Editor
         internal abstract string Location { get; }
         internal abstract string Breadcrumb { get; }
         internal abstract IEnumerable<PaletteItem> GetItems(string query);
-        internal abstract bool Activate(PaletteState state, PaletteItem selected);
-        internal virtual bool Browse(PaletteState state, PaletteItem selected) => state.ActivateSelected();
-        internal virtual bool OpenContextCommands(PaletteState state, PaletteItem selected) => false;
+        internal abstract bool Activate(PaletteSession session, PaletteItem selected);
+        internal virtual bool Browse(PaletteSession session, PaletteItem selected) => session.ActivateSelected();
+        internal virtual bool OpenContextCommands(PaletteSession session, PaletteItem selected) => false;
         internal virtual PaletteBrowser RefreshCommands(Func<PaletteItem, PaletteItem> load) => this;
         internal virtual PaletteBrowser OnCommandsChanged(Func<PaletteItem, PaletteItem> load) => null;
-        internal abstract string GetNotice(PaletteState state);
+        internal abstract string GetNotice(PaletteSession session);
         internal abstract PaletteRow Describe(PaletteItem item);
 
         protected static bool Matches(PaletteItem item, string query) => query.Length == 0
