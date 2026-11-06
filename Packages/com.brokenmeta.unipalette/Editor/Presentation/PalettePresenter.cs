@@ -2,8 +2,6 @@
 using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Lifetime;
 using BrokenMeta.UniPalette.Editor.Model;
-using UnityEngine;
-using UnityEngine.UIElements;
 
 namespace BrokenMeta.UniPalette.Editor.Presentation
 {
@@ -48,10 +46,19 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                     .SubscribeRowSelectionChanged(SelectRow)
                     .AddTo(_subscriptions);
                 view
-                    .SubscribeRowActivated(ActivateRow)
+                    .SubscribeActivationRequested(Activate)
                     .AddTo(_subscriptions);
                 view
-                    .SubscribeKeyPressed(OnKeyDown)
+                    .SubscribeContextCommandsRequested(OpenCommands)
+                    .AddTo(_subscriptions);
+                view
+                    .SubscribeBrowseRequested(BrowseSelected)
+                    .AddTo(_subscriptions);
+                view
+                    .SubscribeDismissRequested(Dismiss)
+                    .AddTo(_subscriptions);
+                view
+                    .SubscribeSelectionMoveRequested(MoveSelection)
                     .AddTo(_subscriptions);
                 session
                     .SubscribeChanged(OnSessionChanged)
@@ -119,63 +126,25 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             _session.SetQuery(query);
         }
 
-        private void OnKeyDown(KeyDownEvent evt)
+        private void Dismiss()
         {
             if (_disposed)
                 return;
 
-            var enter = evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter;
-
-            if (evt.keyCode == KeyCode.Escape)
-            {
-                Consume(evt);
-
-                if (_session.CanGoBack)
-                    GoBack();
-                else
-                    _close();
-            }
-            else if (evt.altKey && evt.keyCode == KeyCode.LeftArrow)
-            {
-                Consume(evt);
+            if (_session.CanGoBack)
                 GoBack();
-            }
-            else if (evt.altKey && evt.keyCode == KeyCode.RightArrow)
-            {
-                Consume(evt);
-
-                if (!evt.ctrlKey && !evt.commandKey && !evt.shiftKey)
-                    BrowseSelected();
-            }
-            else if (!evt.ctrlKey
-                && !evt.commandKey
-                && !evt.shiftKey
-                && (evt.keyCode == KeyCode.UpArrow
-                    || evt.keyCode == KeyCode.DownArrow))
-            {
-                Consume(evt);
-                _session.MoveSelection(evt.keyCode == KeyCode.DownArrow ? 1 : -1);
-                _view.ScrollToSelection(_session.SelectedIndex);
-                _view.FocusSearch();
-            }
-            else if (enter)
-            {
-                Consume(evt);
-
-                if (evt.altKey || evt.shiftKey || evt.commandKey)
-                    return;
-
-                if (evt.ctrlKey)
-                    OpenContextCommands();
-                else
-                    ActivateSelected();
-            }
-            // Unmodified Left/Right are intentionally left to the text input.
+            else
+                _close();
         }
 
-        private static void Consume(KeyDownEvent evt)
+        private void MoveSelection(int direction)
         {
-            evt.StopImmediatePropagation();
+            if (_disposed)
+                return;
+
+            _session.MoveSelection(direction);
+            _view.ScrollToSelection(_session.SelectedIndex);
+            _view.FocusSearch();
         }
 
         private void ApplyNavigation(Func<bool> action)
@@ -193,29 +162,33 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             _view.FocusSearch();
         }
 
-        private void ActivateRow(PaletteItem item, EventBase evt)
+        private bool TrySelectActivationTarget(PaletteItem item)
         {
             if (_disposed)
-                return;
+                return false;
 
-            var pointer = evt as IPointerEvent;
-            var mouse = evt as IMouseEvent;
-
-            // A second click must not activate the row rebound beneath the first click.
-            if ((pointer?.clickCount ?? mouse?.clickCount ?? 1) > 1)
-                return;
+            if (item == null)
+                return true;
 
             var index = _session.Results.IndexOf(item);
 
             if (index < 0)
-                return;
+                return false;
 
             _session.Select(index);
+            return true;
+        }
 
-            if (pointer?.ctrlKey ?? mouse?.ctrlKey ?? false)
-                OpenContextCommands();
-            else
+        private void Activate(PaletteItem item)
+        {
+            if (TrySelectActivationTarget(item))
                 ActivateSelected();
+        }
+
+        private void OpenCommands(PaletteItem item)
+        {
+            if (TrySelectActivationTarget(item))
+                OpenContextCommands();
         }
 
         private PaletteRow[] DescribeRows(BrowserPresentation presentation)

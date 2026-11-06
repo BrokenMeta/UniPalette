@@ -26,9 +26,15 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
 
         private readonly Signal<int> _rowSelectionChanged = new();
 
-        private readonly Signal<(PaletteItem Item, EventBase Event)> _rowActivated = new();
+        private readonly Signal<PaletteItem> _activationRequested = new();
 
-        private readonly Signal<KeyDownEvent> _keyPressed = new();
+        private readonly Signal<PaletteItem> _contextCommandsRequested = new();
+
+        private readonly Signal _browseRequested = new();
+
+        private readonly Signal _dismissRequested = new();
+
+        private readonly Signal<int> _selectionMoveRequested = new();
 
         private readonly VisualElement _root;
         private readonly Dictionary<VisualElement, Clickable> _rowClicks = new();
@@ -82,8 +88,11 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             _backRequested.Dispose();
             _queryChanged.Dispose();
             _rowSelectionChanged.Dispose();
-            _rowActivated.Dispose();
-            _keyPressed.Dispose();
+            _activationRequested.Dispose();
+            _contextCommandsRequested.Dispose();
+            _browseRequested.Dispose();
+            _dismissRequested.Dispose();
+            _selectionMoveRequested.Dispose();
             _rows.Clear();
         }
 
@@ -96,16 +105,21 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
         internal IDisposable SubscribeRowSelectionChanged(Action<int> callback) =>
             _rowSelectionChanged.Subscribe(callback);
 
-        internal IDisposable SubscribeRowActivated(Action<PaletteItem, EventBase> callback)
-        {
-            if (callback == null)
-                throw new ArgumentNullException(nameof(callback));
+        // A null target refers to the current selection. Clicks carry the bound item.
+        internal IDisposable SubscribeActivationRequested(Action<PaletteItem> callback) =>
+            _activationRequested.Subscribe(callback);
 
-            return _rowActivated.Subscribe(activation => callback(activation.Item, activation.Event));
-        }
+        internal IDisposable SubscribeContextCommandsRequested(Action<PaletteItem> callback) =>
+            _contextCommandsRequested.Subscribe(callback);
 
-        internal IDisposable SubscribeKeyPressed(Action<KeyDownEvent> callback) =>
-            _keyPressed.Subscribe(callback);
+        internal IDisposable SubscribeBrowseRequested(Action callback) =>
+            _browseRequested.Subscribe(callback);
+
+        internal IDisposable SubscribeDismissRequested(Action callback) =>
+            _dismissRequested.Subscribe(callback);
+
+        internal IDisposable SubscribeSelectionMoveRequested(Action<int> callback) =>
+            _selectionMoveRequested.Subscribe(callback);
 
         private void LoadLayout()
         {
@@ -233,8 +247,44 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
 
         private void OnKeyDown(KeyDownEvent evt)
         {
-            if (!_disposed)
-                _keyPressed.Publish(evt);
+            if (_disposed)
+                return;
+
+            var enter = evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter;
+
+            if (evt.keyCode == KeyCode.Escape)
+            {
+                evt.StopImmediatePropagation();
+                _dismissRequested.Publish();
+            }
+            else if (evt.altKey && evt.keyCode == KeyCode.LeftArrow)
+            {
+                evt.StopImmediatePropagation();
+                _backRequested.Publish();
+            }
+            else if (evt.altKey && evt.keyCode == KeyCode.RightArrow)
+            {
+                evt.StopImmediatePropagation();
+
+                if (!evt.ctrlKey && !evt.commandKey && !evt.shiftKey)
+                    _browseRequested.Publish();
+            }
+            else if (!evt.ctrlKey
+                && !evt.commandKey
+                && !evt.shiftKey
+                && (evt.keyCode == KeyCode.UpArrow || evt.keyCode == KeyCode.DownArrow))
+            {
+                evt.StopImmediatePropagation();
+                _selectionMoveRequested.Publish(evt.keyCode == KeyCode.DownArrow ? 1 : -1);
+            }
+            else if (enter)
+            {
+                evt.StopImmediatePropagation();
+
+                if (!evt.altKey && !evt.shiftKey && !evt.commandKey)
+                    PublishActivation(null, evt.ctrlKey);
+            }
+            // Unmodified Left/Right are intentionally left to the text input.
         }
 
         private void OnNavigationMove(NavigationMoveEvent evt)
@@ -247,8 +297,25 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
 
         private void ActivateRow(ListViewItem row, EventBase evt)
         {
-            if (!_disposed)
-                _rowActivated.Publish((row.userData as PaletteItem, evt));
+            if (_disposed || !(row.userData is PaletteItem item))
+                return;
+
+            var pointer = evt as IPointerEvent;
+            var mouse = evt as IMouseEvent;
+
+            // A second click must not activate the row rebound beneath the first click.
+            if ((pointer?.clickCount ?? mouse?.clickCount ?? 1) > 1)
+                return;
+
+            PublishActivation(item, pointer?.ctrlKey ?? mouse?.ctrlKey ?? false);
+        }
+
+        private void PublishActivation(PaletteItem item, bool openContextCommands)
+        {
+            if (openContextCommands)
+                _contextCommandsRequested.Publish(item);
+            else
+                _activationRequested.Publish(item);
         }
 
         private VisualElement MakeRow()
