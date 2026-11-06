@@ -1,76 +1,34 @@
 ﻿using System;
 using BrokenMeta.UniPalette.Editor.Model;
 using UnityEditor;
-using UnityEngine;
 
 namespace BrokenMeta.UniPalette.Editor.Services
 {
-    // One prepared contextual handoff. Discovery and UI grouping belong to the source.
-    internal sealed class SceneViewActionExecution
+    internal sealed class SceneViewActionExecution : ContextActionExecution<SceneObjectContext>
     {
-        private readonly SceneViewActionCatalog _catalog;
-
-        private readonly ContextActionItem _item;
-
         private readonly SceneView _window;
 
-        private bool _consumed;
+        protected override string WindowName => "The chosen Scene View";
 
         private SceneViewActionExecution(SceneViewActionCatalog catalog, ContextActionItem item, SceneView window)
-        {
-            _catalog = catalog;
-            _item = item;
+            : base(catalog, item) =>
             _window = window;
-        }
 
-        private void Report(string error) =>
-            Debug.LogWarning($"UniPalette contextual action: {_item.Name}. {error} No retry was attempted.");
-
-        internal void ExecuteAfterClose()
+        protected override bool TryFocusWindow(out EditorWindow window, out string error)
         {
-            if (_consumed)
-                return;
+            window = _window;
 
-            _consumed = true;
-
-            try
+            if (!_window)
             {
-                var error = _catalog.Validate(_item.Context);
-
-                if (error.Length != 0 || !_window)
-                {
-                    Report(error.Length != 0 ? error : "The chosen Scene View no longer exists.");
-                    return;
-                }
-
-                _window.Focus();
-
-                if (EditorWindow.focusedWindow != _window || _window.rootVisualElement.panel == null)
-                {
-                    Report("The chosen Scene View is not focused and ready.");
-                    return;
-                }
-
-                // Rebuild after focus: the displayed flags and handlers may be stale.
-                if (!_catalog.TryResolve(_item, out var action, out error))
-                {
-                    Report(error);
-                    return;
-                }
-
-                if (EditorWindow.focusedWindow != _window)
-                {
-                    Report("The chosen Scene View lost focus before dispatch.");
-                    return;
-                }
-
-                // Unity may queue work internally. This is one handoff, not a result guarantee.
-                action.Execute();
+                error = "The chosen Scene View no longer exists.";
+                return false;
             }
-            catch (Exception exception)
-            {
-                Report(exception.Message);
-            }
+
+            _window.Focus();
+
+            var ready = EditorWindow.focusedWindow == _window && _window.rootVisualElement.panel != null;
+            error = ready ? "" : "The chosen Scene View is not focused and ready.";
+            return ready;
         }
 
         internal static bool TryPrepare(

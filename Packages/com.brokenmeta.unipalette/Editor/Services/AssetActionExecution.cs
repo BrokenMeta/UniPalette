@@ -1,96 +1,42 @@
 ﻿using System;
 using BrokenMeta.UniPalette.Editor.Model;
 using UnityEditor;
-using UnityEngine;
 using Object = UnityEngine.Object;
 
 namespace BrokenMeta.UniPalette.Editor.Services
 {
-    // One prepared contextual handoff. Discovery and UI grouping belong to the source.
-    internal sealed class AssetActionExecution
+    internal sealed class AssetActionExecution : ContextActionExecution<AssetContext>
     {
-        private readonly AssetActionCatalog _catalog;
-
-        private readonly ContextActionItem _item;
-
         private readonly Object _target;
 
-        private bool _consumed;
+        protected override string WindowName => "Project";
 
         private AssetActionExecution(AssetActionCatalog catalog, ContextActionItem item)
-        {
-            _catalog = catalog;
-            _item = item;
+            : base(catalog, item) =>
             _target = item.Context.Target;
-        }
 
-        private string Validate()
+        protected override string ValidateBeforeFocus()
         {
-            var error = _catalog.Validate(_item.Context);
-            return error.Length != 0 ? error : _item.Context.Target != _target
+            var error = base.ValidateBeforeFocus();
+            return error.Length != 0 ? error : Context.Target != _target
                 ? "Confirmed asset target changed after preparation."
                 : "";
         }
 
-        private void Report(string error) =>
-            Debug.LogWarning($"UniPalette contextual action: {_item.Name}. {error} No retry was attempted.");
-
-        internal void ExecuteAfterClose()
+        protected override bool TryFocusWindow(out EditorWindow window, out string error)
         {
-            if (_consumed)
-                return;
+            EditorUtility.FocusProjectWindow();
+            window = EditorWindow.focusedWindow;
 
-            _consumed = true;
-
-            try
-            {
-                var error = Validate();
-
-                if (error.Length != 0)
-                {
-                    Report(error);
-                    return;
-                }
-
-                EditorUtility.FocusProjectWindow();
-                var window = EditorWindow.focusedWindow;
-
-                if (!window || window.GetType().FullName != "UnityEditor.ProjectBrowser"
-                    || window.rootVisualElement.panel == null)
-                {
-                    Report("Project is not focused and ready.");
-                    return;
-                }
-
-                // Rebuild after focus: the displayed flags and handlers may be stale.
-                if (!_catalog.TryResolve(_item, out var action, out error))
-                {
-                    Report(error);
-                    return;
-                }
-
-                error = Validate();
-
-                if (error.Length != 0)
-                {
-                    Report(error);
-                    return;
-                }
-
-                if (EditorWindow.focusedWindow != window)
-                {
-                    Report("Project lost focus before dispatch.");
-                    return;
-                }
-
-                // Unity may queue work internally. This is one handoff, not a result guarantee.
-                action.Execute();
-            }
-            catch (Exception exception)
-            {
-                Report(exception.Message);
-            }
+            var ready = window
+                && window.GetType().FullName == "UnityEditor.ProjectBrowser"
+                && window.rootVisualElement.panel != null;
+            error = ready ? "" : "Project is not focused and ready.";
+            return ready;
         }
+
+        protected override string ValidateBeforeDispatch() =>
+            ValidateBeforeFocus();
 
         internal static bool TryPrepare(
             AssetActionCatalog catalog,
@@ -112,7 +58,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
                     return false;
 
                 var candidate = new AssetActionExecution(catalog, item);
-                error = candidate.Validate();
+                error = candidate.ValidateBeforeFocus();
 
                 if (error.Length != 0)
                     return false;
