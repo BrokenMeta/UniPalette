@@ -28,7 +28,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
 
         private string Validate()
         {
-            if (!Supports(_path, _context))
+            if (!new MenuRelevance(_path).Matches(_context))
                 return "Command is outside the confirmed context's menu families.";
 
             var contextError = _editorContext.ValidateExecution(_target, _scene);
@@ -65,9 +65,6 @@ namespace BrokenMeta.UniPalette.Editor.Services
             );
         }
 
-        internal static bool Supports(string path, PaletteItem context) =>
-            new MenuRelevance(path).Matches(context);
-
         internal static bool TryPrepare(
             UnityContextSelection contextSelection,
             PaletteItem command,
@@ -80,10 +77,7 @@ namespace BrokenMeta.UniPalette.Editor.Services
             if (command == null
                 || !(command is MenuCommandItem)
                 || command.CanBrowse
-                || !Supports(
-                    command.Path,
-                    context
-                ))
+                || !new MenuRelevance(command.Path).Matches(context))
             {
                 error = (command == null ? "" : command.Path + " \u00B7 ")
                     + "Command requires a confirmed context and a relevant menu leaf; nothing executed.";

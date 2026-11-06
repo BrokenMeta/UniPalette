@@ -112,14 +112,16 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 }
 
                 var container = item.CanBrowse;
-                var supported = !container && NativeExecution.Supports(item.Path, context);
+                var relevantMenuCommand = !container
+                    && item is MenuCommandItem
+                    && new MenuRelevance(item.Path).Matches(context);
 
                 var subtitle = item.SelectionEntry
                     ? item.Title + " \u00B7 " + item.Path
                     : item.Path
                     + (!container
-                        ? supported
-                            ? " \u00B7 Native execution"
+                        ? relevantMenuCommand
+                            ? " \u00B7 Unity menu command"
                             : " \u00B7 Execution unavailable"
                         : "");
 
@@ -130,14 +132,14 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                     container ? "Folder Icon" : "TextAsset Icon",
                     container
                         ? "\u203A"
-                        : supported
+                        : relevantMenuCommand
                             ? "\u21B5"
                             : "\u2014",
                     container
                         ? "Open menu category"
-                        : supported
-                            ? "Run native Unity command"
-                            : "Relevant confirmed context required \u00B7 No execution"
+                        : relevantMenuCommand
+                            ? "Enter to run \u00B7 Availability checked at launch"
+                            : "A relevant Unity menu command is required"
                 );
             }
         }

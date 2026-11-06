@@ -12,7 +12,6 @@ namespace BrokenMeta.UniPalette.Tests
         {
             Assert.That(new MenuRelevance(path).Matches(context), Is.EqualTo(expected), path);
             Assert.That(MenuCommands.InScope(path, context), Is.EqualTo(expected), path);
-            Assert.That(NativeExecution.Supports(path, context), Is.EqualTo(expected), path);
         }
 
         [Test]

@@ -92,7 +92,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(
                 renderedRow.tooltip,
                 Does
-                    .Contain("Native execution")
+                    .Contain("Unity menu command")
                     .And.Not
                     .Contain("Unsupported")
             );
@@ -332,7 +332,7 @@ namespace BrokenMeta.UniPalette.Tests
             yield return null;
             var row = list.GetRootElementForIndex(index);
             Assert.That(row, Is.Not.Null);
-            Assert.That(row.tooltip, Does.Contain("Native execution"));
+            Assert.That(row.tooltip, Does.Contain("Unity menu command"));
             Key(KeyCode.RightArrow, EventModifiers.Alt);
             Key(KeyCode.Return, EventModifiers.Control);
             Assert.That(_window, Is.Not.Null, "Alt+Right and Ctrl+Enter do not dispatch a leaf");
