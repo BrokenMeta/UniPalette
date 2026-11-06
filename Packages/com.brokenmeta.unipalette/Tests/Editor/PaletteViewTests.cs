@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using BrokenMeta.UniPalette.Editor;
 using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Model;
@@ -17,6 +18,83 @@ namespace BrokenMeta.UniPalette.Tests
     [Category("UI")]
     public class PaletteViewTests : PaletteWindowTestFixture
     {
+        private sealed class InterruptibleContextSource : IContextSource
+        {
+            private readonly PaletteItem _first = new FixtureItem("First", "First");
+
+            private readonly PaletteItem _second = new FixtureItem("Second", "Second");
+
+            internal bool Fail { get; set; }
+
+            public IEnumerable<PaletteItem> GetItems(PaletteItem context, bool recursive)
+            {
+                yield return _first;
+
+                if (Fail)
+                    throw new System.InvalidOperationException("Interrupted fixture enumeration");
+
+                yield return _second;
+            }
+
+            public bool HasBrowseChildren(PaletteItem context) =>
+                false;
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptedResultsPreserveSearchAndBackNavigation()
+        {
+            yield return SetUpWindow();
+            var source = new InterruptibleContextSource();
+            var commands = new TestCommandSource(PaletteTestData.Commands());
+            _session = new PaletteSession(commands, new UnityContextSelection(), source);
+            PaletteTestData.Install(_window, _session, commands);
+            _session.Select(1);
+            var previousBrowser = _session.Browser;
+            var selected = _session.Results[1];
+            var input = _window.rootVisualElement.Q<SearchBar>("search").Q<TextField>();
+            source.Fail = true;
+            input.value = "First";
+
+            Assert.That(_session.Query.IsEmpty, Is.True);
+            Assert.That(input.value, Is.Empty);
+            Assert.That(_session.Browser, Is.SameAs(previousBrowser));
+            Assert.That(_session.Results.Count, Is.EqualTo(2));
+            Assert.That(_session.GetResult(1).Item, Is.SameAs(selected));
+            Assert.That(_session.SelectedIndex, Is.EqualTo(1));
+            Assert.That(_results.selectedIndex, Is.EqualTo(1));
+            Assert.That(_results.itemsSource.Count, Is.EqualTo(2));
+            Assert.That(
+                _window.rootVisualElement.Q<Text>("message").text,
+                Does.Contain("Interrupted fixture enumeration")
+            );
+
+            source.Fail = false;
+            input.value = "First";
+            Assert.That(_session.Query.Text, Is.EqualTo("First"));
+            Assert.That(_session.Results.Count, Is.EqualTo(1));
+            Assert.That(_results.itemsSource.Count, Is.EqualTo(1));
+            Assert.That(_session.Message, Is.Empty);
+
+            _session.Select(0);
+            Assert.That(_session.ActivateSelected(), Is.True);
+            var commandsBrowser = _session.Browser;
+            var commandCount = _session.Results.Count;
+            source.Fail = true;
+
+            Assert.That(_session.GoBack(), Is.False);
+            Assert.That(_session.Browser, Is.SameAs(commandsBrowser));
+            Assert.That(_session.Results.Count, Is.EqualTo(commandCount));
+            Assert.That(_session.CanGoBack, Is.True);
+
+            source.Fail = false;
+            Assert.That(_session.GoBack(), Is.True);
+            Assert.That(_session.Browser, Is.SameAs(previousBrowser));
+            Assert.That(_session.CanGoBack, Is.False);
+            Assert.That(_session.Results.Count, Is.EqualTo(2));
+            Assert.That(_session.SelectedIndex, Is.Zero);
+            Assert.That(_session.Message, Is.Empty);
+        }
+
         [UnityTest]
         public IEnumerator RecreatingAndClosingWindowReleaseOwnedCommandSources()
         {

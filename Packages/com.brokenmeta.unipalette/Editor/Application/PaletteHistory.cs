@@ -20,17 +20,25 @@ namespace BrokenMeta.UniPalette.Editor.Application
             _entries.Push(new Entry(browser, item));
         }
 
-        internal Entry GoBack()
+        internal Entry PeekBack(out int entriesToPop)
         {
-            while (_entries.Count > 0)
+            entriesToPop = 0;
+
+            foreach (var previous in _entries)
             {
-                var previous = _entries.Pop();
+                entriesToPop++;
 
                 if (previous._browser.Context == null || previous._browser.Context.IsValid)
                     return previous;
             }
 
             return new Entry(_root, null);
+        }
+
+        internal void CommitBack(int entriesToPop)
+        {
+            for (var index = 0; index < entriesToPop; index++)
+                _entries.Pop();
         }
 
         internal readonly struct Entry
@@ -45,7 +53,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
                 _item = item;
             }
 
-            internal int FindSelection(IReadOnlyList<PaletteItem> results)
+            internal int FindSelection(IReadOnlyList<PaletteResult> results)
             {
                 var entry = _item;
 
@@ -54,14 +62,14 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
                 for (var index = 0; index < results.Count; index++)
                 {
-                    if (results[index].SameIdentity(entry))
+                    if (results[index].Item.SameIdentity(entry))
                         return index;
                 }
 
                 // With an empty query, restore the visible containing branch if the entry is deeper.
                 for (var index = 0; index < results.Count; index++)
                 {
-                    if (results[index].ContainsDescendant(entry))
+                    if (results[index].Item.ContainsDescendant(entry))
                         return index;
                 }
 

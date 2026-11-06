@@ -29,11 +29,17 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         private readonly List<PaletteResult> _resultDetails = new();
 
+        private readonly List<PaletteResult> _pendingResults = new();
+
         private bool _disposed;
 
-        private bool _loadingCommands;
+        private bool _stagingResults;
 
         private bool _selectFirstWhenLoaded;
+
+        private string _message = "";
+
+        private string _resultsError;
 
         private PaletteItem SelectedItem => SelectedIndex >= 0 ? _results[SelectedIndex] : null;
 
@@ -61,7 +67,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         internal int SelectedIndex { get; private set; } = -1;
 
-        internal string Message { get; private set; } = "";
+        internal string Message => _resultsError ?? _message;
 
         internal PaletteSession(
             ICommandSource commandSource,
@@ -73,7 +79,9 @@ namespace BrokenMeta.UniPalette.Editor.Application
             Results = _results.AsReadOnly();
             Browser = new ContextBrowser(contexts);
             _history = new PaletteHistory(Browser);
-            Rebuild();
+            if (TryStageResults(() => Browser, Query, out var initial))
+                ApplyResults(initial, Query, -1);
+
             _commandSubscription = commandSource.SubscribeChanged(OnCommandsChanged);
         }
 
@@ -103,43 +111,42 @@ namespace BrokenMeta.UniPalette.Editor.Application
             return _executionRequested.Subscribe(request => callback(request.Command, request.Context));
         }
 
-        private PaletteItem LoadCommands(PaletteItem context)
-        {
-            _loadingCommands = true;
-
-            try
-            {
-                return _commandSource.ForContext(context);
-            }
-            finally
-            {
-                _loadingCommands = false;
-            }
-        }
+        private PaletteItem LoadCommands(PaletteItem context) =>
+            _commandSource.ForContext(context);
 
         private void OnCommandsChanged()
         {
-            if (_disposed || ConfirmingContext || _loadingCommands)
+            if (_disposed || ConfirmingContext || _stagingResults)
                 return;
 
-            var next = Browser.OnCommandsChanged(LoadCommands);
-
-            if (next == null)
+            if (!TryStageResults(() => Browser.OnCommandsChanged(LoadCommands), Query, out var next) || next == null)
                 return;
 
-            Browser = next;
-            Rebuild();
-            SetSelectedIndex(_selectFirstWhenLoaded && Query.IsEmpty ? 0 : -1);
+            var selectedIndex = _selectFirstWhenLoaded && Query.IsEmpty ? 0 : -1;
+            ApplyResults(next, Query, selectedIndex);
             _selectFirstWhenLoaded = false;
             _changed.Publish(PaletteChange.Screen);
         }
 
-        private void ReturnToPreviousBrowser()
+        private bool ReturnToPreviousBrowser()
         {
-            var previous = _history.GoBack();
-            Browser = previous._browser.RefreshCommands(LoadCommands);
-            ResetTransient();
-            SetSelectedIndex(previous.FindSelection(Results));
+            var previous = _history.PeekBack(out var entriesToPop);
+
+            if (!TryStageResults(
+                () => previous._browser.RefreshCommands(LoadCommands),
+                SearchQuery.Empty,
+                out var next
+            ))
+            {
+                return false;
+            }
+
+            var selectedIndex = previous.FindSelection(_pendingResults);
+            _history.CommitBack(entriesToPop);
+            ApplyResults(next, SearchQuery.Empty, selectedIndex);
+            _message = "";
+            _changed.Publish(PaletteChange.Screen);
+            return true;
         }
 
         private bool ValidateNavigationTarget(PaletteItem selected)
@@ -152,24 +159,73 @@ namespace BrokenMeta.UniPalette.Editor.Application
             return false;
         }
 
-        private void ResetTransient()
+        private bool TryStageResults(
+            Func<PaletteBrowser> prepareBrowser,
+            SearchQuery query,
+            out PaletteBrowser next,
+            bool restoreQuery = false)
         {
-            Query = SearchQuery.Empty;
-            SelectedIndex = -1;
-            Message = "";
-            Rebuild();
+            next = null;
+
+            if (_stagingResults)
+                return false;
+
+            _stagingResults = true;
+            _pendingResults.Clear();
+
+            try
+            {
+                next = prepareBrowser();
+
+                if (next != null)
+                    _pendingResults.AddRange(next.GetItems(query));
+
+                return true;
+            }
+            catch (Exception exception)
+            {
+                next = null;
+                _pendingResults.Clear();
+                var previousMessage = Message;
+                _resultsError = "Could not update palette results: " + exception.Message;
+
+                if (restoreQuery || Message != previousMessage)
+                    _changed.Publish(restoreQuery ? PaletteChange.Screen : PaletteChange.Message);
+
+                return false;
+            }
+            finally
+            {
+                _stagingResults = false;
+            }
         }
 
-        private void Rebuild()
+        private void ApplyResults(PaletteBrowser browser, SearchQuery query, int selectedIndex)
         {
             _results.Clear();
             _resultDetails.Clear();
 
-            foreach (var result in Browser.GetItems(Query))
+            foreach (var result in _pendingResults)
             {
                 _results.Add(result.Item);
                 _resultDetails.Add(result);
             }
+
+            _pendingResults.Clear();
+            Browser = browser;
+            Query = query;
+            SetSelectedIndex(selectedIndex);
+            _resultsError = null;
+        }
+
+        private bool PushPrepared(PaletteBrowser next, bool selectFirstWhenLoaded)
+        {
+            _history.Push(Browser, SelectedItem);
+            ApplyResults(next, SearchQuery.Empty, 0);
+            _message = "";
+            _selectFirstWhenLoaded = selectFirstWhenLoaded;
+            _changed.Publish(PaletteChange.Screen);
+            return true;
         }
 
         private void SetSelectedIndex(int index) =>
@@ -177,16 +233,17 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         internal void ShowExecutionError(string error)
         {
-            if (Message == error)
-                return;
+            var previousMessage = Message;
+            _resultsError = null;
+            _message = error;
 
-            Message = error;
-            _changed.Publish(PaletteChange.Message);
+            if (Message != previousMessage)
+                _changed.Publish(PaletteChange.Message);
         }
 
         internal bool OpenCommands(PaletteItem context)
         {
-            PaletteItem commands;
+            PaletteBrowser next;
             ConfirmingContext = true;
 
             try
@@ -203,16 +260,21 @@ namespace BrokenMeta.UniPalette.Editor.Application
                 }
 
                 // Availability is read after Selection changes, never from cached search labels.
-                commands = LoadCommands(context);
+                if (!TryStageResults(
+                    () => new CommandBrowser(context, LoadCommands(context)),
+                    SearchQuery.Empty,
+                    out next
+                ))
+                {
+                    return false;
+                }
             }
             finally
             {
                 ConfirmingContext = false;
             }
 
-            _selectFirstWhenLoaded = CommandsLoading;
-
-            return Push(new CommandBrowser(context, commands));
+            return PushPrepared(next, CommandsLoading);
         }
 
         // Editor notifications rebuild the current area without restoring an old query/selection.
@@ -221,13 +283,13 @@ namespace BrokenMeta.UniPalette.Editor.Application
             if (Context != null && !Context.IsValid)
             {
                 ReturnToPreviousBrowser();
-                _changed.Publish(PaletteChange.Screen);
                 return;
             }
 
-            Browser = Browser.RefreshCommands(LoadCommands);
-            SelectedIndex = -1;
-            Rebuild();
+            if (!TryStageResults(() => Browser.RefreshCommands(LoadCommands), Query, out var next))
+                return;
+
+            ApplyResults(next, Query, -1);
             _changed.Publish(PaletteChange.Screen);
         }
 
@@ -238,11 +300,12 @@ namespace BrokenMeta.UniPalette.Editor.Application
             if (query.Equals(Query))
                 return;
 
-            Query = query;
+            if (!TryStageResults(() => Browser, query, out var next, restoreQuery: true))
+                return;
+
+            ApplyResults(next, query, -1);
             _selectFirstWhenLoaded = false;
-            SelectedIndex = -1;
-            Message = "";
-            Rebuild();
+            _message = "";
             _changed.Publish(PaletteChange.Results);
         }
 
@@ -301,19 +364,13 @@ namespace BrokenMeta.UniPalette.Editor.Application
             if (!CanGoBack)
                 return false;
 
-            ReturnToPreviousBrowser();
-            _changed.Publish(PaletteChange.Screen);
-            return true;
+            return ReturnToPreviousBrowser();
         }
 
         internal bool Push(PaletteBrowser next)
         {
-            _history.Push(Browser, SelectedItem);
-            Browser = next;
-            ResetTransient();
-            SetSelectedIndex(0);
-            _changed.Publish(PaletteChange.Screen);
-            return true;
+            return TryStageResults(() => next, SearchQuery.Empty, out var prepared)
+                && PushPrepared(prepared, _selectFirstWhenLoaded);
         }
     }
 }
