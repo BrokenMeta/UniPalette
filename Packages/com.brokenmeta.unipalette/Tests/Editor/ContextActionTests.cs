@@ -54,7 +54,7 @@ namespace BrokenMeta.UniPalette.Tests
         public void CollectionIsPassiveAndRequiresConfirmedSelection()
         {
             var focused = EditorWindow.focusedWindow;
-            using ICommandSource source = new SceneViewContextActions(_catalog);
+            using var source = new ContextActionSource<SceneObjectContext>(_catalog, includeEmptyGroup: true);
             var tree = source.ForContext(_context);
             var item = tree.Children.Single().Children
                 .OfType<ContextActionItem>()
@@ -174,7 +174,10 @@ namespace BrokenMeta.UniPalette.Tests
             );
             var nativeRoot = new MenuCategoryItem("Commands", "", new PaletteItem[] { nativeCategory, });
             var menu = new TestCommandSource(nativeRoot);
-            using var source = new PaletteCommands(menu, new SceneViewContextActions(_catalog));
+            using var source = new PaletteCommands(
+                menu,
+                new ContextActionSource<SceneObjectContext>(_catalog, includeEmptyGroup: true)
+            );
             var notifications = 0;
             using var subscription = source.SubscribeChanged(() => notifications++);
             menu.Complete(nativeRoot);

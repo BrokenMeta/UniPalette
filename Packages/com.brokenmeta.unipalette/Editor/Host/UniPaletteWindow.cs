@@ -55,8 +55,8 @@ namespace BrokenMeta.UniPalette.Editor
             var assetActions = new AssetActionCatalog(contextSelection);
             _commandSource = new PaletteCommands(
                 new MenuCommands(contextSelection),
-                new SceneViewContextActions(sceneViewActions),
-                new AssetContextActions(assetActions)
+                new ContextActionSource<SceneObjectContext>(sceneViewActions, includeEmptyGroup: true),
+                new ContextActionSource<AssetContext>(assetActions, includeEmptyGroup: false)
             );
             _executionPreparation = new CommandExecutionPreparation(
                 contextSelection,

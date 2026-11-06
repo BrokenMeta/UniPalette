@@ -23,7 +23,7 @@ Next stages can separate remaining Unity data reads from model descriptions when
 
 ## Contextual action sources
 
-MenuCommands, SceneViewContextActions and AssetContextActions implement ICommandSource. The host passes them to PaletteCommands, a generic composite which owns all supplied sources and their subscription handles, forwards changes from every source, combines loading/errors and concatenates trees in source order. It knows neither context kinds nor UI groups. Each synchronous contextual source owns its notification lifetime and returns an empty tree for unsupported contexts.
+MenuCommands and ContextActionSource<TContext> implement ICommandSource. The host configures a contextual source for each catalog and passes all sources to PaletteCommands, which owns their lifetimes, forwards notifications, combines loading and errors, and concatenates their trees in order. A contextual source returns an empty tree for unsupported contexts. The host configures whether to show an empty group for each catalog.
 
 Scene View Actions is appended for confirmed scene objects. Asset Actions is appended for confirmed assets only when public type-specific discovery returns actions. Existing main-menu categories, including Assets/*, remain separate. ContextActionItem describes a ContextItem, opaque action name, display group and enabled snapshot, not a main-menu path or retained callback. Group labels are metadata; execution is routed by context type, never label text. Source-specific identity and category restoration preserve same-name commands, search, Enter/click, Alt navigation and history. Alt navigation never runs a leaf. Virtual roots receive no contextual actions and cannot reuse a previous Selection.
 

@@ -7,11 +7,13 @@ using BrokenMeta.UniPalette.Editor.Model;
 namespace BrokenMeta.UniPalette.Editor.Services
 {
     // Synchronous discovery. The group is presentation data, not an execution route.
-    internal sealed class AssetContextActions : ICommandSource
+    internal sealed class ContextActionSource<TContext> : ICommandSource where TContext : ContextItem
     {
         private readonly Signal _changed = new();
 
-        private readonly AssetActionCatalog _catalog;
+        private readonly ContextActionCatalog<TContext> _catalog;
+
+        private readonly bool _includeEmptyGroup;
 
         private bool _disposed;
 
@@ -19,8 +21,11 @@ namespace BrokenMeta.UniPalette.Editor.Services
 
         public string Error { get; private set; } = "";
 
-        internal AssetContextActions(AssetActionCatalog catalog) =>
+        internal ContextActionSource(ContextActionCatalog<TContext> catalog, bool includeEmptyGroup)
+        {
             _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+            _includeEmptyGroup = includeEmptyGroup;
+        }
 
         public IDisposable SubscribeChanged(Action callback) =>
             _changed.Subscribe(callback);
@@ -28,25 +33,21 @@ namespace BrokenMeta.UniPalette.Editor.Services
         public PaletteItem ForContext(PaletteItem context)
         {
             if (_disposed)
-                throw new ObjectDisposedException(nameof(AssetContextActions));
+                throw new ObjectDisposedException(nameof(ContextActionSource<TContext>));
 
             Error = "";
-            PaletteItem[] children = Array.Empty<PaletteItem>();
+            var children = Array.Empty<PaletteItem>();
 
-            if (context is AssetContext asset)
+            if (context is TContext target)
             {
-                if (_catalog.TryGetItems(asset, out var items, out var error))
-                {
-                    var actions = items
-                        .Cast<PaletteItem>()
-                        .ToArray();
-                    children = actions.Length == 0
-                        ? Array.Empty<PaletteItem>()
-                        : new PaletteItem[] { new ContextActionCategoryItem(_catalog.GroupTitle, actions), };
-                }
-                else
+                if (!_catalog.TryGetItems(target, out var items, out var error))
                 {
                     Error = error;
+                }
+                else if (_includeEmptyGroup || items.Count > 0)
+                {
+                    var group = new ContextActionCategoryItem(_catalog.GroupTitle, items.ToArray<PaletteItem>());
+                    children = new PaletteItem[] { group, };
                 }
             }
 

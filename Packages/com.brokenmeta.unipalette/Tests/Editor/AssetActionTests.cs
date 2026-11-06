@@ -58,7 +58,7 @@ namespace BrokenMeta.UniPalette.Tests
         [Test]
         public void SourceDiscoversMaterialActionsAndOmitsEmptyOrUnsupportedGroups()
         {
-            using ICommandSource source = new AssetContextActions(_catalog);
+            using var source = new ContextActionSource<AssetContext>(_catalog, includeEmptyGroup: false);
             var material = CreateMaterial();
             var group = source.ForContext(material).Children.Single();
             Assert.That(group.Title, Is.EqualTo("Asset Actions"));
