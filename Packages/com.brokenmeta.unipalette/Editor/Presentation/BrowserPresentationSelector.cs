@@ -90,13 +90,22 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 + " / "
                 + browser.Location;
 
-            internal override string GetNotice(PaletteSession session) =>
-                session.CommandsLoading
-                    ? session.CommandNotice
-                    : session.Results.Count == 0
-                        ? "No menu commands found. "
-                        + session.CommandNotice
-                        : session.CommandNotice;
+            internal override string GetNotice(PaletteSession session)
+            {
+                var notice = session.CommandSourceError;
+
+                if (notice.Length == 0)
+                {
+                    notice = session.CommandsLoading
+                        ? "Loading Unity menu commands\u2026"
+                        : "Native execution \u00B7 Confirmed context required \u00B7 "
+                            + "Unity determines applicability and result";
+                }
+
+                return !session.CommandsLoading && session.Results.Count == 0
+                    ? "No menu commands found. " + notice
+                    : notice;
+            }
 
             internal override PaletteRow Describe(PaletteResult result, PaletteItem context)
             {

@@ -143,6 +143,43 @@ namespace BrokenMeta.UniPalette.Tests
         }
 
         [Test]
+        public void SearchingStaleCommandsKeepsRefreshErrorUntilRecoveryOrBack()
+        {
+            using var source = new TestCommandSource(Build());
+            using var session = new PaletteSession(
+                source,
+                new UnityContextSelection(),
+                new TestContextSource(new[] { new FixtureItem("Project", "Assets"), })
+            );
+
+            session.Select(0);
+            Assert.That(session.OpenContextCommands(), Is.True);
+            var browser = session.Browser;
+            source._requesting = _ => throw new InvalidOperationException("Test refresh interrupted");
+            session.Refresh();
+
+            Assert.That(session.Browser, Is.SameAs(browser));
+            var refreshError = session.Message;
+            Assert.That(refreshError, Does.Contain("Test refresh interrupted"));
+
+            session.SetQuery("Create/Folder");
+            Assert.That(session.Results.Count, Is.EqualTo(1));
+            Assert.That(session.Results[0].Path, Is.EqualTo("Assets/Create/Folder"));
+            Assert.That(session.Message, Is.EqualTo(refreshError));
+
+            source._requesting = null;
+            source.Complete(Build());
+            Assert.That(session.Message, Is.Empty);
+            Assert.That(session.Query.Text, Is.EqualTo("Create/Folder"));
+
+            source._requesting = _ => throw new InvalidOperationException("Test refresh interrupted again");
+            session.Refresh();
+            Assert.That(session.Message, Does.Contain("Test refresh interrupted again"));
+            Assert.That(session.GoBack(), Is.True);
+            Assert.That(session.Message, Is.Empty);
+        }
+
+        [Test]
         public void LoadingErrorIsExposedWithoutInventingResults()
         {
             using var source = new TestCommandSource(Empty(), true);
@@ -157,7 +194,7 @@ namespace BrokenMeta.UniPalette.Tests
             session.OpenContextCommands();
             source.Complete(Empty(), "Test source unavailable");
             Assert.That(session.CommandsLoading, Is.False);
-            Assert.That(session.CommandNotice, Is.EqualTo("Test source unavailable"));
+            Assert.That(session.CommandSourceError, Is.EqualTo("Test source unavailable"));
             Assert.That(session.Results, Is.Empty);
             Assert.That(session.SelectedIndex, Is.EqualTo(-1));
         }
