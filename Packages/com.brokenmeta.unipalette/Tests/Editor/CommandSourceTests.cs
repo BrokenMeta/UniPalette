@@ -38,10 +38,20 @@ namespace BrokenMeta.UniPalette.Tests
             };
 
             session.Select(0);
+            var notifications = 0;
+            using var subscription = session.SubscribeChanged(change =>
+            {
+                Assert.That(change, Is.EqualTo(PaletteChange.Screen));
+                Assert.That(session.ConfirmingContext, Is.False);
+                Assert.That(session.SelectedIndex, Is.Zero);
+                notifications++;
+            });
             Assert.That(session.OpenContextCommands(), Is.True);
+            Assert.That(notifications, Is.EqualTo(1));
             Assert.That(source.Requests, Is.EqualTo(1), "Synchronous notification must not recursively reload");
             Assert.That(session.Results, Is.Not.Empty);
             Assert.That(session.SelectedIndex, Is.Zero);
+            subscription.Dispose();
             Assert.That(session.GoBack(), Is.True);
             Assert.That(session.CanGoBack, Is.False, "Only one transition was recorded");
         }
@@ -58,8 +68,6 @@ namespace BrokenMeta.UniPalette.Tests
                 new TestContextSource(new[] { Assets(), })
             );
 
-            var notifications = 0;
-            using var subscription = session.SubscribeCommandResultsChanged(() => notifications++);
             session.Select(0);
             session.OpenContextCommands();
             Assert.That(session.CommandsLoading, Is.True);
@@ -68,6 +76,8 @@ namespace BrokenMeta.UniPalette.Tests
             if (typeQuery)
                 session.SetQuery("Create/Folder");
 
+            var notifications = 0;
+            using var subscription = session.SubscribeChanged(_ => notifications++);
             source.Complete(Build());
             Assert.That(session.CommandsLoading, Is.False);
             Assert.That(notifications, Is.EqualTo(1));
@@ -89,14 +99,14 @@ namespace BrokenMeta.UniPalette.Tests
             );
 
             var browser = session.Browser;
-            var notifications = 0;
-            using var subscription = session.SubscribeCommandResultsChanged(() => notifications++);
             session.Select(0);
             session.OpenContextCommands();
             session.GoBack();
             session.SetQuery("Project");
             session.Select(0);
             var requests = source.Requests;
+            var notifications = 0;
+            using var subscription = session.SubscribeChanged(_ => notifications++);
             source.Complete(Build());
             Assert.That(session.Browser, Is.SameAs(browser));
             Assert.That(session.Query.Text, Is.EqualTo("Project"));

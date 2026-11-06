@@ -319,12 +319,10 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             _results.SetSelectionWithoutNotify(index < 0 ? Array.Empty<int>() : new[] { index, });
         }
 
-        internal void RevealSelection(int index)
+        internal void ScrollToSelection(int index)
         {
             if (_disposed)
                 return;
-
-            SelectRow(index);
 
             if (index >= 0)
                 _results.ScrollToItem(index);
@@ -367,7 +365,8 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             {
                 _results.SetSelectionWithoutNotify(Array.Empty<int>());
                 _results.RefreshItems();
-                RevealSelection(selectedIndex);
+                SelectRow(selectedIndex);
+                ScrollToSelection(selectedIndex);
             }
             finally
             {

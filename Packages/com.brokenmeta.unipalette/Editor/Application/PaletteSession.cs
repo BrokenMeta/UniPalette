@@ -12,7 +12,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
     // Owns navigation history and transient state; each browser owns its level's behavior.
     internal sealed class PaletteSession : IDisposable
     {
-        private readonly Signal _commandResultsChanged = new();
+        private readonly Signal<PaletteChange> _changed = new();
 
         private readonly Signal<(PaletteItem Command, PaletteItem Context)> _executionRequested = new();
 
@@ -26,6 +26,8 @@ namespace BrokenMeta.UniPalette.Editor.Application
         private readonly List<PaletteItem> _results = new();
 
         private bool _disposed;
+
+        private bool _loadingCommands;
 
         private bool _selectFirstWhenLoaded;
 
@@ -78,12 +80,12 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
             _disposed = true;
             _commandSubscription.Dispose();
-            _commandResultsChanged.Dispose();
+            _changed.Dispose();
             _executionRequested.Dispose();
         }
 
-        internal IDisposable SubscribeCommandResultsChanged(Action callback) =>
-            _commandResultsChanged.Subscribe(callback);
+        internal IDisposable SubscribeChanged(Action<PaletteChange> callback) =>
+            _changed.Subscribe(callback);
 
         internal IDisposable SubscribeExecutionRequested(Action<PaletteItem, PaletteItem> callback)
         {
@@ -93,12 +95,23 @@ namespace BrokenMeta.UniPalette.Editor.Application
             return _executionRequested.Subscribe(request => callback(request.Command, request.Context));
         }
 
-        private PaletteItem LoadCommands(PaletteItem context) =>
-            _commandSource.ForContext(context);
+        private PaletteItem LoadCommands(PaletteItem context)
+        {
+            _loadingCommands = true;
+
+            try
+            {
+                return _commandSource.ForContext(context);
+            }
+            finally
+            {
+                _loadingCommands = false;
+            }
+        }
 
         private void OnCommandsChanged()
         {
-            if (_disposed || ConfirmingContext)
+            if (_disposed || ConfirmingContext || _loadingCommands)
                 return;
 
             var next = Browser.OnCommandsChanged(LoadCommands);
@@ -108,9 +121,9 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
             Browser = next;
             Rebuild();
-            Select(_selectFirstWhenLoaded && Query.IsEmpty ? 0 : -1);
+            SetSelectedIndex(_selectFirstWhenLoaded && Query.IsEmpty ? 0 : -1);
             _selectFirstWhenLoaded = false;
-            _commandResultsChanged.Publish();
+            _changed.Publish(PaletteChange.Screen);
         }
 
         private void ReturnToPreviousBrowser()
@@ -118,7 +131,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
             var previous = _history.GoBack();
             Browser = previous._browser.RefreshCommands(LoadCommands);
             ResetTransient();
-            Select(previous.FindSelection(Results));
+            SetSelectedIndex(previous.FindSelection(Results));
         }
 
         private bool ValidateNavigationTarget(PaletteItem selected)
@@ -126,7 +139,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
             if ((Context == null || Context.IsValid) && (selected == null || selected.IsValid))
                 return true;
 
-            Message = "Context no longer exists.";
+            ShowExecutionError("Context no longer exists.");
 
             return false;
         }
@@ -145,9 +158,16 @@ namespace BrokenMeta.UniPalette.Editor.Application
             _results.AddRange(Browser.GetItems(Query));
         }
 
+        private void SetSelectedIndex(int index) =>
+            SelectedIndex = index >= 0 && index < _results.Count ? index : -1;
+
         internal void ShowExecutionError(string error)
         {
+            if (Message == error)
+                return;
+
             Message = error;
+            _changed.Publish(PaletteChange.Message);
         }
 
         internal bool OpenCommands(PaletteItem context)
@@ -159,7 +179,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
             {
                 if (context is ContextItem confirmed && !_contextSelection.TryConfirm(confirmed, out var error))
                 {
-                    Message = error;
+                    ShowExecutionError(error);
 
                     return false;
                 }
@@ -183,13 +203,14 @@ namespace BrokenMeta.UniPalette.Editor.Application
             if (Context != null && !Context.IsValid)
             {
                 ReturnToPreviousBrowser();
-
+                _changed.Publish(PaletteChange.Screen);
                 return;
             }
 
             Browser = Browser.RefreshCommands(LoadCommands);
             SelectedIndex = -1;
             Rebuild();
+            _changed.Publish(PaletteChange.Screen);
         }
 
         internal void SetQuery(string text)
@@ -204,6 +225,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
             SelectedIndex = -1;
             Message = "";
             Rebuild();
+            _changed.Publish(PaletteChange.Results);
         }
 
         internal int FindResultIndex(Predicate<PaletteItem> match) =>
@@ -211,7 +233,11 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         internal void Select(int index)
         {
-            SelectedIndex = index >= 0 && index < _results.Count ? index : -1;
+            var previous = SelectedIndex;
+            SetSelectedIndex(index);
+
+            if (previous != SelectedIndex)
+                _changed.Publish(PaletteChange.Selection);
         }
 
         internal void MoveSelection(int direction)
@@ -246,7 +272,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
             if (_executionRequested.SubscriberCount > 0)
                 _executionRequested.Publish((command, context));
             else
-                Message = "Native execution is unavailable; nothing executed.";
+                ShowExecutionError("Native execution is unavailable; nothing executed.");
         }
 
         internal bool GoBack()
@@ -255,7 +281,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
                 return false;
 
             ReturnToPreviousBrowser();
-
+            _changed.Publish(PaletteChange.Screen);
             return true;
         }
 
@@ -264,8 +290,8 @@ namespace BrokenMeta.UniPalette.Editor.Application
             _history.Push(Browser, SelectedItem);
             Browser = next;
             ResetTransient();
-            Select(0);
-
+            SetSelectedIndex(0);
+            _changed.Publish(PaletteChange.Screen);
             return true;
         }
     }

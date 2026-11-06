@@ -136,7 +136,6 @@ namespace BrokenMeta.UniPalette.Editor
                 return;
 
             _session.Refresh();
-            _presenter?.Render(false);
         }
 
         [UnityEditor.MenuItem("Window/UniPalette")]

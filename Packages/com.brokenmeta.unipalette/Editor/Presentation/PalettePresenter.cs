@@ -54,7 +54,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                     .SubscribeKeyPressed(OnKeyDown)
                     .AddTo(_subscriptions);
                 session
-                    .SubscribeCommandResultsChanged(OnCommandResultsChanged)
+                    .SubscribeChanged(OnSessionChanged)
                     .AddTo(_subscriptions);
                 session
                     .SubscribeExecutionRequested(ExecuteCommand)
@@ -82,9 +82,27 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 _session.Select(index);
         }
 
-        private void OnCommandResultsChanged()
+        private void OnSessionChanged(PaletteChange change)
         {
-            Render(false);
+            if (_disposed)
+                return;
+
+            switch (change)
+            {
+                case PaletteChange.Screen:
+                    Render(false);
+                    break;
+                case PaletteChange.Results:
+                    var presentation = _session.Browser.Accept(_presentations);
+                    _view.RefreshResults(DescribeRows(presentation), _session.SelectedIndex, GetMessage(presentation));
+                    break;
+                case PaletteChange.Selection:
+                    _view.SelectRow(_session.SelectedIndex);
+                    break;
+                case PaletteChange.Message:
+                    _view.UpdateMessage(GetMessage(_session.Browser.Accept(_presentations)));
+                    break;
+            }
         }
 
         private void ExecuteCommand(PaletteItem command, PaletteItem context)
@@ -99,8 +117,6 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 return;
 
             _session.SetQuery(query);
-            var presentation = _session.Browser.Accept(_presentations);
-            _view.RefreshResults(DescribeRows(presentation), _session.SelectedIndex, GetMessage(presentation));
         }
 
         private void OnKeyDown(KeyDownEvent evt)
@@ -139,7 +155,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             {
                 Consume(evt);
                 _session.MoveSelection(evt.keyCode == KeyCode.DownArrow ? 1 : -1);
-                _view.RevealSelection(_session.SelectedIndex);
+                _view.ScrollToSelection(_session.SelectedIndex);
                 _view.FocusSearch();
             }
             else if (enter)
@@ -167,24 +183,14 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             if (_disposed)
                 return;
 
-            var changed = action();
+            action();
 
             // Native execution may synchronously close the host and dispose this presenter.
             if (_disposed)
                 return;
 
-            if (changed)
-            {
-                Render();
-            }
-            else
-            {
-                _view.UpdateMessage(GetMessage(_session.Browser.Accept(_presentations)));
-                ScheduleSearchFocus();
-            }
-
-            if (!_disposed)
-                _view.FocusSearch();
+            ScheduleSearchFocus();
+            _view.FocusSearch();
         }
 
         private void ActivateRow(PaletteItem item, EventBase evt)
@@ -205,7 +211,6 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 return;
 
             _session.Select(index);
-            _view.SelectRow(index);
 
             if (pointer?.ctrlKey ?? mouse?.ctrlKey ?? false)
                 OpenContextCommands();
@@ -248,10 +253,8 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             if (_disposed)
                 return;
 
-            if (_session.GoBack())
-                Render();
-            else
-                ScheduleSearchFocus();
+            _session.GoBack();
+            ScheduleSearchFocus();
         }
 
         internal void Render(bool focusSearch = true)
