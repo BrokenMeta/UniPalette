@@ -14,6 +14,8 @@ namespace BrokenMeta.UniPalette.Editor.Application
     {
         private readonly Signal<PaletteChange> _changed = new();
 
+        private readonly Signal _contextConfirmed = new();
+
         private readonly Signal<(PaletteItem Command, PaletteItem Context)> _executionRequested = new();
 
         private readonly IDisposable _commandSubscription;
@@ -81,11 +83,15 @@ namespace BrokenMeta.UniPalette.Editor.Application
             _disposed = true;
             _commandSubscription.Dispose();
             _changed.Dispose();
+            _contextConfirmed.Dispose();
             _executionRequested.Dispose();
         }
 
         internal IDisposable SubscribeChanged(Action<PaletteChange> callback) =>
             _changed.Subscribe(callback);
+
+        internal IDisposable SubscribeContextConfirmed(Action callback) =>
+            _contextConfirmed.Subscribe(callback);
 
         internal IDisposable SubscribeExecutionRequested(Action<PaletteItem, PaletteItem> callback)
         {
@@ -177,11 +183,15 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
             try
             {
-                if (context is ContextItem confirmed && !_contextSelection.TryConfirm(confirmed, out var error))
+                if (context is ContextItem confirmed)
                 {
-                    ShowExecutionError(error);
+                    if (!_contextSelection.TryConfirm(confirmed, out var error))
+                    {
+                        ShowExecutionError(error);
+                        return false;
+                    }
 
-                    return false;
+                    _contextConfirmed.Publish();
                 }
 
                 // Availability is read after Selection changes, never from cached search labels.

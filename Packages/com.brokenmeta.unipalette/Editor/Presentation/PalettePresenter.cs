@@ -10,7 +10,6 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
     {
         private readonly SubscriptionScope _subscriptions = new();
 
-        private readonly Action _beforeRender;
         private readonly Action _close;
         private readonly Action<PaletteItem, PaletteItem> _execute;
 
@@ -25,15 +24,13 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             PaletteSession session,
             IPaletteBrowserVisitor<BrowserPresentation> presentations,
             Action close,
-            Action<PaletteItem, PaletteItem> execute,
-            Action beforeRender)
+            Action<PaletteItem, PaletteItem> execute)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _session = session ?? throw new ArgumentNullException(nameof(session));
             _presentations = presentations ?? throw new ArgumentNullException(nameof(presentations));
             _close = close ?? throw new ArgumentNullException(nameof(close));
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _beforeRender = beforeRender ?? throw new ArgumentNullException(nameof(beforeRender));
             try
             {
                 view
@@ -232,11 +229,6 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
 
         internal void Render(bool focusSearch = true)
         {
-            if (_disposed)
-                return;
-
-            _beforeRender();
-
             if (_disposed)
                 return;
 

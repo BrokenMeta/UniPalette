@@ -15,6 +15,8 @@ namespace BrokenMeta.UniPalette.Editor
 
         private ICommandSource _commandSource;
 
+        private System.IDisposable _contextConfirmationSubscription;
+
         private CommandExecutionPreparation _executionPreparation;
 
         private SceneView _contextSceneView;
@@ -170,9 +172,10 @@ namespace BrokenMeta.UniPalette.Editor
                 _session,
                 new BrowserPresentationSelector(),
                 Close,
-                ExecuteCommand,
-                ObserveSelection
+                ExecuteCommand
             );
+            _contextConfirmationSubscription = _session.SubscribeContextConfirmed(ObserveSelection);
+            ObserveSelection();
         }
 
         private void DisposePresenter()
@@ -191,6 +194,8 @@ namespace BrokenMeta.UniPalette.Editor
         private void DisposeSession()
         {
             DisposePresenter();
+            _contextConfirmationSubscription?.Dispose();
+            _contextConfirmationSubscription = null;
             _session?.Dispose();
             _commandSource?.Dispose();
             _commandSource = null;

@@ -24,9 +24,13 @@ namespace BrokenMeta.UniPalette.Tests
                 new TestContextSource(new[] { Assets(), })
             );
 
+            var confirmationObserved = false;
+            using var confirmation = session.SubscribeContextConfirmed(() => confirmationObserved = true);
+
             source._requesting = context =>
             {
                 Assert.That(session.ConfirmingContext, Is.True);
+                Assert.That(confirmationObserved, Is.True, "Acknowledge Selection before discovering commands");
 
                 Assert.That(
                     new UnityContextSelection().MatchesSelection(context),
