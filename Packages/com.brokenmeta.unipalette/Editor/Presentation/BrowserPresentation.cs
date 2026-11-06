@@ -17,6 +17,6 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
 
         internal abstract string GetNotice(PaletteSession session);
 
-        internal abstract PaletteRow Describe(PaletteItem item, PaletteItem context);
+        internal abstract PaletteRow Describe(PaletteResult result, PaletteItem context);
     }
 }

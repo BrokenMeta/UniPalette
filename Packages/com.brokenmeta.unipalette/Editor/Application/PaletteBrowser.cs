@@ -14,23 +14,25 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         internal abstract string Location { get; }
 
-        protected static bool Matches(PaletteItem item, SearchQuery query)
+        protected static bool Matches(PaletteResult result, SearchQuery query)
         {
             if (query.IsEmpty)
                 return true;
 
-            var selectionPrefix = item.SelectionEntry ? "Current Selection " : string.Empty;
-            var searchText = $"{selectionPrefix}{item.Title} {item.Path}";
+            var selectionPrefix = result.Item.SelectionEntry ? "Current Selection " : string.Empty;
+            var searchText = $"{selectionPrefix}{result.Title} {result.Path}";
 
             return query.Matches(searchText);
         }
 
-        protected static IEnumerable<PaletteItem> Filter(PaletteItem[] items, SearchQuery query, bool recursive)
+        protected static IEnumerable<PaletteResult> Filter(PaletteItem[] items, SearchQuery query, bool recursive)
         {
             foreach (var item in items)
             {
-                if (Matches(item, query))
-                    yield return item;
+                var result = new PaletteResult(item);
+
+                if (Matches(result, query))
+                    yield return result;
 
                 if (!recursive || query.IsEmpty)
                     continue;
@@ -42,7 +44,7 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         internal abstract TResult Accept<TResult>(IPaletteBrowserVisitor<TResult> visitor);
 
-        internal abstract IEnumerable<PaletteItem> GetItems(SearchQuery query);
+        internal abstract IEnumerable<PaletteResult> GetItems(SearchQuery query);
 
         internal abstract bool Activate(PaletteSession session, PaletteItem selected);
 

@@ -123,6 +123,9 @@ namespace BrokenMeta.UniPalette.Tests
             session.Refresh();
             Assert.That(session.Context.Path, Is.EqualTo(_folder + "/Moved"));
             session.GoBack();
+            var moved = session.GetResult(session.FindResultIndex(item => item.SelectionEntry));
+            Assert.That(moved.Title, Is.EqualTo("Moved"));
+            Assert.That(moved.Path, Is.EqualTo(_folder + "/Moved"));
             Selection.activeObject = AssetDatabase.LoadMainAssetAtPath(_folder + "/Moved/Nested/Needle.txt");
             session.Refresh();
             Assert.That(session.Results.Single(item => item.SelectionEntry).Target, Is.InstanceOf<TextAsset>());

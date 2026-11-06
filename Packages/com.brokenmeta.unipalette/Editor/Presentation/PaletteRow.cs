@@ -1,4 +1,5 @@
 ﻿using System;
+using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Model;
 using Object = UnityEngine.Object;
 
@@ -20,7 +21,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
         internal readonly Func<Object> _resolveIconTarget;
 
         internal PaletteRow(
-            PaletteItem item,
+            PaletteResult result,
             string subtitle,
             Func<Object> resolveIconTarget,
             string iconName,
@@ -28,7 +29,8 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             string indicatorTooltip = null,
             Func<(string Text, string Tooltip)> resolveIndicator = null)
         {
-            _title = item.SelectionEntry ? "Current Selection" : item.Title;
+            var item = result.Item;
+            _title = item.SelectionEntry ? "Current Selection" : result.Title;
             _subtitle = subtitle;
             _tooltip = subtitle + (item.AvailabilityNote == null ? "" : "\n" + item.AvailabilityNote);
             _item = item;

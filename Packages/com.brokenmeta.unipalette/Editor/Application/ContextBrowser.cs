@@ -17,12 +17,14 @@ namespace BrokenMeta.UniPalette.Editor.Application
         internal override TResult Accept<TResult>(IPaletteBrowserVisitor<TResult> visitor) =>
             visitor.Visit(this);
 
-        internal override IEnumerable<PaletteItem> GetItems(SearchQuery query)
+        internal override IEnumerable<PaletteResult> GetItems(SearchQuery query)
         {
             foreach (var item in _source.GetItems(Context, !query.IsEmpty))
             {
-                if (Matches(item, query))
-                    yield return item;
+                var result = new PaletteResult(item);
+
+                if (Matches(result, query))
+                    yield return result;
             }
         }
 

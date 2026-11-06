@@ -53,18 +53,21 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                     ? "No results"
                     : "";
 
-            internal override PaletteRow Describe(PaletteItem item, PaletteItem context) =>
-                new(
-                    item,
+            internal override PaletteRow Describe(PaletteResult result, PaletteItem context)
+            {
+                var item = result.Item;
+                return new PaletteRow(
+                    result,
                     item.SelectionEntry
-                        ? item.Title
+                        ? result.Title
                         + " \u00B7 "
-                        + item.Path
-                        : item.Path,
+                        + result.Path
+                        : result.Path,
                     () => item.Target,
                     item.IconName,
                     resolveIndicator: () => DescribeActivation(item)
                 );
+            }
         }
 
         private sealed class CommandPresentation : BrowserPresentation
@@ -95,13 +98,15 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                         + session.CommandNotice
                         : session.CommandNotice;
 
-            internal override PaletteRow Describe(PaletteItem item, PaletteItem context)
+            internal override PaletteRow Describe(PaletteResult result, PaletteItem context)
             {
+                var item = result.Item;
+
                 if (item is ContextActionItem action)
                 {
                     return new PaletteRow(
-                        item,
-                        item.Path + " \u00B7 Contextual action",
+                        result,
+                        result.Path + " \u00B7 Contextual action",
                         null,
                         "TextAsset Icon",
                         action.IsEnabled ? "\u21B5" : "\u2014",
@@ -114,11 +119,11 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 var container = item.CanBrowse;
                 var relevantMenuCommand = !container
                     && item is MenuCommandItem
-                    && new MenuRelevance(item.Path).Matches(context);
+                    && new MenuRelevance(result.Path).Matches(context);
 
                 var subtitle = item.SelectionEntry
-                    ? item.Title + " \u00B7 " + item.Path
-                    : item.Path
+                    ? result.Title + " \u00B7 " + result.Path
+                    : result.Path
                     + (!container
                         ? relevantMenuCommand
                             ? " \u00B7 Unity menu command"
@@ -126,7 +131,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                         : "");
 
                 return new PaletteRow(
-                    item,
+                    result,
                     subtitle,
                     null,
                     container ? "Folder Icon" : "TextAsset Icon",

@@ -51,7 +51,7 @@ namespace BrokenMeta.UniPalette.Tests
             using var commands = new TestCommandSource(PaletteTestData.Commands());
             using var session = new PaletteSession(commands, new UnityContextSelection(), contexts);
             var presentation = session.Browser.Accept(new BrowserPresentationSelector());
-            var row = presentation.Describe(root, session.Context);
+            var row = presentation.Describe(session.GetResult(0), session.Context);
             Assert.That(contexts.CheckedContext, Is.Null, "Preparing rows must not enumerate children");
             Assert.That(row.GetIndicator().Text, Is.EqualTo(canBrowse ? "\u203A" : "\u2197"));
             Assert.That(contexts.CheckedContext, Is.SameAs(root));

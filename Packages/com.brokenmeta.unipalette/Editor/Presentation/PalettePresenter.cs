@@ -195,7 +195,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             var rows = new PaletteRow[results.Count];
 
             for (var index = 0; index < rows.Length; index++)
-                rows[index] = presentation.Describe(results[index], context);
+                rows[index] = presentation.Describe(_session.GetResult(index), context);
 
             return rows;
         }

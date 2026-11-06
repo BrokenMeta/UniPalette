@@ -27,6 +27,8 @@ namespace BrokenMeta.UniPalette.Editor.Application
 
         private readonly List<PaletteItem> _results = new();
 
+        private readonly List<PaletteResult> _resultDetails = new();
+
         private bool _disposed;
 
         private bool _loadingCommands;
@@ -161,7 +163,13 @@ namespace BrokenMeta.UniPalette.Editor.Application
         private void Rebuild()
         {
             _results.Clear();
-            _results.AddRange(Browser.GetItems(Query));
+            _resultDetails.Clear();
+
+            foreach (var result in Browser.GetItems(Query))
+            {
+                _results.Add(result.Item);
+                _resultDetails.Add(result);
+            }
         }
 
         private void SetSelectedIndex(int index) =>
@@ -237,6 +245,9 @@ namespace BrokenMeta.UniPalette.Editor.Application
             Rebuild();
             _changed.Publish(PaletteChange.Results);
         }
+
+        internal PaletteResult GetResult(int index) =>
+            _resultDetails[index];
 
         internal int FindResultIndex(Predicate<PaletteItem> match) =>
             _results.FindIndex(match);
