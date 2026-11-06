@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Lifetime;
 using BrokenMeta.UniPalette.Editor.Model;
 using Unity.AppUI.UI;
@@ -33,6 +32,8 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
 
         private readonly VisualElement _root;
         private readonly Dictionary<VisualElement, Clickable> _rowClicks = new();
+        private readonly List<PaletteRow> _rows = new();
+
         private ActionButton _back;
         private Image _contextIcon;
         private Text _contextLabel;
@@ -44,12 +45,10 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
         private Text _modeLabel;
         private Panel _panel;
         private IVisualElementScheduledItem _pendingSearchFocus;
-        private BrowserPresentation _presentation;
         private ListView _results;
         private Text _resultsCount;
         private Text _resultsTitle;
         private SearchBar _searchBar;
-        private PaletteSession _session;
 
         internal PaletteView(VisualElement root)
         {
@@ -85,8 +84,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             _rowSelectionChanged.Dispose();
             _rowActivated.Dispose();
             _keyPressed.Dispose();
-            _session = null;
-            _presentation = null;
+            _rows.Clear();
         }
 
         internal IDisposable SubscribeBackRequested(Action callback) =>
@@ -161,26 +159,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             _results.makeItem = MakeRow;
             _results.bindItem = BindRow;
             _results.destroyItem = ReleaseRow;
-        }
-
-        private void BindSession(PaletteSession next)
-        {
-            if (ReferenceEquals(_session, next))
-                return;
-
-            _session = next;
-            // Rebinding is a render operation, not a user selection change.
-            _results.selectionChanged -= OnRowSelectionChanged;
-
-            try
-            {
-                _results.itemsSource = _session.Results;
-            }
-            finally
-            {
-                if (!_disposed)
-                    _results.selectionChanged += OnRowSelectionChanged;
-            }
+            _results.itemsSource = _rows;
         }
 
         private void AttachCallbacks()
@@ -296,24 +275,20 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
 
         private void BindRow(VisualElement element, int index)
         {
-            if (_disposed || _session == null)
+            if (_disposed)
                 return;
 
-            var item = _session.Results[index];
+            var description = _rows[index];
             var row = (ListViewItem)element;
-            row.userData = item;
-            var description = _presentation.Describe(item, _session.Context);
+            row.userData = description._item;
             row.title = description._title;
             row.subtitle = description._subtitle;
             row.tooltip = description._tooltip;
-            row.thumbnail = ItemIcon(description._target, description._iconName);
+            row.thumbnail = ItemIcon(description._resolveIconTarget?.Invoke(), description._iconName);
             var indicator = row.Q<Text>("indicator");
             indicator.text = description._indicator;
             indicator.tooltip = description._indicatorTooltip;
         }
-
-        private static Texture ItemIcon(PaletteItem item) =>
-            ItemIcon(item?.Target, item?.IconName ?? "Search Icon");
 
         private static Texture ItemIcon(Object target, string iconName) =>
             target
@@ -355,64 +330,62 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 _results.ScrollToItem(index);
         }
 
-        internal void Render(PaletteSession session, BrowserPresentation presentation, bool focusSearch = true)
+        internal void Render(PaletteScreenState state, bool focusSearch)
         {
             if (_disposed)
                 return;
 
-            _presentation = presentation;
-            BindSession(session);
-            _searchBar.SetValueWithoutNotify(session.Query.Text);
-            var browser = session.Browser;
-            _searchBar.placeholder = presentation.SearchPlaceholder;
-            _modeLabel.text = presentation.Label;
-            _contextTitle.text = session.Context?.ContextTitle ?? "Choose a context";
-            _contextLabel.text = presentation.GetBreadcrumb(browser);
-            _contextLabel.tooltip = _contextLabel.text;
-            _contextIcon.image = ItemIcon(session.Context);
-            _dataLabel.text = presentation.DataLabel;
-            _dataLabel.tooltip = presentation.DataTooltip;
-            _resultsTitle.text = presentation.ResultsTitle;
-            _hints.text = presentation.Hints;
-            _back.SetEnabled(session.CanGoBack);
-            _back.tooltip = session.CanGoBack ? "Back \u00B7 Escape / Alt+Left" : "Already at the root";
-            RefreshResults(session);
+            _searchBar.SetValueWithoutNotify(state.Query);
+            _searchBar.placeholder = state.SearchPlaceholder;
+            _modeLabel.text = state.ModeLabel;
+            _contextTitle.text = state.ContextTitle;
+            _contextLabel.text = state.Breadcrumb;
+            _contextLabel.tooltip = state.Breadcrumb;
+            _contextIcon.image = ItemIcon(state.ContextTarget, state.ContextIconName);
+            _dataLabel.text = state.DataLabel;
+            _dataLabel.tooltip = state.DataTooltip;
+            _resultsTitle.text = state.ResultsTitle;
+            _hints.text = state.Hints;
+            _back.SetEnabled(state.CanGoBack);
+            _back.tooltip = state.CanGoBack ? "Back \u00B7 Escape / Alt+Left" : "Already at the root";
+            RefreshResults(state.Rows, state.SelectedIndex, state.Message);
 
             if (focusSearch)
                 ScheduleSearchFocus();
         }
 
-        internal void RefreshResults(PaletteSession session)
+        internal void RefreshResults(PaletteRow[] rows, int selectedIndex, string message)
         {
             if (_disposed)
                 return;
 
-            BindSession(session);
-            var selected = session.SelectedIndex;
-            _results.SetSelectionWithoutNotify(Array.Empty<int>());
-            _results.RefreshItems();
-            session.Select(selected);
+            _rows.Clear();
+            _rows.AddRange(rows);
+            // Refreshing recycled rows is a render operation, not a user selection change.
+            _results.selectionChanged -= OnRowSelectionChanged;
+            try
+            {
+                _results.SetSelectionWithoutNotify(Array.Empty<int>());
+                _results.RefreshItems();
+                RevealSelection(selectedIndex);
+            }
+            finally
+            {
+                if (!_disposed)
+                    _results.selectionChanged += OnRowSelectionChanged;
+            }
 
-            _results.SetSelectionWithoutNotify(
-                session.SelectedIndex < 0
-                    ? Array.Empty<int>()
-                    : new[] { session.SelectedIndex, }
-            );
-
-            if (session.SelectedIndex >= 0)
-                _results.ScrollToItem(session.SelectedIndex);
-
-            _resultsCount.text = session.Results.Count.ToString();
-            UpdateMessage(session);
+            _resultsCount.text = _rows.Count.ToString();
+            UpdateMessage(message);
         }
 
-        internal void UpdateMessage(PaletteSession session)
+        internal void UpdateMessage(string message)
         {
             if (_disposed)
                 return;
 
-            _messageLabel.text = session.Message.Length > 0 ? session.Message : _presentation.GetNotice(session);
-            _messageLabel.style.display = _messageLabel.text.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            _messageLabel.text = message;
+            _messageLabel.style.display = message.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         internal void FocusSearch()

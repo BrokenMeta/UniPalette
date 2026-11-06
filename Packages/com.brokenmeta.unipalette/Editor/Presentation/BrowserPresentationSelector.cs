@@ -47,7 +47,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                         + " \u00B7 "
                         + item.Path
                         : item.Path,
-                    item.Target,
+                    () => item.Target,
                     item.IconName,
                     item.SelectionEntry
                         ? "\u21B5"

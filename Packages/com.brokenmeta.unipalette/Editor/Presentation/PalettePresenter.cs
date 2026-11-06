@@ -99,7 +99,8 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 return;
 
             _session.SetQuery(query);
-            _view.RefreshResults(_session);
+            var presentation = _session.Browser.Accept(_presentations);
+            _view.RefreshResults(DescribeRows(presentation), _session.SelectedIndex, GetMessage(presentation));
         }
 
         private void OnKeyDown(KeyDownEvent evt)
@@ -178,7 +179,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             }
             else
             {
-                _view.UpdateMessage(_session);
+                _view.UpdateMessage(GetMessage(_session.Browser.Accept(_presentations)));
                 ScheduleSearchFocus();
             }
 
@@ -211,6 +212,21 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             else
                 ActivateSelected();
         }
+
+        private PaletteRow[] DescribeRows(BrowserPresentation presentation)
+        {
+            var results = _session.Results;
+            var context = _session.Context;
+            var rows = new PaletteRow[results.Count];
+
+            for (var index = 0; index < rows.Length; index++)
+                rows[index] = presentation.Describe(results[index], context);
+
+            return rows;
+        }
+
+        private string GetMessage(BrowserPresentation presentation) =>
+            _session.Message.Length > 0 ? _session.Message : presentation.GetNotice(_session);
 
         internal void ActivateSelected()
         {
@@ -245,8 +261,30 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
 
             _beforeRender();
 
-            if (!_disposed)
-                _view.Render(_session, _session.Browser.Accept(_presentations), focusSearch);
+            if (_disposed)
+                return;
+
+            var browser = _session.Browser;
+            var context = browser.Context;
+            var presentation = browser.Accept(_presentations);
+            var state = new PaletteScreenState(
+                _session.Query.Text,
+                presentation.SearchPlaceholder,
+                presentation.Label,
+                context?.ContextTitle ?? "Choose a context",
+                presentation.GetBreadcrumb(browser),
+                context?.Target,
+                context?.IconName ?? "Search Icon",
+                presentation.DataLabel,
+                presentation.DataTooltip,
+                presentation.ResultsTitle,
+                presentation.Hints,
+                _session.CanGoBack,
+                DescribeRows(presentation),
+                _session.SelectedIndex,
+                GetMessage(presentation)
+            );
+            _view.Render(state, focusSearch);
         }
 
         internal void ScheduleSearchFocus()
