@@ -1,39 +1,56 @@
 # UniPalette tests
 
-Tests are grouped by the behavior they own. NUnit categories select a mechanic independently of the class/file layout. All tests run in Edit Mode in the project's connected Unity Editor; none require Play Mode.
+[Project overview](../../../README.md) · [Editor architecture](../Editor/README.md)
 
-| Category | Responsibility | Fixtures |
+The suite runs in **Edit Mode**. Each test has a behavior category so you can run the checks for the part you changed.
+
+## Choose a run
+
+| What changed | Category | Test fixtures |
 | --- | --- | --- |
-| Navigation | Forward transitions, context/command browsing, query selection | NavigationTests, CommandNavigationTests |
-| History | Back navigation, entry identity, visible ancestors, removed entries | HistoryTests, ContextHistoryTests |
-| ContextDiscovery | Scene/project search scope, paths, asset identity | ContextDiscoveryTests |
-| ContextConfirmation | Adopting Selection, real children, editor notifications | ContextConfirmationTests, WindowContextTests |
-| CommandDiscovery | Menu normalization/tree, family relevance, availability, live SearchService | CommandDiscoveryTests, CommandEligibilityTests, CommandDiscoveryIntegrationTests, WindowDiscoveryTests |
-| ExecutionPreparation | Target/Selection/menu validation, categories, consumed requests | ExecutionPreparationTests, CommandActivationTests |
-| View | Row rebinding, visual metadata, callback disposal and GUI recreation | PaletteViewTests |
-| Input | Keyboard/pointer routing, modifiers, list selection and search focus | PaletteInputTests |
-| NativeIntegration | Real dispatch, pre-close failure in the window, close/focus ordering, representative native results | NativeIntegrationTests |
+| Context or command navigation | `Navigation` | [NavigationTests](Editor/NavigationTests.cs), [CommandNavigationTests](Editor/CommandNavigationTests.cs) |
+| Returning to a previous level or restoring its row | `History` | [HistoryTests](Editor/HistoryTests.cs), [ContextHistoryTests](Editor/ContextHistoryTests.cs) |
+| Search matching, query identity, and the read-only results list | `Search` | [SearchQueryTests](Editor/SearchQueryTests.cs) |
+| Scene and Project traversal or asset identity | `ContextDiscovery` | [ContextDiscoveryTests](Editor/ContextDiscoveryTests.cs) |
+| Context confirmation, Unity Selection, or Editor notifications | `ContextConfirmation` | [ContextSelectionTests](Editor/ContextSelectionTests.cs), [ContextConfirmationTests](Editor/ContextConfirmationTests.cs), [WindowContextTests](Editor/WindowContextTests.cs) |
+| Menu discovery, availability, or catalog refresh and recovery | `CommandDiscovery` | [CommandDiscoveryTests](Editor/CommandDiscoveryTests.cs), [CommandEligibilityTests](Editor/CommandEligibilityTests.cs), [CommandSourceTests](Editor/CommandSourceTests.cs), [CommandDiscoveryIntegrationTests](Editor/CommandDiscoveryIntegrationTests.cs), [WindowDiscoveryTests](Editor/WindowDiscoveryTests.cs) |
+| Combining command sources, notification forwarding, or disposal | `CommandSources` | [CompositeCommandSourceTests](Editor/CompositeCommandSourceTests.cs) |
+| Row binding, interrupted result updates, or window/session lifecycle | `View` | [PaletteViewTests](Editor/PaletteViewTests.cs) |
+| Keyboard and pointer routing or search focus | `Input` | [PaletteInputTests](Editor/PaletteInputTests.cs) |
+| Subscription disposal and callback ordering | `Subscriptions` | [SubscriptionTests](Editor/SubscriptionTests.cs) |
+| Target, Selection, and menu checks before dispatch | `ExecutionPreparation` | [CommandActivationTests](Editor/CommandActivationTests.cs), [ExecutionPreparationTests](Editor/ExecutionPreparationTests.cs) |
+| Main-menu close, focus, and dispatch | `NativeIntegration` | [NativeIntegrationTests](Editor/NativeIntegrationTests.cs) |
+| Scene View contextual discovery and dispatch | `ContextActions` | [ContextActionTests](Editor/ContextActionTests.cs) |
+| Project contextual discovery and dispatch | `AssetActions` | [AssetActionTests](Editor/AssetActionTests.cs) |
 
-Additional categories describe the environment:
+### Filter by environment
 
-- **Fast**: fixture data and injected menu availability; no temporary scenes/assets or native command execution. Some cases confirm a virtual root and temporarily change Unity Selection, which the fixture restores. These are still Editor tests, not isolated parallel tests.
-- **UI**: real Editor window and synthetic keyboard/pointer events. Includes view/input and the window integration fixtures. Does not prove physical input or screenshot appearance.
-- **EditorIntegration**: live scene/assets, SearchService, editor notifications or native commands. Run in the verified project Editor; shared global Editor state makes parallel execution inappropriate.
+| Category | What it exercises |
+| --- | --- |
+| `Fast` | Fixture data and injected menu availability. No temporary scenes or assets are needed. Some tests briefly change Unity Selection and restore it in teardown. |
+| `UI` | Real Editor windows with synthetic keyboard and pointer events. Covers input routing, row binding, and focus. Physical input and visual appearance require separate verification. |
+| `EditorIntegration` | Live Editor APIs, including scene or asset data, SearchService, notifications, focus, or command execution. Run serially because the tests share Editor state. |
 
-## Choosing a run
+Select a category under **Edit Mode** in Unity Test Runner. With Unity CLI MCP, pass the following to `test_run`. Use `filter_type: "testName"` to run a fixture or case by name. Run the full Edit Mode suite after changes that cross multiple areas.
 
-Use a mechanic category while changing that behavior. Use **Fast** for the inexpensive model/discovery checks, **UI** for window/input work, and **NativeIntegration** when changing command dispatch or focused editor preparation. Run the full suite after a change crosses several of these boundaries or when reorganizing the tests themselves.
+```json
+{
+  "mode": "editor",
+  "filter_type": "category",
+  "filter": "History"
+}
+```
 
-The Unity Test Runner exposes NUnit categories. With the Unity CLI MCP test_run tool, select a category using `mode: "editor"`, `filter_type: "category"`, and `filter: "History"` (or another category above). A category may include both fast and integration fixtures; use the individual fixture name with a testName filter when only that fixture is relevant.
+## Shared scene and test data
 
-## Ownership rules
+1. [TestSceneSession](Editor/TestSceneSession.cs) owns one [SharedTestScene](Editor/SharedTestScene.cs) for the selected run. The first test that needs scene data copies the [empty scene template](Editor/Scenes/UniPaletteTestScene.unity) to a disposable folder under `Assets` and opens it.
+2. Ordinary scene tests reuse that open copy and clear their objects between cases. At the end of the run, teardown restores the previous active scene if it is still loaded, closes the copy without saving, and deletes the owned folder.
+3. The closed-scene regression uses a second disposable copy. A separate regression temporarily switches the active scene. Unity Test Runner manages its own untitled scene independently.
 
-Keep each behavior's detailed variants in its owning group. UI tests verify routing and focus; they should not repeat every native command outcome. Native integration retains one result scenario per command/context variant, plus representative Enter/click paths for scene objects, assets and virtual roots. Keep target deletion, Selection changes, current menu state, consumed requests and special root-scene validation covered.
+Asset fixtures create and clean up their own temporary folders. Run data-changing command checks against fixture-owned objects and assets. Treat already-open scenes and existing project assets as user-owned. Keep the saved scene template intact.
 
-Shared `*TestFixture` classes contain setup/cleanup and helpers, never test cases. The namespace-level `TestSceneSession` owns one temporary scene for the entire selected run, including runs spanning multiple fixtures. `SharedTestScene` copies the saved empty template into a disposable Assets folder lazily on first use, opens that copy once, leaves it loaded/active between ordinary cases, and clears only its own objects between cases. At the end it restores the previous active scene, closes the copy without saving test mutations, and deletes the owned temporary folder. Fast and UI-only runs that do not need scene data create no scene through this helper.
+## Adding a test
 
-The closed-scene regression deliberately creates/closes a separate disposable scene; it never closes the main session scene. The changed-scene regression temporarily switches the active scene. Native integration also focuses Hierarchy/Project and opens/closes the palette as required by the execution contract, so one scene session does not eliminate window/focus changes during those tests.
-
-Asset tests create disposable folders and clean them up. Tests must not operate on user scenes/assets or turn Delete/Reimport/Save into production-data integration checks. The saved scene template under Editor/Scenes is copied, never overwritten or used for test mutations; any already-open scene is treated as user-owned. Unity Test Runner also manages its own untitled scene around the run. Its setup/restoration is separate from the package's scene session.
-
-Add a case only for a distinct contract or regression. Name it by behavior rather than an implementation milestone. A new command using the same dispatch path does not require another Enter/click matrix.
+- Put a regression in the category that owns the behavior. Use the existing `*TestFixture` bases for setup and cleanup.
+- Use fixture sources for workflow checks. Window tests install a session through `UniPaletteWindow.ReplaceSession`, the same method used by the real window.
+- Use integration tests for Unity-specific outcomes such as target changes, focus, and command dispatch. Reuse existing coverage of Enter and click for commands that use the same route.
