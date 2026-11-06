@@ -15,7 +15,7 @@ namespace BrokenMeta.UniPalette.Editor
 
         private ICommandSource _commandSource;
 
-        private System.IDisposable _contextConfirmationSubscription;
+        private SubscriptionScope _sessionSubscriptions;
 
         private CommandExecutionPreparation _executionPreparation;
 
@@ -96,7 +96,7 @@ namespace BrokenMeta.UniPalette.Editor
                 _contextSceneView
             );
             _session = new PaletteSession(_commandSource, contextSelection, new UnityContextSource());
-            AttachPresenter();
+            AttachSession();
             _presenter.Render();
         }
 
@@ -165,16 +165,21 @@ namespace BrokenMeta.UniPalette.Editor
             window._presenter?.ScheduleSearchFocus();
         }
 
-        private void AttachPresenter()
+        private void AttachSession()
         {
             _presenter = new PalettePresenter(
                 _view,
                 _session,
                 new BrowserPresentationSelector(),
-                Close,
-                ExecuteCommand
+                Close
             );
-            _contextConfirmationSubscription = _session.SubscribeContextConfirmed(ObserveSelection);
+            _sessionSubscriptions = new SubscriptionScope();
+            _session
+                .SubscribeContextConfirmed(ObserveSelection)
+                .AddTo(_sessionSubscriptions);
+            _session
+                .SubscribeExecutionRequested(ExecuteCommand)
+                .AddTo(_sessionSubscriptions);
             ObserveSelection();
         }
 
@@ -194,8 +199,8 @@ namespace BrokenMeta.UniPalette.Editor
         private void DisposeSession()
         {
             DisposePresenter();
-            _contextConfirmationSubscription?.Dispose();
-            _contextConfirmationSubscription = null;
+            _sessionSubscriptions?.Dispose();
+            _sessionSubscriptions = null;
             _session?.Dispose();
             _commandSource?.Dispose();
             _commandSource = null;

@@ -11,7 +11,6 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
         private readonly SubscriptionScope _subscriptions = new();
 
         private readonly Action _close;
-        private readonly Action<PaletteItem, PaletteItem> _execute;
 
         private readonly IPaletteBrowserVisitor<BrowserPresentation> _presentations;
         private readonly PaletteSession _session;
@@ -23,14 +22,12 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             PaletteView view,
             PaletteSession session,
             IPaletteBrowserVisitor<BrowserPresentation> presentations,
-            Action close,
-            Action<PaletteItem, PaletteItem> execute)
+            Action close)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _session = session ?? throw new ArgumentNullException(nameof(session));
             _presentations = presentations ?? throw new ArgumentNullException(nameof(presentations));
             _close = close ?? throw new ArgumentNullException(nameof(close));
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
             try
             {
                 view
@@ -59,9 +56,6 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                     .AddTo(_subscriptions);
                 session
                     .SubscribeChanged(OnSessionChanged)
-                    .AddTo(_subscriptions);
-                session
-                    .SubscribeExecutionRequested(ExecuteCommand)
                     .AddTo(_subscriptions);
             }
             catch
@@ -107,12 +101,6 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                     _view.UpdateMessage(GetMessage(_session.Browser.Accept(_presentations)));
                     break;
             }
-        }
-
-        private void ExecuteCommand(PaletteItem command, PaletteItem context)
-        {
-            if (!_disposed)
-                _execute(command, context);
         }
 
         private void UpdateQuery(string query)

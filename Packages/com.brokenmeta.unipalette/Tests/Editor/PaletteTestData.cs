@@ -80,7 +80,7 @@ namespace BrokenMeta.UniPalette.Tests
                 .SetValue(window, ownedSource);
 
             typeof(UniPaletteWindow)
-                .GetMethod("AttachPresenter", flags)
+                .GetMethod("AttachSession", flags)
                 .Invoke(window, null);
 
             GetPresenter(window)
