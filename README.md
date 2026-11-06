@@ -6,7 +6,7 @@ Find a GameObject, asset, or folder, then search for Unity commands for that con
 
 **Unity 6.6** · **UPM package** · **MIT license**
 
-[Installation](#installation) · [Quick start](#quick-start) · [Keyboard shortcuts](#keyboard-shortcuts) · [Development](#development)
+[Installation](#installation) · [Quick start](#quick-start) · [Keyboard shortcuts](#keyboard-shortcuts) · [Architecture](#architecture) · [Development](#development)
 
 ## Installation
 
@@ -49,10 +49,26 @@ Main-menu commands appear separately from **Scene View Actions** and **Asset Act
 
 UniPalette validates the target before handing the command to Unity. Unity controls whether the command takes effect, along with Undo/Redo and dialogs. Some commands still require a specific Editor window or UI state.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    View[Palette view] -->|User input| Presenter[Presenter]
+    Presenter -->|Browse and search| Session[Session]
+    Session -->|State changes| Presenter
+    Session -->|Execution request| Host[Editor window]
+    Host -->|Prepare and dispatch| Services[Unity services]
+```
+
+- **Presentation** maps keyboard and pointer input to palette actions and renders the resulting state.
+- **Session** owns the active browser, search results, selected row, and history. A failed update leaves the last complete result set in place.
+- **Editor window and services** manage Editor notifications and Selection, discover commands, and handle the close, focus, and dispatch sequence.
+
+See the [Editor architecture guide](Packages/com.brokenmeta.unipalette/Editor/README.md) for ownership, command routes, and links to the implementation.
+
 ## Development
 
 Open the repository root as a Unity project. The package is embedded under `Packages/com.brokenmeta.unipalette`. Run the **Edit Mode** suite in Unity Test Runner.
 
-- [Editor architecture](Packages/com.brokenmeta.unipalette/Editor/README.md)
 - [Test suite and categories](Packages/com.brokenmeta.unipalette/Tests/README.md)
 - [MIT license](LICENSE)
