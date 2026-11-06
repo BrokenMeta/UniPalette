@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using BrokenMeta.UniPalette.Editor.Model;
 using BrokenMeta.UniPalette.Editor.Services;
 using NUnit.Framework;
 
@@ -62,6 +63,22 @@ namespace BrokenMeta.UniPalette.Tests
                 Build().Children[0].Children.Single(item => item.Path == "Assets/Open").AvailabilityNote,
                 Does.Contain("unverified")
             );
+        }
+
+        [Test]
+        public void EditCommandsFollowLiveAvailabilityInRealContexts()
+        {
+            var paths = new[] { "Edit/Rename", "Edit/Copy", };
+
+            var contexts = new[] { Go(), new AssetContext("missing-test-guid"), };
+
+            foreach (var context in contexts)
+            {
+                var tree = MenuCommands.Build(paths, context, true, path => path == "Edit/Rename");
+                var group = tree.Children.Single();
+                Assert.That(group.Path, Is.EqualTo("Edit"));
+                Assert.That(group.Children.Select(item => item.Path), Is.EqualTo(new[] { "Edit/Rename", }));
+            }
         }
 
         [Test]

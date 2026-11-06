@@ -8,6 +8,8 @@ namespace BrokenMeta.UniPalette.Editor.Services
     {
         private readonly string _path;
 
+        private bool IsEditCommand => _path.StartsWith("Edit/", StringComparison.Ordinal);
+
         internal MenuRelevance(string path) =>
             _path = path;
 
@@ -17,12 +19,12 @@ namespace BrokenMeta.UniPalette.Editor.Services
             && nativeContext.Accept(this);
 
         public bool Visit(SceneObjectContext context) =>
-            _path == "Edit/Duplicate"
+            IsEditCommand
             || _path.StartsWith("GameObject/", StringComparison.Ordinal)
             || _path.StartsWith("Component/", StringComparison.Ordinal);
 
         public bool Visit(AssetContext context) =>
-            _path == "Edit/Duplicate" || _path.StartsWith("Assets/", StringComparison.Ordinal);
+            IsEditCommand || _path.StartsWith("Assets/", StringComparison.Ordinal);
 
         public bool Visit(SceneRootContext context) =>
             _path.StartsWith("GameObject/", StringComparison.Ordinal);

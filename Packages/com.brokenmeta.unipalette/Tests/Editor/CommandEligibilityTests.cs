@@ -22,6 +22,8 @@ namespace BrokenMeta.UniPalette.Tests
             AssertRelevance("assets/Copy Path", new AssetsRootContext(), false);
             AssertRelevance("GameObjectExtra/Create Empty", new SceneRootContext(), false);
             AssertRelevance("ComponentExtra/Box Collider", new SceneObjectContext(null), false);
+            AssertRelevance("EditExtra/Rename", new SceneObjectContext(null), false);
+            AssertRelevance("edit/Rename", new AssetContext("missing-test-guid"), false);
         }
 
         // Family relevance does not inspect targets or Unity menu state.
@@ -35,7 +37,7 @@ namespace BrokenMeta.UniPalette.Tests
             bool gameObject,
             bool component,
             bool asset,
-            bool duplicate)
+            bool edit)
         {
             var context = kind == "Object"
                 ? new SceneObjectContext(null)
@@ -57,7 +59,9 @@ namespace BrokenMeta.UniPalette.Tests
             )
                 AssertRelevance(path, context, asset);
 
-            AssertRelevance("Edit/Duplicate", context, duplicate);
+            AssertRelevance("Edit/Duplicate", context, edit);
+            AssertRelevance("Edit/Rename", context, edit);
+            AssertRelevance("Edit/Copy", context, edit);
             AssertRelevance("Window/General/Inspector", context, false);
             AssertRelevance(null, context, false);
             AssertRelevance("", context, false);

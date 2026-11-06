@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Linq;
+using BrokenMeta.UniPalette.Editor.Model;
 using BrokenMeta.UniPalette.Editor.Services;
 using NUnit.Framework;
 using UnityEditor;
@@ -26,6 +27,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(commands.IsLoading, Is.False);
             Assert.That(commands.Error, Is.Empty);
             Assert.That(commands.Paths, Does.Contain("Assets/Create/Folder"));
+            Assert.That(commands.Paths, Does.Contain("Edit/Rename"));
 
             Assert.That(
                 commands.Paths.Count,
@@ -41,6 +43,15 @@ namespace BrokenMeta.UniPalette.Tests
             var count = commands.Paths.Count;
             var root = commands.ForContext(Assets());
             Assert.That(root.Children.Select(item => item.Path), Is.EqualTo(new[] { "Assets", }));
+
+            var realContextKinds = new[] { Go(), new AssetContext("missing-test-guid"), };
+
+            foreach (var context in realContextKinds)
+            {
+                var edit = commands.ForContext(context).Children.Single(item => item.Path == "Edit");
+                Assert.That(edit.Children.Select(item => item.Path), Does.Contain("Edit/Rename"));
+            }
+
             commands.ForContext(SceneRoot());
 
             Assert.That(

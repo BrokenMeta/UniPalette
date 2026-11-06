@@ -38,6 +38,8 @@ Browsing and moving the highlighted row leave Unity Selection unchanged. Opening
 
 Both contextual routes use the same generic adapter, [ContextActionSource](Services/ContextActionSource.cs). They keep descriptors in the command tree and resolve a fresh handler after focus. Virtual roots use the main-menu route with explicit Selection state. Scene Root requires empty Selection and captures the active main-stage scene during execution preparation. Assets Root selects and opens the real `Assets` folder.
 
+For a GameObject, the main-menu source considers `GameObject/*`, `Component/*`, and `Edit/*`. For an asset or folder, it considers `Assets/*` and `Edit/*`. The virtual roots keep their own scope of `GameObject/*` or `Assets/*`. An entry such as `Edit/Rename` uses the main-menu route. Renaming from the Project context menu can use a different handler.
+
 When the user activates a command leaf, `PaletteSession` sends the execution request directly to `UniPaletteWindow`. The window prepares the request while the palette is open. Once preparation succeeds, it closes the palette and invokes the prepared executor. The executor focuses the target window, rechecks the relevant state, and hands off the command at most once. Preparation failures appear in the palette. Failures after closing go to the Unity Console.
 
 Menu availability is a preliminary check. Unity owns command effects, deferred work, Undo/Redo, and dialogs. Contextual groups reflect actions exposed by the public APIs, and coverage varies by target type and Editor state.
