@@ -5,6 +5,7 @@ using System.Reflection;
 using BrokenMeta.UniPalette.Editor;
 using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor.Services;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -281,9 +282,12 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(session.Browser, Is.TypeOf<CommandBrowser>());
             Assert.That(Selection.activeObject, Is.EqualTo(target));
 
-            typeof(UniPaletteWindow)
+            var observer = typeof(UniPaletteWindow)
+                .GetField("_contextObserver", flags)
+                .GetValue(window);
+            typeof(EditorContextObserver)
                 .GetMethod("OnSelectionChanged", flags)
-                .Invoke(window, null);
+                .Invoke(observer, null);
 
             var hierarchyEvents = 0;
             var projectEvents = 0;

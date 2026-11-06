@@ -11,7 +11,7 @@ namespace BrokenMeta.UniPalette.Editor
 {
     public class UniPaletteWindow : EditorWindow
     {
-        private SubscriptionScope _editorSubscriptions;
+        private EditorContextObserver _contextObserver;
 
         private ICommandSource _commandSource;
 
@@ -21,9 +21,6 @@ namespace BrokenMeta.UniPalette.Editor
 
         private SceneView _contextSceneView;
         private bool _executing;
-        private double _nextContextCheck;
-        private Object _observedSelection;
-        private int _observedSelectionCount;
         private PalettePresenter _presenter;
         private PaletteSession _session;
         private PaletteView _view;
@@ -32,43 +29,15 @@ namespace BrokenMeta.UniPalette.Editor
         {
             _executing = false;
             _contextSceneView = SceneView.lastActiveSceneView;
-            _editorSubscriptions?.Dispose();
-            _editorSubscriptions = new SubscriptionScope();
-
-            Subscription
-                .Create(
-                    () => Selection.selectionChanged += OnSelectionChanged,
-                    () => Selection.selectionChanged -= OnSelectionChanged
-                )
-                .AddTo(_editorSubscriptions);
-
-            Subscription
-                .Create(
-                    () => EditorApplication.hierarchyChanged += RefreshContexts,
-                    () => EditorApplication.hierarchyChanged -= RefreshContexts
-                )
-                .AddTo(_editorSubscriptions);
-
-            Subscription
-                .Create(
-                    () => EditorApplication.projectChanged += RefreshContexts,
-                    () => EditorApplication.projectChanged -= RefreshContexts
-                )
-                .AddTo(_editorSubscriptions);
-
-            Subscription
-                .Create(
-                    () => EditorApplication.update += CheckContextChanges,
-                    () => EditorApplication.update -= CheckContextChanges
-                )
-                .AddTo(_editorSubscriptions);
+            _contextObserver?.Dispose();
+            _contextObserver = new EditorContextObserver(() => _session?.Context, RefreshContexts);
         }
 
         private void OnDisable()
         {
             _executing = true;
-            _editorSubscriptions?.Dispose();
-            _editorSubscriptions = null;
+            _contextObserver?.Dispose();
+            _contextObserver = null;
             DisposeView();
             DisposeSession();
             _executionPreparation = null;
@@ -105,38 +74,12 @@ namespace BrokenMeta.UniPalette.Editor
             RefreshContexts();
         }
 
-        private void OnSelectionChanged()
-        {
-            // A delayed notification for the context we just confirmed is already reflected in the UI.
-            if (ReferenceEquals(_observedSelection, Selection.activeObject)
-                && _observedSelectionCount == Selection.count)
-                return;
-
-            RefreshContexts();
-        }
-
-        private void CheckContextChanges()
-        {
-            if (_session == null || EditorApplication.timeSinceStartup < _nextContextCheck)
-                return;
-
-            _nextContextCheck = EditorApplication.timeSinceStartup + 0.1;
-
-            // Unity 6.6 can change Selection through API without delivering selectionChanged.
-            // Compare only the active object/count and current target, never search every tick.
-            if (!ReferenceEquals(_observedSelection, Selection.activeObject)
-                || _observedSelectionCount != Selection.count
-                || (_session.Context != null
-                    && !_session.Context.IsValid))
-                RefreshContexts();
-        }
-
         private void RefreshContexts()
         {
             if (!this || _session == null || _view?.IsAttached != true)
                 return;
 
-            ObserveSelection();
+            _contextObserver?.AcknowledgeSelection();
 
             if (_session.ConfirmingContext)
                 return;
@@ -175,12 +118,12 @@ namespace BrokenMeta.UniPalette.Editor
             );
             _sessionSubscriptions = new SubscriptionScope();
             _session
-                .SubscribeContextConfirmed(ObserveSelection)
+                .SubscribeContextConfirmed(() => _contextObserver?.AcknowledgeSelection())
                 .AddTo(_sessionSubscriptions);
             _session
                 .SubscribeExecutionRequested(ExecuteCommand)
                 .AddTo(_sessionSubscriptions);
-            ObserveSelection();
+            _contextObserver?.AcknowledgeSelection();
         }
 
         private void DisposePresenter()
@@ -220,13 +163,6 @@ namespace BrokenMeta.UniPalette.Editor
             _executing = true;
             Close();
             executeAfterClose();
-        }
-
-        private void ObserveSelection()
-        {
-            // Acknowledge API changes even when Unity omits selectionChanged.
-            _observedSelection = Selection.activeObject;
-            _observedSelectionCount = Selection.count;
         }
     }
 }
