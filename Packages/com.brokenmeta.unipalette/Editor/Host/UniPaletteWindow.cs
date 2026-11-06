@@ -38,22 +38,22 @@ namespace BrokenMeta.UniPalette.Editor
             _executing = true;
             _contextObserver?.Dispose();
             _contextObserver = null;
-            DisposeView();
             DisposeSession();
+            DisposeView();
             _executionPreparation = null;
         }
 
         private void CreateGUI()
         {
-            DisposeView();
             DisposeSession();
+            DisposeView();
             titleContent = new GUIContent("UniPalette");
             minSize = new Vector2(360, 240);
             _view = new PaletteView(rootVisualElement);
             var contextSelection = new UnityContextSelection();
             var sceneViewActions = new SceneViewActionCatalog(contextSelection);
             var assetActions = new AssetActionCatalog(contextSelection);
-            _commandSource = new PaletteCommands(
+            var commandSource = new PaletteCommands(
                 new MenuCommands(contextSelection),
                 new ContextActionSource<SceneObjectContext>(sceneViewActions, includeEmptyGroup: true),
                 new ContextActionSource<AssetContext>(assetActions, includeEmptyGroup: false)
@@ -64,9 +64,7 @@ namespace BrokenMeta.UniPalette.Editor
                 assetActions,
                 _contextSceneView
             );
-            _session = new PaletteSession(_commandSource, contextSelection, new UnityContextSource());
-            AttachSession();
-            _presenter.Render();
+            ReplaceSession(new PaletteSession(commandSource, contextSelection, new UnityContextSource()), commandSource);
         }
 
         private void OnFocus()
@@ -108,43 +106,20 @@ namespace BrokenMeta.UniPalette.Editor
             window._presenter?.ScheduleSearchFocus();
         }
 
-        private void AttachSession()
-        {
-            _presenter = new PalettePresenter(
-                _view,
-                _session,
-                new BrowserPresentationSelector(),
-                Close
-            );
-            _sessionSubscriptions = new SubscriptionScope();
-            _session
-                .SubscribeContextConfirmed(() => _contextObserver?.AcknowledgeSelection())
-                .AddTo(_sessionSubscriptions);
-            _session
-                .SubscribeExecutionRequested(ExecuteCommand)
-                .AddTo(_sessionSubscriptions);
-            _contextObserver?.AcknowledgeSelection();
-        }
-
-        private void DisposePresenter()
-        {
-            _presenter?.Dispose();
-            _presenter = null;
-        }
-
         private void DisposeView()
         {
-            DisposePresenter();
             _view?.Dispose();
             _view = null;
         }
 
         private void DisposeSession()
         {
-            DisposePresenter();
+            _presenter?.Dispose();
+            _presenter = null;
             _sessionSubscriptions?.Dispose();
             _sessionSubscriptions = null;
             _session?.Dispose();
+            _session = null;
             _commandSource?.Dispose();
             _commandSource = null;
         }
@@ -163,6 +138,29 @@ namespace BrokenMeta.UniPalette.Editor
             _executing = true;
             Close();
             executeAfterClose();
+        }
+
+        // The window takes ownership of the session and, when supplied, its command source.
+        internal void ReplaceSession(PaletteSession session, ICommandSource ownedSource = null)
+        {
+            DisposeSession();
+            _session = session;
+            _commandSource = ownedSource;
+            _presenter = new PalettePresenter(
+                _view,
+                _session,
+                new BrowserPresentationSelector(),
+                Close
+            );
+            _sessionSubscriptions = new SubscriptionScope();
+            _session
+                .SubscribeContextConfirmed(() => _contextObserver?.AcknowledgeSelection())
+                .AddTo(_sessionSubscriptions);
+            _session
+                .SubscribeExecutionRequested(ExecuteCommand)
+                .AddTo(_sessionSubscriptions);
+            _contextObserver?.AcknowledgeSelection();
+            _presenter.Render();
         }
     }
 }

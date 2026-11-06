@@ -32,7 +32,7 @@ namespace BrokenMeta.UniPalette.Tests
                 .GetMethod("CreateGUI", flags)
                 .Invoke(window, null);
 
-            PaletteTestData.Install(window, PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands()));
+            window.ReplaceSession(PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands()));
             _testWindow = window;
             window.Show();
             window.Focus();
@@ -119,7 +119,7 @@ namespace BrokenMeta.UniPalette.Tests
                 .GetMethod("CreateGUI", flags)
                 .Invoke(window, null);
 
-            PaletteTestData.Install(window, PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands()));
+            window.ReplaceSession(PaletteTestData.CreateSession(commandRoot: PaletteTestData.Commands()));
             _testWindow = window;
             window.Show();
             var notifications = 0;
@@ -237,7 +237,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             var item = new SceneObjectContext(target);
             using var session = PaletteTestData.CreateSession(new[] { item, }, PaletteTestData.Commands());
-            PaletteTestData.Install(window, session);
+            window.ReplaceSession(session);
             window.Show();
             window.Focus();
             // A delayed hierarchy notification from fixture creation is a separate signal:

@@ -64,7 +64,7 @@ namespace BrokenMeta.UniPalette.Tests
                 PaletteTestData.Commands()
             );
 
-            PaletteTestData.Install(_window, _session);
+            _window.ReplaceSession(_session);
             _results = _window.rootVisualElement.Q<ListView>("results");
             _window.Show();
             _window.Focus();

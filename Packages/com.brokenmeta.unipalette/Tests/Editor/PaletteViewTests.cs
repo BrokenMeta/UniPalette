@@ -47,7 +47,7 @@ namespace BrokenMeta.UniPalette.Tests
             var source = new InterruptibleContextSource();
             var commands = new TestCommandSource(PaletteTestData.Commands());
             _session = new PaletteSession(commands, new UnityContextSelection(), source);
-            PaletteTestData.Install(_window, _session, commands);
+            _window.ReplaceSession(_session, commands);
             _session.Select(1);
             var previousBrowser = _session.Browser;
             var selected = _session.Results[1];
@@ -101,7 +101,7 @@ namespace BrokenMeta.UniPalette.Tests
             yield return SetUpWindow();
             var first = new TestCommandSource(PaletteTestData.Commands());
             var firstSession = new PaletteSession(first, new UnityContextSelection(), new UnityContextSource());
-            PaletteTestData.Install(_window, firstSession, first);
+            _window.ReplaceSession(firstSession, first);
 
             typeof(UniPaletteWindow)
                 .GetMethod("CreateGUI", PrivateInstance)
@@ -111,7 +111,7 @@ namespace BrokenMeta.UniPalette.Tests
             Assert.That(first.DisposeCalls, Is.EqualTo(1));
             var second = new TestCommandSource(PaletteTestData.Commands());
             var secondSession = new PaletteSession(second, new UnityContextSelection(), new UnityContextSource());
-            PaletteTestData.Install(_window, secondSession, second);
+            _window.ReplaceSession(secondSession, second);
             _window.Close();
 
             yield return null;
@@ -206,7 +206,7 @@ namespace BrokenMeta.UniPalette.Tests
                 PaletteTestData.Commands()
             );
 
-            PaletteTestData.Install(_window, _session);
+            _window.ReplaceSession(_session);
             _results = _window.rootVisualElement.Q<ListView>("results");
 
             var input = _window
@@ -272,7 +272,7 @@ namespace BrokenMeta.UniPalette.Tests
 
             _session.Select(0);
             _session.OpenContextCommands();
-            PaletteTestData.Install(_window, _session);
+            _window.ReplaceSession(_session);
             Assert.That(_session.SelectedIndex, Is.Zero, "Rendering a new model must preserve its selection");
             Assert.That(_results.selectedIndex, Is.Zero);
             Assert.That(_window.rootVisualElement.Q<Text>("mode").text, Is.EqualTo("Commands"));

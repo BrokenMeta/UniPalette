@@ -60,31 +60,5 @@ namespace BrokenMeta.UniPalette.Tests
                     )
                 )
             );
-
-        internal static void Install(
-            UniPaletteWindow window,
-            PaletteSession session,
-            ICommandSource ownedSource = null)
-        {
-            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
-            var field = typeof(UniPaletteWindow).GetField("_session", flags);
-
-            typeof(UniPaletteWindow)
-                .GetMethod("DisposeSession", flags)
-                .Invoke(window, null);
-
-            field.SetValue(window, session);
-
-            typeof(UniPaletteWindow)
-                .GetField("_commandSource", flags)
-                .SetValue(window, ownedSource);
-
-            typeof(UniPaletteWindow)
-                .GetMethod("AttachSession", flags)
-                .Invoke(window, null);
-
-            GetPresenter(window)
-                .Render();
-        }
     }
 }
