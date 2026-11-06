@@ -14,11 +14,8 @@ namespace BrokenMeta.UniPalette.Editor
         private SubscriptionScope _editorSubscriptions;
 
         private ICommandSource _commandSource;
-        private UnityContextSelection _contextSelection;
 
-        private SceneViewActionCatalog _sceneViewActions;
-
-        private AssetActionCatalog _assetActions;
+        private CommandExecutionPreparation _executionPreparation;
 
         private SceneView _contextSceneView;
         private bool _executing;
@@ -72,6 +69,7 @@ namespace BrokenMeta.UniPalette.Editor
             _editorSubscriptions = null;
             DisposeView();
             DisposeSession();
+            _executionPreparation = null;
         }
 
         private void CreateGUI()
@@ -81,15 +79,21 @@ namespace BrokenMeta.UniPalette.Editor
             titleContent = new GUIContent("UniPalette");
             minSize = new Vector2(360, 240);
             _view = new PaletteView(rootVisualElement);
-            _contextSelection = new UnityContextSelection();
-            _sceneViewActions = new SceneViewActionCatalog(_contextSelection);
-            _assetActions = new AssetActionCatalog(_contextSelection);
+            var contextSelection = new UnityContextSelection();
+            var sceneViewActions = new SceneViewActionCatalog(contextSelection);
+            var assetActions = new AssetActionCatalog(contextSelection);
             _commandSource = new PaletteCommands(
-                new MenuCommands(_contextSelection),
-                new SceneViewContextActions(_sceneViewActions),
-                new AssetContextActions(_assetActions)
+                new MenuCommands(contextSelection),
+                new SceneViewContextActions(sceneViewActions),
+                new AssetContextActions(assetActions)
             );
-            _session = new PaletteSession(_commandSource, _contextSelection, new UnityContextSource());
+            _executionPreparation = new CommandExecutionPreparation(
+                contextSelection,
+                sceneViewActions,
+                assetActions,
+                _contextSceneView
+            );
+            _session = new PaletteSession(_commandSource, contextSelection, new UnityContextSource());
             AttachPresenter();
             _presenter.Render();
         }
@@ -197,57 +201,15 @@ namespace BrokenMeta.UniPalette.Editor
             if (_executing)
                 return;
 
-            if (command is ContextActionItem action)
-            {
-                if (!action.Context.SameIdentity(context))
-                {
-                    _session.ShowExecutionError("Contextual action does not belong to the confirmed context.");
-                    return;
-                }
-
-                if (action.Context is AssetContext)
-                {
-                    if (!AssetActionExecution.TryPrepare(_assetActions, action, out var assetExecution, out var assetError))
-                    {
-                        _session.ShowExecutionError(assetError);
-                        return;
-                    }
-
-                    CloseAndExecute(assetExecution.ExecuteAfterClose);
-                    return;
-                }
-
-                if (!SceneViewActionExecution.TryPrepare(
-                    _sceneViewActions,
-                    action,
-                    _contextSceneView,
-                    out var contextual,
-                    out var contextError
-                ))
-                {
-                    _session.ShowExecutionError(contextError);
-                    return;
-                }
-
-                CloseAndExecute(contextual.ExecuteAfterClose);
-                return;
-            }
-
-            if (!NativeExecution.TryPrepare(_contextSelection, command, context, out var execution, out var error))
+            if (!_executionPreparation.TryPrepare(command, context, out var executeAfterClose, out var error))
             {
                 _session.ShowExecutionError(error);
-
                 return;
             }
 
-            CloseAndExecute(execution.ExecuteAfterClose);
-        }
-
-        private void CloseAndExecute(System.Action execute)
-        {
             _executing = true;
             Close();
-            execute();
+            executeAfterClose();
         }
 
         private void ObserveSelection()
