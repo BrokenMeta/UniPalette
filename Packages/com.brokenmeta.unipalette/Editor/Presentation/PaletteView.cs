@@ -353,8 +353,9 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             row.tooltip = description._tooltip;
             row.thumbnail = ItemIcon(description._resolveIconTarget?.Invoke(), description._iconName);
             var indicator = row.Q<Text>("indicator");
-            indicator.text = description._indicator;
-            indicator.tooltip = description._indicatorTooltip;
+            var activation = description.GetIndicator();
+            indicator.text = activation.Text;
+            indicator.tooltip = activation.Tooltip;
         }
 
         private static Texture ItemIcon(Object target, string iconName) =>

@@ -8,16 +8,17 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
     internal sealed class BrowserPresentationSelector : IPaletteBrowserVisitor<BrowserPresentation>
     {
         private readonly BrowserPresentation _commands = new CommandPresentation();
-        private readonly BrowserPresentation _contexts = new ContextPresentation();
 
         public BrowserPresentation Visit(ContextBrowser browser) =>
-            _contexts;
+            new ContextPresentation(browser);
 
         public BrowserPresentation Visit(CommandBrowser browser) =>
             _commands;
 
         private sealed class ContextPresentation : BrowserPresentation
         {
+            private readonly ContextBrowser _browser;
+
             internal override string Label => "Context";
             internal override string SearchPlaceholder => "Search contexts...";
             internal override string DataLabel => "Unity Editor";
@@ -29,6 +30,19 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
 
             internal override string Hints =>
                 "\u2191\u2193 Select \u00B7 Enter Browse / Commands \u00B7 Ctrl+Enter Commands \u00B7 Esc Back";
+
+            internal ContextPresentation(ContextBrowser browser) =>
+                _browser = browser;
+
+            private (string Text, string Tooltip) DescribeActivation(PaletteItem item)
+            {
+                if (item.SelectionEntry)
+                    return ("\u21B5", "Open selection commands");
+
+                return _browser.BrowsesOnActivate(item)
+                    ? ("\u203A", "Enter to browse \u00B7 Ctrl+Enter for commands")
+                    : ("\u2197", "Enter for commands");
+            }
 
             internal override string GetBreadcrumb(PaletteBrowser browser) =>
                 browser.Context?.Path
@@ -49,16 +63,7 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                         : item.Path,
                     () => item.Target,
                     item.IconName,
-                    item.SelectionEntry
-                        ? "\u21B5"
-                        : item.CanBrowse
-                            ? "\u203A"
-                            : "\u2197",
-                    item.SelectionEntry
-                        ? "Open selection commands"
-                        : item.CanBrowse
-                            ? "Enter Browse / Commands \u00B7 Ctrl+Enter for commands"
-                            : "Enter for commands"
+                    resolveIndicator: () => DescribeActivation(item)
                 );
         }
 

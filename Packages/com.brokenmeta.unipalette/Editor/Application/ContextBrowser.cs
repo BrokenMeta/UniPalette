@@ -26,16 +26,16 @@ namespace BrokenMeta.UniPalette.Editor.Application
             }
         }
 
+        // Source entries open their area even when empty; empty folders open commands.
+        internal bool BrowsesOnActivate(PaletteItem item) =>
+            !item.SelectionEntry && _source.HasBrowseChildren(item);
+
         internal override bool Activate(PaletteSession session, PaletteItem selected)
         {
             if (selected == null)
                 return false;
 
-            if (selected.SelectionEntry)
-                return session.OpenCommands(selected);
-
-            // Source entries open their area even when empty; empty folders open commands.
-            return _source.HasBrowseChildren(selected)
+            return BrowsesOnActivate(selected)
                 ? session.Push(new ContextBrowser(_source, selected))
                 : session.OpenCommands(selected);
         }

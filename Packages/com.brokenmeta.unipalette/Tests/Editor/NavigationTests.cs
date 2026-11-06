@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using BrokenMeta.UniPalette.Editor.Application;
 using BrokenMeta.UniPalette.Editor.Model;
+using BrokenMeta.UniPalette.Editor.Presentation;
 using BrokenMeta.UniPalette.Editor.Services;
 using NUnit.Framework;
 
@@ -49,6 +50,12 @@ namespace BrokenMeta.UniPalette.Tests
 
             using var commands = new TestCommandSource(PaletteTestData.Commands());
             using var session = new PaletteSession(commands, new UnityContextSelection(), contexts);
+            var presentation = session.Browser.Accept(new BrowserPresentationSelector());
+            var row = presentation.Describe(root, session.Context);
+            Assert.That(contexts.CheckedContext, Is.Null, "Preparing rows must not enumerate children");
+            Assert.That(row.GetIndicator().Text, Is.EqualTo(canBrowse ? "\u203A" : "\u2197"));
+            Assert.That(contexts.CheckedContext, Is.SameAs(root));
+
             session.Select(0);
 
             Assert.That(session.ActivateSelected(), Is.True);
