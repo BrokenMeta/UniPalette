@@ -180,6 +180,13 @@ namespace BrokenMeta.UniPalette.Tests
         {
             yield return SetUpWindow();
             yield return null;
+            var hints = _window.rootVisualElement.Q<Unity.AppUI.UI.Text>("hints");
+            Assert.That(
+                hints.text,
+                Does.Contain("Alt+\u2191\u2193 Select")
+                    .And.Contain("Alt+\u2192 Browse or open commands")
+                    .And.Contain("Alt+\u2190 Back")
+            );
             Key(KeyCode.RightArrow, EventModifiers.Alt);
             Assert.That(_session.Context, Is.Null, "No implicit selection");
             Key(KeyCode.DownArrow);
@@ -205,6 +212,12 @@ namespace BrokenMeta.UniPalette.Tests
             Key(KeyCode.RightArrow, EventModifiers.Alt);
             Assert.That(_session.Context.Path, Is.EqualTo("Scene Root/Parent/Leaf"));
             Assert.That(_session.Browser, Is.TypeOf<CommandBrowser>());
+            Assert.That(
+                hints.text,
+                Does.Contain("Alt+\u2191\u2193 Select")
+                    .And.Contain("Alt+\u2192 Open category")
+                    .And.Contain("Alt+\u2190 Back")
+            );
             Key(KeyCode.LeftArrow, EventModifiers.Alt);
             Assert.That(_session.Results[_session.SelectedIndex].Title, Is.EqualTo("Leaf"));
             Key(KeyCode.LeftArrow, EventModifiers.Alt);

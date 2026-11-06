@@ -29,7 +29,8 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
             internal override string ResultsTitle => "Contexts";
 
             internal override string Hints =>
-                "\u2191\u2193 Select \u00B7 Enter Browse / Commands \u00B7 Ctrl+Enter Commands \u00B7 Esc Back";
+                "\u2191\u2193 / Alt+\u2191\u2193 Select \u00B7 Enter / Alt+\u2192 Browse or open commands \u00B7 "
+                + "Ctrl+Enter Commands \u00B7 Esc / Alt+\u2190 Back";
 
             internal ContextPresentation(ContextBrowser browser) =>
                 _browser = browser;
@@ -83,7 +84,10 @@ namespace BrokenMeta.UniPalette.Editor.Presentation
                 + "Unity determines applicability and results; special window/UI state may still be required.";
 
             internal override string ResultsTitle => "Commands";
-            internal override string Hints => "\u2191\u2193 Select \u00B7 Enter Open / Run \u00B7 Esc Back";
+
+            internal override string Hints =>
+                "\u2191\u2193 / Alt+\u2191\u2193 Select \u00B7 Enter Open / Run \u00B7 "
+                + "Alt+\u2192 Open category \u00B7 Esc / Alt+\u2190 Back";
 
             internal override string GetBreadcrumb(PaletteBrowser browser) =>
                 browser.Context.Path

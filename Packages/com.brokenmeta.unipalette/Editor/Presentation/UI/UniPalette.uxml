@@ -19,7 +19,6 @@
         <ui:ListView name="results" class="unipalette__results" selection-type="Single" fixed-item-height="44"
                      virtualization-method="FixedHeight"/>
         <appui:Text name="message" class="unipalette__message"/>
-        <appui:Text name="hints" class="unipalette__hints"
-                    text="↑↓ Select   Enter Browse   Ctrl+Enter Commands   Esc Back"/>
+        <appui:Text name="hints" class="unipalette__hints"/>
     </appui:Panel>
 </ui:UXML>
